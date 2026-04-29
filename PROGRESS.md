@@ -4,6 +4,50 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 29 April 2026 (Session 5)
+
+### What Was Built / Changed
+
+- **Jest test suite installed** — jest 29, jest-expo 55, @testing-library/react-native 13, @testing-library/jest-native 5, react-test-renderer 19.1.0; pinned to avoid React 19.1/19.2 peer dep conflict
+- **jest.config.js** — jest-expo preset, separate unit/integration test paths, 70% coverage threshold
+- **28 tests written, all passing:**
+  - `__tests__/unit/HomeScreen.test.tsx` — smoke, branding, search input (including state updates), CTAs, popular routes rendering, POPULAR_ROUTES data integrity, platform variant (Android)
+  - `__tests__/integration/HomeScreenSearch.test.tsx` — full user search journey including Irish characters and clear sequence
+- **100% coverage** — statements, branches, functions, lines all at 100%
+- **GitHub Actions CI** (`.github/workflows/ci.yml`) — triggers on every push to `main` and every pull request; runs unit tests, integration tests, and coverage check separately; blocks merge on failure; confirmed green ✅
+- **`app/index.tsx` improvements** — switched `SafeAreaView` to `react-native-safe-area-context` (core one deprecated); moved `Platform.OS` check into component render so it's mockable in tests; exported `POPULAR_ROUTES` for data unit tests
+
+### Decisions Made
+
+| Decision | Rationale |
+|----------|-----------|
+| Jest 29 (not 30) | jest-expo 55 bundles Jest 29 internally; Jest 30 caused module resolution errors |
+| `--legacy-peer-deps` for test installs | react-test-renderer 19.2.5 vs react 19.1.0 version mismatch; `--legacy-peer-deps` resolves safely |
+| 70% branch coverage threshold | Enforces meaningful test coverage without being unreachable on early-stage UI |
+| Platform check moved to render function | StyleSheet.create runs once at module load; Platform mocks only work on per-render code |
+
+### Testing Standard (applies to all future code on this project)
+
+- Every function written must have a corresponding unit test
+- Functions that interact with other functions or external services (API, auth, payments) must also have integration tests
+- Tests live in `__tests__/unit/` or `__tests__/integration/`
+- Coverage threshold: 70% minimum (branches, functions, lines, statements)
+- CI blocks merge if any test fails
+
+### Problems Encountered
+
+- **Jest 30 / jest-expo 55 incompatibility** — Expo's `winter` runtime uses `import.meta` which Jest 30 doesn't handle; fixed by pinning jest to 29.x
+- **Branch coverage stuck at 50%** — `Platform.OS` ternary was inside `StyleSheet.create()` (evaluated once at import time), so mocking Platform at test time had no effect; fixed by moving the check into the component function body
+
+### Suggested Next Steps
+
+1. **Build "Find a ride" results screen** — list of journeys with driver info, price, seats, departure time; write unit + integration tests alongside
+2. **Build "Offer a ride" form screen** — from, to, date, seats, price fields; validate inputs (unit test each validator)
+3. **Add a tab bar** — Home / My Rides / Profile navigation
+4. **Set up Stripe Connect account**
+
+---
+
 ## 29 April 2026 (Session 4)
 
 ### What Was Built / Changed
