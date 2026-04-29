@@ -4,6 +4,36 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 29 April 2026 (Session 3)
+
+### What Was Built / Changed
+
+- **Homebrew added to PATH** — `/opt/homebrew/bin/brew shellenv` added to `~/.zshrc`; `LANG=en_US.UTF-8` also added to silence CocoaPods UTF-8 warning
+- **CocoaPods 1.16.2 installed** — via `brew install cocoapods`; pulled in Ruby 4.0.3 as a dependency (resolves the Ruby 2.6 blocker from Session 2)
+- **Full native iOS build completed** — `expo run:ios` compiled and signed `com.htwa.app`, installed it on the iPhone 17 Pro Simulator, and launched successfully
+- **App Store build pipeline verified** — the complete path from source → Xcode → Simulator is confirmed working
+
+### Decisions Made
+
+| Decision | Rationale |
+|----------|-----------|
+| Homebrew at `/opt/homebrew` (Apple Silicon path) | Standard location for M-series Macs; added to PATH in `.zshrc` |
+| CocoaPods via Homebrew (not gem) | Homebrew brings its own Ruby 4.0.3, bypassing the system Ruby 2.6 limitation |
+
+### Problems Encountered
+
+- **Homebrew not in PATH** — installed but shell couldn't find `brew`. Fixed by adding `eval "$(/opt/homebrew/bin/brew shellenv)"` to `~/.zshrc`.
+
+### Suggested Next Steps
+
+1. **Purchase domains** — `htwa.ie`, `htwa.app`, `htwa.co.uk`
+2. **Set up Stripe Connect account**
+3. **Begin UI design in Claude Design** — home screen, ride search, booking flow
+4. **Scaffold navigation** — add Expo Router so screens can link together
+5. **Replace the placeholder `App.tsx`** — build the first real screen (likely a ride search / home screen)
+
+---
+
 ## 29 April 2026 (Session 2)
 
 ### What Was Built / Changed
