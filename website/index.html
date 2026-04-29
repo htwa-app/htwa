@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="HTWA — Cost-sharing rideshare for Irish students. Share the journey, split the cost. Safe, verified, affordable." />
+  <title>HTWA — Heading That Way Anyway?</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:        #1F7A78;
+      --primary-light:  #E8F4F4;
+      --lavender:       #C8B8E8;
+      --lavender-light: #F0EBF8;
+      --amber:          #E8A55A;
+      --amber-light:    #FDF3E7;
+      --background:     #F7F3ED;
+      --surface:        #FFFFFF;
+      --text-primary:   #2A251F;
+      --text-secondary: rgba(40,30,20,0.55);
+      --text-tertiary:  rgba(40,30,20,0.35);
+      --border:         rgba(40,30,20,0.10);
+      --verified:       #34C759;
+      --shadow:         rgba(0,0,0,0.07);
+
+      --radius-sm:  8px;
+      --radius-md:  12px;
+      --radius-lg:  16px;
+      --radius-xl:  24px;
+      --radius-full: 999px;
+
+      --screen-padding: 20px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Poppins', system-ui, sans-serif;
+      background: var(--background);
+      color: var(--text-primary);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    img { display: block; max-width: 100%; }
+
+    a { color: inherit; text-decoration: none; }
+
+    /* ── Layout helpers ───────────────────────────────────────────────────── */
+    .container {
+      width: 100%;
+      max-width: 680px;
+      margin-inline: auto;
+      padding-inline: var(--screen-padding);
+    }
+
+    .section { padding-block: 56px; }
+
+    /* ── Nav ──────────────────────────────────────────────────────────────── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      max-width: 680px;
+      margin-inline: auto;
+      padding: 14px var(--screen-padding);
+    }
+
+    .nav-logo {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--primary);
+      letter-spacing: 2px;
+    }
+
+    .nav-cta {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 40px;
+      padding: 0 20px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: var(--radius-full);
+      transition: opacity 0.15s;
+    }
+
+    .nav-cta:hover { opacity: 0.88; }
+
+    /* ── Hero ─────────────────────────────────────────────────────────────── */
+    .hero {
+      padding-top: 64px;
+      padding-bottom: 56px;
+      text-align: center;
+    }
+
+    .hero-eyebrow {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--primary);
+      background: var(--primary-light);
+      padding: 4px 14px;
+      border-radius: var(--radius-full);
+      margin-bottom: 20px;
+      letter-spacing: 0.4px;
+    }
+
+    .hero h1 {
+      font-size: clamp(32px, 8vw, 48px);
+      font-weight: 700;
+      line-height: 1.1;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+    }
+
+    .hero h1 span { color: var(--primary); }
+
+    .hero-tagline {
+      font-size: 18px;
+      font-weight: 400;
+      color: var(--text-secondary);
+      margin-bottom: 36px;
+      max-width: 420px;
+      margin-inline: auto;
+    }
+
+    .hero-social-proof {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 36px;
+    }
+
+    .avatar-stack {
+      display: flex;
+    }
+
+    .avatar-stack .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 2px solid var(--surface);
+      background: var(--lavender);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-left: -8px;
+    }
+
+    .avatar-stack .avatar:first-child { margin-left: 0; background: var(--primary-light); }
+    .avatar-stack .avatar:nth-child(2) { background: var(--amber-light); }
+    .avatar-stack .avatar:nth-child(3) { background: var(--lavender-light); }
+
+    .social-proof-text {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .social-proof-text strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    /* ── Waitlist form ────────────────────────────────────────────────────── */
+    .waitlist-card {
+      background: var(--surface);
+      border-radius: var(--radius-xl);
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 8px var(--shadow);
+      padding: 28px 24px;
+      max-width: 480px;
+      margin-inline: auto;
+    }
+
+    .waitlist-card h2 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      text-align: center;
+    }
+
+    .waitlist-card .form-subheading {
+      font-size: 13px;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .form-group { margin-bottom: 12px; }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      height: 52px;
+      padding: 0 16px;
+      font-family: 'Poppins', system-ui, sans-serif;
+      font-size: 15px;
+      color: var(--text-primary);
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-md);
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+      transition: border-color 0.15s;
+    }
+
+    .form-group input::placeholder { color: var(--text-tertiary); }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      border-color: var(--primary);
+    }
+
+    .form-group select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%232A251F' stroke-opacity='.45' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 16px center;
+      padding-right: 40px;
+      cursor: pointer;
+    }
+
+    .region-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .region-option {
+      position: relative;
+    }
+
+    .region-option input[type="radio"] {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .region-option label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 52px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+      margin-bottom: 0;
+    }
+
+    .region-option input[type="radio"]:checked + label {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--primary-light);
+    }
+
+    .submit-btn {
+      width: 100%;
+      height: 52px;
+      margin-top: 16px;
+      background: var(--primary);
+      color: #fff;
+      font-family: 'Poppins', system-ui, sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+      border: none;
+      border-radius: var(--radius-full);
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    .submit-btn:hover { opacity: 0.88; }
+    .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .form-legal {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      text-align: center;
+      margin-top: 12px;
+    }
+
+    .form-success {
+      display: none;
+      text-align: center;
+      padding: 12px 0 4px;
+    }
+
+    .form-success .success-icon {
+      font-size: 40px;
+      margin-bottom: 10px;
+    }
+
+    .form-success h3 {
+      font-size: 17px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .form-success p {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .form-error {
+      display: none;
+      font-size: 13px;
+      color: #FF3B30;
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    /* ── How it works ─────────────────────────────────────────────────────── */
+    .how-it-works { background: var(--surface); }
+
+    .section-heading {
+      font-size: 24px;
+      font-weight: 600;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    .section-subheading {
+      font-size: 15px;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .step {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    .step-number {
+      flex-shrink: 0;
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-full);
+      background: var(--primary-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .step-content h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .step-content p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* ── Safety features ──────────────────────────────────────────────────── */
+    .safety-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .safety-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px 16px;
+      box-shadow: 0 2px 8px var(--shadow);
+    }
+
+    .safety-card .icon {
+      font-size: 26px;
+      margin-bottom: 10px;
+    }
+
+    .safety-card h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .safety-card p {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .safety-card.teal   { background: var(--primary-light); border-color: transparent; }
+    .safety-card.lavender { background: var(--lavender-light); border-color: transparent; }
+    .safety-card.green  { background: #EDFBF0; border-color: transparent; }
+    .safety-card.red    { background: #FFF0EF; border-color: transparent; }
+
+    /* ── Footer ───────────────────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding-block: 28px;
+      text-align: center;
+    }
+
+    .footer-logo {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--primary);
+      letter-spacing: 2px;
+      margin-bottom: 6px;
+    }
+
+    .footer-tagline {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      margin-bottom: 16px;
+    }
+
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .footer-links a:hover { color: var(--primary); }
+
+    .footer-legal {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      margin-top: 16px;
+    }
+
+    /* ── Responsive ───────────────────────────────────────────────────────── */
+    @media (max-width: 400px) {
+      .safety-grid { grid-template-columns: 1fr; }
+      .region-row  { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav>
+    <div class="nav-inner">
+      <span class="nav-logo">HTWA</span>
+      <a href="#waitlist" class="nav-cta">Join the waitlist</a>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero container">
+    <span class="hero-eyebrow">Coming September 2026</span>
+    <h1>Heading<br><span>That Way Anyway?</span></h1>
+    <p class="hero-tagline">Cost-sharing rides for Irish students. Safe, verified, and always cheaper than the bus.</p>
+
+    <div class="hero-social-proof">
+      <div class="avatar-stack">
+        <div class="avatar">S</div>
+        <div class="avatar">C</div>
+        <div class="avatar">R</div>
+      </div>
+      <p class="social-proof-text"><strong>Students</strong> already on the waitlist</p>
+    </div>
+  </section>
+
+  <!-- Waitlist form -->
+  <section id="waitlist" class="section container">
+    <div class="waitlist-card">
+      <h2>Get early access</h2>
+      <p class="form-subheading">Be first when we launch at your university.</p>
+
+      <form id="waitlist-form" novalidate>
+        <div class="form-group">
+          <label for="name">Full name</label>
+          <input type="text" id="name" name="name" placeholder="Your name" autocomplete="name" required />
+        </div>
+
+        <div class="form-group">
+          <label for="email">Email address</label>
+          <input type="email" id="email" name="email" placeholder="you@university.ie" autocomplete="email" required />
+        </div>
+
+        <div class="form-group">
+          <label for="university">University or college</label>
+          <select id="university" name="university" required>
+            <option value="" disabled selected>Select your university</option>
+            <optgroup label="Republic of Ireland">
+              <option value="ucd">University College Dublin (UCD)</option>
+              <option value="tcd">Trinity College Dublin (TCD)</option>
+              <option value="ucc">University College Cork (UCC)</option>
+              <option value="nuig">University of Galway (NUIG)</option>
+              <option value="ul">University of Limerick (UL)</option>
+              <option value="dcu">Dublin City University (DCU)</option>
+              <option value="mu">Maynooth University</option>
+              <option value="tu-dublin">TU Dublin</option>
+              <option value="mtu">Munster Technological University (MTU)</option>
+              <option value="atu">Atlantic Technological University (ATU)</option>
+              <option value="setu">South East Technological University (SETU)</option>
+              <option value="tu-shannon">TUS — Midlands Midwest</option>
+            </optgroup>
+            <optgroup label="Northern Ireland">
+              <option value="qub">Queen's University Belfast (QUB)</option>
+              <option value="ulster">Ulster University</option>
+              <option value="stran">Stranmillis University College</option>
+              <option value="st-marys-ni">St Mary's University College Belfast</option>
+            </optgroup>
+            <option value="other">Other / not listed</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Where are you based?</label>
+          <div class="region-row">
+            <div class="region-option">
+              <input type="radio" id="region-roi" name="region" value="ROI" required />
+              <label for="region-roi">🇮🇪 Republic of Ireland</label>
+            </div>
+            <div class="region-option">
+              <input type="radio" id="region-ni" name="region" value="NI" />
+              <label for="region-ni">🇬🇧 Northern Ireland</label>
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" class="submit-btn" id="submit-btn">Join the waitlist →</button>
+        <p class="form-legal">No spam. We'll only contact you when HTWA launches at your university.</p>
+        <p class="form-error" id="form-error">Something went wrong. Please try again.</p>
+      </form>
+
+      <div class="form-success" id="form-success">
+        <div class="success-icon">🎉</div>
+        <h3>You're on the list!</h3>
+        <p>We'll be in touch when HTWA launches at your university. Tell a friend — the more students who join, the better the routes.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section class="section how-it-works">
+    <div class="container">
+      <h2 class="section-heading">How it works</h2>
+      <p class="section-subheading">Three steps, no faff.</p>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3>Verify your identity</h3>
+            <p>Upload a government ID and take a quick selfie. Every HTWA user is verified before they can book or offer a ride — no anonymity.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3>Find or offer a ride</h3>
+            <p>Search for available journeys or post your own route. Prices are calculated automatically based on government mileage rates — drivers share costs, never profit.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3>Travel safely together</h3>
+            <p>Live location is shared with your nominated contact the moment your journey starts. In-app messaging, a silent SOS button, and a women-only mode are all built in.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Safety features -->
+  <section class="section container">
+    <h2 class="section-heading">Built with safety first</h2>
+    <p class="section-subheading">Safety isn't a feature — it's the product.</p>
+
+    <div class="safety-grid">
+      <div class="safety-card teal">
+        <div class="icon">📍</div>
+        <h3>Share my journey</h3>
+        <p>Live location sent to your nominated contact the moment you set off.</p>
+      </div>
+
+      <div class="safety-card lavender">
+        <div class="icon">🌸</div>
+        <h3>Women-only mode</h3>
+        <p>Filter rides to women drivers and passengers only — your choice, always.</p>
+      </div>
+
+      <div class="safety-card green">
+        <div class="icon">✅</div>
+        <h3>Verified IDs</h3>
+        <p>Every driver and passenger is identity-checked. You always know who you're travelling with.</p>
+      </div>
+
+      <div class="safety-card red">
+        <div class="icon">🆘</div>
+        <h3>Silent SOS</h3>
+        <p>One tap sends your live location to your nominated contact — silently, discreetly.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <p class="footer-logo">HTWA</p>
+      <p class="footer-tagline">Heading That Way Anyway?</p>
+      <div class="footer-links">
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
+        <a href="mailto:hello@htwa-app.com">Contact</a>
+      </div>
+      <p class="footer-legal">Drivers share costs only — never profit from a journey. © 2026 HTWA. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script>
+    /**
+     * Waitlist form handler.
+     * Submits to Supabase REST API via fetch.
+     * SUPABASE_URL and SUPABASE_ANON_KEY are injected at deploy time.
+     */
+    (function () {
+      // These values are replaced at deploy time.
+      // For local testing, set them here temporarily.
+      var SUPABASE_URL  = '';
+      var SUPABASE_ANON = '';
+
+      var form       = document.getElementById('waitlist-form');
+      var successEl  = document.getElementById('form-success');
+      var errorEl    = document.getElementById('form-error');
+      var submitBtn  = document.getElementById('submit-btn');
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        errorEl.style.display = 'none';
+
+        var name       = document.getElementById('name').value.trim();
+        var email      = document.getElementById('email').value.trim();
+        var university = document.getElementById('university').value;
+        var region     = document.querySelector('input[name="region"]:checked');
+
+        if (!name || !email || !university || !region) {
+          errorEl.textContent = 'Please fill in all fields.';
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Joining…';
+
+        var payload = {
+          name:       name,
+          email:      email,
+          university: university,
+          region:     region.value,
+        };
+
+        if (!SUPABASE_URL || !SUPABASE_ANON) {
+          // Supabase not yet configured — show success so the page is testable.
+          showSuccess();
+          return;
+        }
+
+        fetch(SUPABASE_URL + '/rest/v1/waitlist', {
+          method:  'POST',
+          headers: {
+            'Content-Type':  'application/json',
+            'apikey':        SUPABASE_ANON,
+            'Authorization': 'Bearer ' + SUPABASE_ANON,
+            'Prefer':        'return=minimal',
+          },
+          body: JSON.stringify(payload),
+        })
+          .then(function (res) {
+            if (res.ok || res.status === 201) {
+              showSuccess();
+            } else {
+              return res.text().then(function (t) { throw new Error(t); });
+            }
+          })
+          .catch(function (err) {
+            console.error('Waitlist submit error:', err);
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Join the waitlist →';
+            errorEl.textContent = 'Something went wrong. Please try again.';
+            errorEl.style.display = 'block';
+          });
+      });
+
+      function showSuccess() {
+        form.style.display = 'none';
+        successEl.style.display = 'block';
+      }
+    })();
+  </script>
+
+</body>
+</html>

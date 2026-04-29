@@ -4,6 +4,45 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 29 April 2026 (Session 6)
+
+### What Was Built / Changed
+
+- **`constants/theme.ts`** — complete design token file; every colour, typography style, spacing value, border radius, and shadow from DESIGN-SPEC.md exported as named TypeScript constants with JSDoc; single source of truth for all future screens and components
+- **`website/index.html`** — full landing page for htwa-app.com:
+  - Sticky nav with HTWA logo and "Join the waitlist" CTA
+  - Hero: "Heading That Way Anyway?" headline, tagline, social proof avatar stack
+  - Waitlist form: name, email, university dropdown (ROI + NI universities), ROI/NI region toggle — submits to Supabase REST API
+  - "How it works" section — 3 steps (verify, find/offer, travel safely)
+  - Safety features grid — Share my journey (teal), Women-only mode (lavender), Verified IDs (green), Silent SOS (red)
+  - Footer with privacy/terms/contact links and legal cost-share note
+  - Mobile-first, responsive, Poppins font, exact DESIGN-SPEC.md brand colours
+- **`website/supabase-waitlist.sql`** — SQL to create the `waitlist` table in Supabase with RLS policies; ready to run once Supabase project is set up
+
+### Decisions Made
+
+| Decision | Rationale |
+|----------|-----------|
+| `constants/theme.ts` as design token source | Enforces code standard: no hardcoded colours/sizes anywhere in the codebase |
+| Website form submits directly to Supabase REST API | No separate backend needed; Supabase anon key + RLS is the correct pattern |
+| University dropdown covers ROI + NI institutions | Matches Phase 1 target market; easy to expand |
+| Supabase credentials injected at deploy time | Keeps secrets out of the HTML source file in the repo |
+
+### Pending Before Supabase Is Live
+
+1. Create a Supabase project at supabase.com
+2. Run `website/supabase-waitlist.sql` in the SQL editor
+3. Copy the project URL and anon key into `website/index.html` (`SUPABASE_URL` and `SUPABASE_ANON` variables at the top of the `<script>` block)
+
+### Suggested Next Steps
+
+1. **Set up Supabase** — create project, run SQL, add credentials to website (15 min)
+2. **Deploy website** — host `website/index.html` at htwa-app.com (Netlify or Vercel, drag-and-drop deploy)
+3. **Rebuild home screen** — now that `constants/theme.ts` exists, rebuild `app/index.tsx` using the light theme from DESIGN-SPEC.md; install Poppins font first (`npx expo install @expo-google-fonts/poppins expo-font`)
+4. **Build design system components** — `Button.tsx`, `Card.tsx`, `Input.tsx` using theme tokens
+
+---
+
 ## 29 April 2026 (Session 5)
 
 ### What Was Built / Changed
