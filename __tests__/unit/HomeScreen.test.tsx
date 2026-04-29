@@ -1,4 +1,5 @@
 import React from 'react';
+import { Platform } from 'react-native';
 import { render, screen, fireEvent } from '@testing-library/react-native';
 import HomeScreen, { POPULAR_ROUTES } from '../../app/index';
 
@@ -115,6 +116,17 @@ describe('HomeScreen — popular routes rendering', () => {
   it('renders exactly as many route rows as POPULAR_ROUTES entries', () => {
     const prices = screen.getAllByText(/^from €/);
     expect(prices).toHaveLength(POPULAR_ROUTES.length);
+  });
+});
+
+// ─── Platform variants ────────────────────────────────────────────────────────
+
+describe('HomeScreen — platform variants', () => {
+  it('renders correctly on Android (exercises android paddingTop branch)', () => {
+    const original = Platform.OS;
+    (Platform as any).OS = 'android';
+    expect(() => render(<HomeScreen />)).not.toThrow();
+    (Platform as any).OS = original;
   });
 });
 

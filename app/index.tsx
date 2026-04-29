@@ -11,10 +11,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
   const [destination, setDestination] = useState('');
+  const androidPadding = Platform.OS === 'android' ? 40 : 16;
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingTop: androidPadding }]}>
 
         {/* Header */}
         <View style={styles.header}>
@@ -102,7 +103,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === 'android' ? 40 : 16,
   },
 
   // Header
