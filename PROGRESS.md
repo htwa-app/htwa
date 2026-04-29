@@ -4,6 +4,38 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 29 April 2026 (Session 2)
+
+### What Was Built / Changed
+
+- **iOS Simulator runtime downloaded** — iOS 26.4.1 (8.46 GB) installed via `xcodebuild -downloadPlatform iOS`; iPhone 17 Pro simulator is now available
+- **App confirmed booting** — Expo scaffold runs successfully in the iPhone 17 Pro Simulator, showing the default "Open up App.tsx to start working on your app!" screen
+- **Session progress hook added** — `.claude/settings.json` created with a `Stop` hook that reminds Claude to write a `PROGRESS.md` entry at the end of every session
+- **PROGRESS.md created** — this file, committed and pushed to GitHub
+
+### Decisions Made
+
+| Decision | Rationale |
+|----------|-----------|
+| Used `expo start` (Expo Go) rather than `expo run:ios` (native build) for the boot check | CocoaPods is required for native builds but couldn't be installed — system Ruby 2.6 is too old for its dependencies |
+| Deferred Homebrew install | Not urgently needed; will be required before App Store submission |
+
+### Problems Encountered
+
+- **CocoaPods installation failed** — system Ruby is 2.6; CocoaPods requires Ruby ≥ 3.0. `sudo gem install` requires interactive terminal; `brew install` couldn't run because Homebrew isn't installed.
+- **Workaround:** Used `expo start --ios` which runs via Expo Go and does not require a native build or CocoaPods. App booted successfully via this route.
+- **Fix needed before App Store build:** Install Homebrew → `brew install cocoapods` (one command, installs both Ruby 3 and CocoaPods)
+
+### Suggested Next Steps
+
+1. **Install Homebrew** — run `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"` in Terminal, then `brew install cocoapods`. Required before any App Store submission build.
+2. **Purchase domains** — `htwa.ie`, `htwa.app`, `htwa.co.uk`
+3. **Set up Stripe Connect account**
+4. **Begin UI design in Claude Design** — home screen, ride search, booking flow
+5. **Scaffold navigation** — add Expo Router so screens can link together
+
+---
+
 ## 29 April 2026
 
 ### What Was Built / Changed
