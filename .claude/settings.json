@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"systemMessage\": \"REMINDER: Write a dated PROGRESS.md entry before finishing. Prepend it to ~/Documents/HTWA/PROGRESS.md — include what was built/changed, decisions made, problems encountered, and suggested next steps. Then commit and push.\"}'",
+            "statusMessage": "Checking session log..."
+          }
+        ]
+      }
+    ]
+  }
+}
