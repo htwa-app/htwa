@@ -146,9 +146,9 @@ This folder (`~/Documents/HTWA/`) is the **shared workspace** between Cowork and
 
 ### Next Up
 - [x] Purchase domain: htwa-app.com
-- [ ] Scaffold the project (initialise Node/React Native project)
+- [x] Scaffold the project (Expo + React Native, TypeScript, iOS + Android)
 - [ ] Set up Stripe Connect account
-- [ ] Begin UI mockups in Claude Design
+- [ ] Build app screens based on design mockups
 
 ---
 

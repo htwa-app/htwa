@@ -2,6 +2,7 @@
   "expo": {
     "name": "HTWA",
     "slug": "htwa",
+    "scheme": "htwa",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -30,6 +31,9 @@
     },
     "extra": {
       "contactEmail": "hello@htwa-app.com"
-    }
+    },
+    "plugins": [
+      "expo-router"
+    ]
   }
 }
