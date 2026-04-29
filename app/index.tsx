@@ -5,9 +5,9 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
   const [destination, setDestination] = useState('');
@@ -82,7 +82,7 @@ export default function HomeScreen() {
   );
 }
 
-const POPULAR_ROUTES = [
+export const POPULAR_ROUTES = [
   { id: '1', from: 'Dublin', to: 'Galway',  price: 'from €8' },
   { id: '2', from: 'Belfast', to: 'Dublin', price: 'from €10' },
   { id: '3', from: 'Cork', to: 'Limerick',  price: 'from €6' },
