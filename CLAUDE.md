@@ -7,6 +7,19 @@
 
 ---
 
+## ⚠️ STANDING RULES — READ BEFORE DOING ANYTHING
+
+These rules apply to all Claude tools (Cowork, Claude Code, Claude in Chrome) at all times:
+
+1. **Payment methods** — Never use any of Jordan's credit cards or payment methods without asking explicitly each time, for every transaction, no exceptions.
+2. **Personal email** — Never access or read Jordan's personal email accounts.
+3. **Personal social media** — Never access personal social media accounts. The business Instagram (@htwa.app) is fine.
+4. **Passwords & personal info** — Never share Jordan's passwords or personal information with any third party or service.
+
+If in doubt about whether an action falls under these rules, stop and ask first.
+
+---
+
 ## 1. What Is HTWA?
 
 HTWA is a **cost-sharing rideshare app for Ireland** (and Northern Ireland).
