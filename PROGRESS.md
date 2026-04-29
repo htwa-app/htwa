@@ -4,6 +4,47 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 29 April 2026 (Session 4)
+
+### What Was Built / Changed
+
+- **Expo Router installed** — added `expo-router`, `react-native-screens`, `react-native-safe-area-context`, `expo-linking`, `expo-splash-screen`; entry point changed from `App.tsx` to `expo-router/entry`; deep-link scheme `htwa` added to `app.json`
+- **Home screen built** (`app/index.tsx`) — dark-themed, branded UI including:
+  - HTWA logo + tagline: *"Share the journey. Split the cost."*
+  - Destination search bar
+  - "Find a ride" (green CTA) and "Offer a ride" (secondary CTA) buttons
+  - Popular routes list: Dublin→Galway, Belfast→Dublin, Cork→Limerick with indicative prices
+  - Legal footer: *"Drivers share costs only — never profit from a journey."*
+- **Root layout added** (`app/_layout.tsx`) — Stack navigator, no header, light status bar
+- **Confirmed running** in iPhone 17 Pro Simulator via native build
+
+### Decisions Made
+
+| Decision | Rationale |
+|----------|-----------|
+| Dark navy + green (`#00C48C`) colour scheme | Professional, distinctive, works well on mobile |
+| Expo Router (file-based) over React Navigation | Modern default for Expo SDK 54+; simpler routing as screens are added |
+| Popular routes hardcoded for now | Placeholder data — will be replaced by live API data once backend exists |
+| Legal note on home screen | Reinforces the cost-share model from first impression |
+
+### Problems Encountered
+
+- **Metro dev server connection issue** — after the native build completed, the background Metro process lost its connection to the simulator. The app showed "Could not connect to development server". Fixed by killing the stale Metro process and re-running `expo run:ios` from scratch, which starts Metro and launches the app as a single connected flow.
+
+### Domain Note
+
+Jordan mentioned owning **htwa-app.com** (noted as "hwat-app.com" — likely a typo to confirm). The bundle ID `com.htwa.app` and deep-link scheme `htwa` are already set consistently.
+
+### Suggested Next Steps
+
+1. **Confirm domain** — verify it's `htwa-app.com` (not `hwat-app.com`)
+2. **Build the "Find a ride" results screen** — list of available journeys with driver, price, seats, departure time
+3. **Build the "Offer a ride" screen** — form: from, to, date, seats, price per seat
+4. **Add a tab bar** — Home / My Rides / Profile tabs
+5. **Set up Stripe Connect account** — needed before payment flow
+
+---
+
 ## 29 April 2026 (Session 3)
 
 ### What Was Built / Changed
