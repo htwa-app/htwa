@@ -26,10 +26,10 @@ HTWA is a **cost-sharing rideshare app for Ireland** (and Northern Ireland).
 
 It is not a taxi service. The legal model is a **carpool platform** — drivers share the cost of a journey with passengers, and can never profit from a ride. This distinction is what keeps the platform legal without requiring taxi/SPSV licensing.
 
-The name HTWA stands for **[confirm full name with Jordan]**. Domains to purchase (not yet bought as of last session):
-- `htwa.ie`
-- `htwa.app`
-- `htwa.co.uk`
+The name HTWA stands for **[confirm full name with Jordan]**. Domain purchased:
+- `htwa-app.com` ✅
+
+Original domains (htwa.ie, htwa.app, htwa.co.uk) — decided not needed for now.
 
 ---
 
@@ -84,17 +84,19 @@ Key sections:
 ### Confirmed Tools
 | Tool | Purpose | Status |
 |------|---------|--------|
-| Claude Code | AI coding assistant | ✅ Installed |
+| Claude Code | AI coding assistant | ✅ Built into Claude Desktop (Code tab) |
+| Claude Code extension | VS Code integration | ✅ Installed (anthropic.claude-code v2.1.123) |
 | Claude Design | UI/UX mockups and prototypes | ✅ Accessible at claude.ai/design |
 | VS Code | Code editor (visual interface) | ✅ Installed |
 | Node.js | Runtime environment | ✅ Installed |
 | npm | Package manager (bundled with Node) | ✅ Installed |
-| Git | Version control | ✅ Installed |
-| GitHub | Remote repo / backup | ✅ Account exists, connecting now |
+| Git | Version control | ✅ Installed & configured (hello@htwa-app.com) |
+| GitHub CLI (gh) | GitHub from terminal | ✅ Authenticated as htwa-app |
+| GitHub | Remote repo / backup | ✅ Live at github.com/htwa-app/htwa |
+| Xcode | iOS build tool | ✅ Command line tools verified |
+| Android Studio | Android build tool | ✅ SDK at ~/Library/Android/sdk |
 | Stripe Connect | Payments + application fees | Planned |
 | Google Maps Routes API | Route calculation + toll fees | Planned |
-| Xcode | iOS build tool | Planned |
-| Android Studio | Android build tool | Planned |
 | GitHub Desktop | Visual Git interface | Planned |
 | 1Password | Credentials management | Planned |
 
@@ -111,7 +113,7 @@ Key sections:
 
 ## 6. Project Folder Structure
 
-This folder (`HTWA/` on Jordan's Desktop) is the **shared workspace** between Cowork and Claude Code.
+This folder (`~/Documents/HTWA/`) is the **shared workspace** between Cowork and Claude Code.
 
 - Both Claude Code and Cowork read/write to this folder
 - `CLAUDE.md` (this file) is the living brain — update it as decisions are made
@@ -126,19 +128,24 @@ This folder (`HTWA/` on Jordan's Desktop) is the **shared workspace** between Co
 - [x] Legal model validated (cost-share carpool, not taxi)
 - [x] Tools stack decided (Claude Code + Claude Design replacing Cursor + Figma)
 - [x] Node.js installed
-- [x] Claude Code installed and accessible via Terminal (`claude`)
+- [x] Claude Code (built into Claude Desktop)
+- [x] Claude Code extension installed in VS Code
 - [x] VS Code installed
-- [x] Git installed
-- [x] GitHub account exists
-- [x] HTWA project folder created on Desktop
+- [x] Git installed and configured (Jordan Madden, hello@htwa-app.com)
+- [x] GitHub CLI authenticated as htwa-app
+- [x] GitHub repo live at github.com/htwa-app/htwa
+- [x] Xcode command line tools verified
+- [x] Android SDK configured at ~/Library/Android/sdk
+- [x] All tools added to PATH in ~/.zshrc
+- [x] HTWA project folder moved to ~/Documents/HTWA
 - [x] Cowork connected to HTWA folder
 - [x] CLAUDE.md created (this file)
 
 ### In Progress
-- [ ] Connect Claude Code to GitHub (create repo, initialise, push)
+- [x] Connect Claude Code to GitHub (create repo, initialise, push)
 
 ### Next Up
-- [ ] Purchase domains: htwa.ie, htwa.app, htwa.co.uk
+- [x] Purchase domain: htwa-app.com
 - [ ] Scaffold the project (initialise Node/React Native project)
 - [ ] Set up Stripe Connect account
 - [ ] Begin UI mockups in Claude Design
@@ -164,6 +171,11 @@ This folder (`HTWA/` on Jordan's Desktop) is the **shared workspace** between Co
 | Apr 2026 | Legal model = cost-share carpool | Avoids SPSV/taxi licensing requirements |
 | Apr 2026 | University + cross-border as Phase 1 wedge | Sharp, defensible initial market |
 | Apr 2026 | Shared HTWA folder as single source of truth | Enables Cowork ↔ Claude Code continuity |
+| Apr 2026 | Cross-border cost calculation uses driver's home jurisdiction rate | Driver based in ROI uses Revenue.ie rates for full journey; NI-based driver uses HMRC AMAP rates. Simpler, legally clean, easier to build. |
+| Apr 2026 | Currency display set at account creation based on user's home location | ROI users see €, NI users see £. Can be changed in settings. |
+| Apr 2026 | Savings displayed as money saved vs bus/train equivalent | More compelling than showing money shared |
+| Apr 2026 | Mandatory ID + selfie verification before app use | All users must complete before accessing platform. Shows as green "Verified" tick on profile. |
+| Apr 2026 | Nominated contact receives live journey tracking | Selected by user in app settings. Receives real-time tracking link for every trip, similar to Uber's share journey feature. |
 
 ---
 
