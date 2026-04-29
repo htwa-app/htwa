@@ -33,7 +33,7 @@ Entries are added at the top. Most recent session is always first.
 
 ### Domain Note
 
-Jordan mentioned owning **htwa-app.com** (noted as "hwat-app.com" — likely a typo to confirm). The bundle ID `com.htwa.app` and deep-link scheme `htwa` are already set consistently.
+Confirmed: domain is **htwa-app.com**. Bundle ID `com.htwa.app` and deep-link scheme `htwa` are already set consistently.
 
 ### Suggested Next Steps
 
