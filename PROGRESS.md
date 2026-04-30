@@ -4,6 +4,36 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 30 April 2026 (Session 10)
+
+### What Was Built / Changed
+
+- **Ireland map SVG — baked static path, works on `file://`** — the D3 runtime-fetch approach was broken locally because browsers block `fetch()` on `file://` URLs. Fix:
+  - Created `scripts/generate-ireland-path.mjs` — Node.js script that fetches world-atlas, projects Ireland (372) with `d3-geo` Mercator, and prints the SVG path string + pixel coordinates for all 8 cities
+  - Ran the script; confirmed projection is correct (scale 2208, Dublin at 175.6, 138.5)
+  - Replaced the D3 `<script>` block with a static `<path d="...">` element in the SVG
+  - Updated all 8 city dot `cx/cy`, all 8 route line `x1/y1/x2/y2`, and all 8 label `x/y` to real projected pixel coordinates
+  - Removed D3 v7 and topojson-client CDN `<script>` tags
+  - Map now renders with zero network requests and works on `file://`
+
+### City pixel coordinates (for reference)
+| City | x | y |
+|------|---|---|
+| Belfast | 187.9 | 55.6 |
+| Derry | 134.7 | 28.9 |
+| Dublin | 175.6 | 138.5 |
+| Galway | 67.4 | 142.5 |
+| Athlone | 110.3 | 132.7 |
+| Limerick | 83.8 | 181.1 |
+| Kilkenny | 136.9 | 181.9 |
+| Cork | 89.9 | 229.6 |
+
+### Questions for Jordan
+
+- **Map shape** — please open `website/index.html` in your browser and confirm: (1) the island outline looks like Ireland, (2) city dots sit on or near the right locations, (3) the animated route lines connect plausibly between cities. The projection is from real geographic data so it should be accurate — but let me know if anything looks off.
+
+---
+
 ## 30 April 2026 (Session 9)
 
 ### What Was Built / Changed
