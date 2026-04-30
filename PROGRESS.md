@@ -4,6 +4,18 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 30 April 2026 (Session 8)
+
+### What Was Built / Changed
+
+- **Ireland map SVG replaced** — swapped out the smooth-curve Bézier outline for a geographically corrected straight-segment polygon path provided by Jordan. New city coordinates: Belfast (172,57), Derry (123,33), Dublin (160,135), Galway (61,139), Athlone (100,129), Limerick (76,175), Kilkenny (125,177), Cork (81,222). All 8 animated route lines and city labels updated to match.
+
+### Questions for Jordan
+
+- **Map shape** — the new SVG path is in place but I can't verify how it looks in the browser from here. Please open `website/index.html` and confirm the island outline looks geographically correct, that city dots sit on or near the right locations, and the animated route lines connect plausibly. If any dot looks wrong, tell me the city name and I'll adjust its coordinates.
+
+---
+
 ## 30 April 2026 (Session 7)
 
 ### What Was Built / Changed
