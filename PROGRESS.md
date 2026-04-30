@@ -4,6 +4,25 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 30 April 2026 (Session 9)
+
+### What Was Built / Changed
+
+- **Ireland map SVG → D3.js rendered map** — replaced hand-coded `<path>` with a real geographic map:
+  - D3 v7 + topojson-client v3 loaded from jsDelivr CDN
+  - Fetches `world-atlas@2/countries-50m.json` at runtime
+  - Extracts Ireland (country code 372) and UK (826) features
+  - Projects with `d3.geoMercator().fitExtent()` fitted to the island's bounding box (−10.7 to −5.2 lon, 51.2 to 55.5 lat) inside the 200×260 viewBox
+  - UK path has `clip-path="url(#island-clip)"` applied — Great Britain projects east of x=200 and is hidden; only Northern Ireland (top-right of the island) is visible
+  - All existing city dots, route lines, CSS animation, and labels unchanged
+  - Falls back silently if the CDN fetch fails (console.warn only)
+
+### Questions for Jordan
+
+- **City dots vs real map** — the city dot coordinates (Belfast, Derry, Dublin etc.) were hand-placed for the old polygon. They may not sit exactly on the D3-rendered outline. Please open the page and check: do the dots sit roughly over the correct parts of the island shape? If any are clearly off, tell me which city and I'll recalculate its SVG coordinates from the projection.
+
+---
+
 ## 30 April 2026 (Session 8)
 
 ### What Was Built / Changed
