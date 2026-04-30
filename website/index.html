@@ -680,42 +680,47 @@
     <filter id="mapShadow" x="-5%" y="-5%" width="110%" height="110%">
       <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#1F7A78" flood-opacity="0.08"/>
     </filter>
-    <!-- Clips UK path so only Northern Ireland is visible inside the viewBox -->
-    <clipPath id="island-clip"><rect width="200" height="260"/></clipPath>
   </defs>
-  <!-- Ireland + Northern Ireland outline rendered by D3 — see script at bottom of page -->
+  <path
+    d="M32.966,100.692L32.827,102.623L29.913,100.237L28.525,97.736L20.753,96.484L23.945,93.98L25.61,94.663L31.162,94.777L32.688,95.915ZM138.166,22.424L132.06,26.748L131.227,28.382L129.423,35.026L129.284,36.887L127.341,40.375L125.398,44.206L123.316,45.714L119.985,46.873L118.181,48.032L115.96,47.452L113.046,47.568L111.519,48.843L111.658,49.885L112.491,51.042L114.989,52.777L117.903,54.396L117.626,55.782L116.099,57.284L106.384,61.206L103.47,63.626L102.498,65.123L103.47,67.77L111.242,75.579L112.491,76.381L113.74,80.849L120.54,82.794L123.316,85.652L125.676,86.223L130.811,85.994L132.892,87.137L134.142,86.337L134.835,84.852L139.138,80.963L140.665,79.246L139.832,76.955L138.86,75.235L141.497,71.677L144.689,68.115L146.355,68.23L149.131,70.413L151.351,73.399L151.629,75.693L152.045,77.413L154.266,80.963L155.654,82.222L159.401,82.908L160.233,84.28L159.54,89.534L160.095,91.244L164.12,91.244L168.283,90.902L169.671,91.016L171.198,89.99L173.557,88.849L176.749,89.191L178.415,91.586L179.108,93.98L176.333,94.777L173.279,94.321L171.892,95.915L171.753,98.873L172.863,102.736L174.806,105.46L176.333,111.691L177.721,118.473L179.664,122.647L180.08,127.714L179.802,130.189L180.219,134.681L179.386,136.252L179.941,140.511L182.439,149.232L183.411,154.028L184.105,164.484L182.439,168.478L180.219,172.134L178.692,176.559L177.582,181.308L176.888,189.022L171.892,197.921L169.81,200.114L167.312,201.539L172.724,207.667L168.283,210.507L163.564,211.381L158.29,209.852L155.098,209.961L152.045,212.036L150.935,213.236L149.963,212.581L148.02,207.557L146.494,212.8L143.44,214.436L138.305,214.109L129.7,215.526L126.369,217.052L124.982,219.338L123.871,222.059L122.483,223.581L120.957,224.45L114.295,226.405L113.046,227.274L109.854,231.612L105.829,234.104L102.498,234.862L99.584,232.371L98.335,230.853L96.947,229.986L92.367,230.203L93.755,230.962L94.726,232.696L95.142,236.16L94.587,239.513L92.367,241.133L89.73,241.457L85.427,244.911L79.737,245.882L76.684,249.115L58.086,254.495L57.115,254.495L54.478,253.097L51.702,252.56L48.926,252.99L41.154,256L37.268,255.355L42.126,247.93L48.649,244.156L49.343,243.077L47.122,242.645L34.909,245.235L30.607,247.499L26.304,248.146L28.247,244.696L33.799,240.053L36.713,237.783L38.656,236.918L40.599,234.212L46.428,231.07L27.692,237.459L22.835,236.701L21.724,234.97L17.838,235.728L16.45,231.395L22.002,224.776L25.333,221.95L29.358,220.427L33.105,218.25L34.493,215.526L32.688,214.654L21.308,215.308L15.895,214.763L16.173,212.581L17.283,210.18L22.835,206.136L25.888,205.48L28.664,205.917L31.301,206.901L33.382,208.322L39.767,207.448L37.13,204.933L36.713,199.566L34.631,197.811L37.268,195.397L40.183,193.86L45.179,188.692L46.983,187.921L56.837,186.71L67.385,184.065L77.933,180.315L72.52,178.217L69.883,175.453L65.72,181.087L62.805,183.183L54.339,184.286L51.702,183.624L47.955,181.97L46.706,182.632L45.596,183.955L40.044,186.6L34.215,187.261L41.016,182.301L49.62,173.905L51.563,171.137L54.339,166.482L53.506,164.484L51.702,163.263L57.948,153.583L60.168,151.91L64.193,151.576L67.246,150.014L68.495,150.014L69.606,149.455L72.243,146.552L68.218,144.763L64.193,143.757L51.425,144.763L49.759,144.54L48.094,143.645L47.122,142.414L46.29,139.055L45.457,138.382L42.542,138.382L39.767,139.391L37.685,139.279L35.742,137.822L38.934,134.457L34.909,133.671L30.884,134.345L27.415,133.334L27.415,131.2L28.941,129.064L26.859,127.039L26.443,124.45L28.664,123.21L30.884,123.661L35.742,121.745L41.71,120.843L36.574,119.037L34.493,117.457L34.354,114.971L34.77,112.936L40.877,109.314L47.261,107.841L46.706,105.46L47.261,102.963L40.738,102.168L34.354,103.985L35.048,99.1L36.574,94.777L36.852,91.928L36.574,88.849L33.521,90.104L33.105,85.766L31.856,82.794L27.415,84.852L27.553,80.849L28.802,78.101L31.162,76.84L33.521,77.413L37.685,77.413L41.848,75.235L47.816,74.776L57.392,75.349L63.915,81.307L65.581,80.277L68.218,76.496L69.467,76.152L79.321,77.757L85.427,79.819L87.093,79.131L86.121,75.12L84.04,72.251L86.676,68.46L89.869,65.929L92.089,64.663L97.085,63.05L99.167,61.552L100.694,56.706L102.915,52.662L90.424,54.743L78.627,50L80.57,46.641L83.068,44.67L87.37,43.162L87.787,41.42L89.869,39.91L93.477,36.073L92.228,31.065L92.922,27.332L95.559,24.879L96.392,21.372L97.502,18.796L102.776,17.859L107.911,15.515L109.715,15.75L115.683,15.164L117.765,16.102L117.21,11.878L120.957,11.408L122.345,12.23L123.039,15.164L124.704,17.156L125.12,20.435L124.01,23.009L122.206,24.996L123.871,26.982L121.234,30.599L124.149,29.082L128.174,25.463L128.035,22.541L127.341,18.913L126.092,15.633L126.647,11.995L129.006,9.646L134.974,8.471L132.476,4.353L134.697,4L137.195,4.824L140.665,8.118L144.273,10.586L148.159,12.582L144.412,16.688L139.971,19.382Z"
+    fill="rgba(31,122,120,0.07)"
+    stroke="rgba(31,122,120,0.28)"
+    stroke-width="1.5"
+    stroke-linejoin="round"
+    filter="url(#mapShadow)"
+  />
 
   <g class="route-lines">
-    <line class="route-line" x1="172" y1="57"  x2="160" y2="135" marker-end="url(#arrow)" />
-    <line class="route-line" x1="160" y1="135" x2="81"  y2="222" marker-end="url(#arrow)" />
-    <line class="route-line" x1="61"  y1="139" x2="160" y2="135" marker-end="url(#arrow)" />
-    <line class="route-line" x1="123" y1="33"  x2="61"  y2="139" marker-end="url(#arrow)" />
-    <line class="route-line" x1="81"  y1="222" x2="76"  y2="175" marker-end="url(#arrow)" />
-    <line class="route-line" x1="76"  y1="175" x2="100" y2="129" marker-end="url(#arrow)" />
-    <line class="route-line" x1="100" y1="129" x2="160" y2="135" marker-end="url(#arrow)" />
-    <line class="route-line" x1="125" y1="177" x2="160" y2="135" marker-end="url(#arrow)" />
+    <line class="route-line" x1="187.9" y1="55.6"  x2="175.6" y2="138.5" marker-end="url(#arrow)" />
+    <line class="route-line" x1="175.6" y1="138.5" x2="89.9"  y2="229.6" marker-end="url(#arrow)" />
+    <line class="route-line" x1="67.4"  y1="142.5" x2="175.6" y2="138.5" marker-end="url(#arrow)" />
+    <line class="route-line" x1="134.7" y1="28.9"  x2="67.4"  y2="142.5" marker-end="url(#arrow)" />
+    <line class="route-line" x1="89.9"  y1="229.6" x2="83.8"  y2="181.1" marker-end="url(#arrow)" />
+    <line class="route-line" x1="83.8"  y1="181.1" x2="110.3" y2="132.7" marker-end="url(#arrow)" />
+    <line class="route-line" x1="110.3" y1="132.7" x2="175.6" y2="138.5" marker-end="url(#arrow)" />
+    <line class="route-line" x1="136.9" y1="181.9" x2="175.6" y2="138.5" marker-end="url(#arrow)" />
   </g>
 
   <g fill="rgba(200,184,232,0.9)" stroke="#fff" stroke-width="1">
-    <circle cx="172" cy="57"  r="4.5" />
-    <circle cx="123" cy="33"  r="4"   />
-    <circle cx="160" cy="135" r="5"   />
-    <circle cx="61"  cy="139" r="4.5" />
-    <circle cx="100" cy="129" r="3.5" />
-    <circle cx="76"  cy="175" r="3.5" />
-    <circle cx="125" cy="177" r="3.5" />
-    <circle cx="81"  cy="222" r="4.5" />
+    <circle cx="187.9" cy="55.6"  r="4.5" />
+    <circle cx="134.7" cy="28.9"  r="4"   />
+    <circle cx="175.6" cy="138.5" r="5"   />
+    <circle cx="67.4"  cy="142.5" r="4.5" />
+    <circle cx="110.3" cy="132.7" r="3.5" />
+    <circle cx="83.8"  cy="181.1" r="3.5" />
+    <circle cx="136.9" cy="181.9" r="3.5" />
+    <circle cx="89.9"  cy="229.6" r="4.5" />
   </g>
 
   <g font-family="'Poppins', system-ui, sans-serif" font-size="8.5" fill="#2A251F" fill-opacity="0.6">
-    <text x="167" y="55"  text-anchor="end">Belfast</text>
-    <text x="128" y="31"  text-anchor="start">Derry</text>
-    <text x="155" y="133" text-anchor="end">Dublin</text>
-    <text x="56"  y="137" text-anchor="end">Galway</text>
-    <text x="105" y="127" text-anchor="start">Athlone</text>
-    <text x="71"  y="173" text-anchor="end">Limerick</text>
-    <text x="130" y="175" text-anchor="start">Kilkenny</text>
-    <text x="76"  y="232" text-anchor="end">Cork</text>
+    <text x="183"  y="53"  text-anchor="end">Belfast</text>
+    <text x="139"  y="27"  text-anchor="start">Derry</text>
+    <text x="171"  y="136" text-anchor="end">Dublin</text>
+    <text x="63"   y="140" text-anchor="end">Galway</text>
+    <text x="114"  y="130" text-anchor="start">Athlone</text>
+    <text x="79"   y="179" text-anchor="end">Limerick</text>
+    <text x="141"  y="180" text-anchor="start">Kilkenny</text>
+    <text x="85"   y="227" text-anchor="end">Cork</text>
   </g>
 </svg>
     </div>
@@ -872,83 +877,6 @@
   </div>
 </footer>
 
-<!-- D3 geo + TopoJSON — used only for the Ireland map SVG -->
-<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
-<script>
-/**
- * Renders the island of Ireland outline into the map SVG using D3 + world-atlas TopoJSON.
- * Ireland = country code 372, UK = 826 (Northern Ireland is part of UK geometry).
- * Projection is fitted to the island's geographic bounding box so city dots stay aligned.
- */
-(function () {
-  var NS  = 'http://www.w3.org/2000/svg';
-  var svgEl  = document.querySelector('.map-svg-wrap svg');
-  var defsEl = svgEl.querySelector('defs');
-
-  /**
-   * Creates an SVG path element styled as the Ireland map outline.
-   * @param {string} d - SVG path data string from geoPath()
-   * @param {boolean} clip - whether to apply the island-clip clipPath (used for UK)
-   * @returns {SVGPathElement}
-   */
-  function makeOutlinePath(d, clip) {
-    var el = document.createElementNS(NS, 'path');
-    el.setAttribute('d', d);
-    el.setAttribute('fill', 'rgba(31,122,120,0.07)');
-    el.setAttribute('stroke', 'rgba(31,122,120,0.28)');
-    el.setAttribute('stroke-width', '1.5');
-    el.setAttribute('stroke-linejoin', 'round');
-    el.setAttribute('filter', 'url(#mapShadow)');
-    if (clip) { el.setAttribute('clip-path', 'url(#island-clip)'); }
-    return el;
-  }
-
-  fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json')
-    .then(function (r) { return r.json(); })
-    .then(function (world) {
-      var features = topojson.feature(world, world.objects.countries).features;
-      var ireland  = features.find(function (d) { return String(d.id) === '372'; });
-      var uk       = features.find(function (d) { return String(d.id) === '826'; });
-
-      if (!ireland) { console.warn('htwa map: Ireland feature not found in TopoJSON'); return; }
-
-      // Fit the projection to the island of Ireland's geographic bounding box.
-      // This keeps the island centred in the 200×260 viewBox and means the
-      // city dot coordinates (hand-placed) stay roughly in the right positions.
-      var islandBounds = {
-        type: 'Feature',
-        geometry: {
-          type: 'Polygon',
-          coordinates: [[
-            [-10.7, 51.2], [-5.2, 51.2],
-            [-5.2, 55.5],  [-10.7, 55.5],
-            [-10.7, 51.2]
-          ]]
-        }
-      };
-
-      var projection = d3.geoMercator()
-        .fitExtent([[4, 4], [196, 256]], islandBounds);
-
-      var geoPath = d3.geoPath().projection(projection);
-
-      // Ireland (Republic) — renders entirely within the viewBox
-      var irelandEl = makeOutlinePath(geoPath(ireland), false);
-      defsEl.insertAdjacentElement('afterend', irelandEl);
-
-      // UK — clipped to the viewBox so only Northern Ireland (top-right of island) is visible;
-      // Great Britain projects east of x=200 and is hidden by the clipPath.
-      if (uk) {
-        var ukEl = makeOutlinePath(geoPath(uk), true);
-        irelandEl.insertAdjacentElement('afterend', ukEl);
-      }
-    })
-    .catch(function (err) {
-      console.warn('htwa map: failed to load world-atlas data', err);
-    });
-}());
-</script>
 
 </body>
 </html>
