@@ -673,89 +673,67 @@
   <div class="map-col">
     <div class="map-svg-wrap">
       <svg viewBox="0 0 200 260" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Map of the island of Ireland with animated route lines">
-        <defs>
-          <!-- Amber arrowhead marker -->
-          <marker id="arrow" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto" markerUnits="strokeWidth">
-            <path d="M0,0.5 L0,6.5 L6.5,3.5 Z" fill="#E8A55A" />
-          </marker>
-          <!-- Subtle drop shadow -->
-          <filter id="mapShadow" x="-5%" y="-5%" width="110%" height="110%">
-            <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#1F7A78" flood-opacity="0.08"/>
-          </filter>
-        </defs>
+  <defs>
+    <marker id="arrow" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0.5 L0,6.5 L6.5,3.5 Z" fill="#E8A55A" />
+    </marker>
+    <filter id="mapShadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#1F7A78" flood-opacity="0.08"/>
+    </filter>
+  </defs>
 
-        <!-- Ireland outline -->
-        <path
-          d="M 88,5
-             C 108,1 138,7 160,20
-             C 174,28 182,40 182,55
-             L 178,72
-             L 180,96
-             L 176,120
-             C 173,136 166,156 158,170
-             L 145,186
-             C 132,197 115,208 98,220
-             L 78,224
-             C 62,226 46,216 38,202
-             C 30,190 30,175 38,162
-             C 43,154 52,150 54,140
-             C 50,130 40,126 32,118
-             C 28,106 28,92 32,78
-             C 36,68 44,58 54,48
-             L 66,34
-             C 74,22 82,12 88,5
-             Z"
-          fill="rgba(31,122,120,0.07)"
-          stroke="rgba(31,122,120,0.28)"
-          stroke-width="1.5"
-          stroke-linejoin="round"
-          filter="url(#mapShadow)"
-        />
+  <path
+    d="M 120,10
+       L 164,19 L 176,42 L 181,54 L 186,71 L 170,90
+       L 156,95 L 166,120 L 160,135 L 164,143 L 170,157
+       L 156,206 L 135,210 L 95,230 L 79,241 L 60,248 L 33,250
+       L 19,240 L 11,210 L 16,199
+       L 29,181 L 53,146
+       L 28,125 L 31,104 L 19,95 L 27,75
+       L 55,80 L 71,76
+       L 88,65 L 94,54 L 82,55 L 74,55 L 73,50
+       L 89,23 L 99,18
+       Z"
+    fill="rgba(31,122,120,0.07)"
+    stroke="rgba(31,122,120,0.28)"
+    stroke-width="1.5"
+    stroke-linejoin="round"
+    filter="url(#mapShadow)"
+  />
 
-        <!-- Route lines (animated dashed, with amber arrowheads) -->
-        <g class="route-lines">
-          <!-- Belfast → Dublin -->
-          <line class="route-line" x1="158" y1="55" x2="172" y2="116" marker-end="url(#arrow)" />
-          <!-- Dublin → Cork -->
-          <line class="route-line" x1="172" y1="116" x2="100" y2="212" marker-end="url(#arrow)" />
-          <!-- Galway → Dublin -->
-          <line class="route-line" x1="60" y1="138" x2="172" y2="116" marker-end="url(#arrow)" />
-          <!-- Derry → Galway -->
-          <line class="route-line" x1="106" y1="28" x2="60" y2="138" marker-end="url(#arrow)" />
-          <!-- Cork → Limerick -->
-          <line class="route-line" x1="100" y1="212" x2="78" y2="168" marker-end="url(#arrow)" />
-          <!-- Limerick → Athlone -->
-          <line class="route-line" x1="78" y1="168" x2="106" y2="126" marker-end="url(#arrow)" />
-          <!-- Athlone → Dublin -->
-          <line class="route-line" x1="106" y1="126" x2="172" y2="116" marker-end="url(#arrow)" />
-          <!-- Kilkenny → Dublin -->
-          <line class="route-line" x1="135" y1="160" x2="172" y2="116" marker-end="url(#arrow)" />
-        </g>
+  <g class="route-lines">
+    <line class="route-line" x1="172" y1="57"  x2="160" y2="135" marker-end="url(#arrow)" />
+    <line class="route-line" x1="160" y1="135" x2="81"  y2="222" marker-end="url(#arrow)" />
+    <line class="route-line" x1="61"  y1="139" x2="160" y2="135" marker-end="url(#arrow)" />
+    <line class="route-line" x1="123" y1="33"  x2="61"  y2="139" marker-end="url(#arrow)" />
+    <line class="route-line" x1="81"  y1="222" x2="76"  y2="175" marker-end="url(#arrow)" />
+    <line class="route-line" x1="76"  y1="175" x2="100" y2="129" marker-end="url(#arrow)" />
+    <line class="route-line" x1="100" y1="129" x2="160" y2="135" marker-end="url(#arrow)" />
+    <line class="route-line" x1="125" y1="177" x2="160" y2="135" marker-end="url(#arrow)" />
+  </g>
 
-        <!-- City dots (lavender) -->
-        <g fill="rgba(200,184,232,0.9)" stroke="#fff" stroke-width="1">
-          <circle cx="158" cy="55"  r="4.5" />  <!-- Belfast -->
-          <circle cx="106" cy="28"  r="4"   />  <!-- Derry -->
-          <circle cx="172" cy="116" r="5"   />  <!-- Dublin -->
-          <circle cx="60"  cy="138" r="4.5" />  <!-- Galway -->
-          <circle cx="106" cy="126" r="3.5" />  <!-- Athlone -->
-          <circle cx="78"  cy="168" r="3.5" />  <!-- Limerick -->
-          <circle cx="135" cy="160" r="3.5" />  <!-- Kilkenny -->
-          <circle cx="100" cy="212" r="4.5" />  <!-- Cork -->
-        </g>
+  <g fill="rgba(200,184,232,0.9)" stroke="#fff" stroke-width="1">
+    <circle cx="172" cy="57"  r="4.5" />
+    <circle cx="123" cy="33"  r="4"   />
+    <circle cx="160" cy="135" r="5"   />
+    <circle cx="61"  cy="139" r="4.5" />
+    <circle cx="100" cy="129" r="3.5" />
+    <circle cx="76"  cy="175" r="3.5" />
+    <circle cx="125" cy="177" r="3.5" />
+    <circle cx="81"  cy="222" r="4.5" />
+  </g>
 
-        <!-- City labels -->
-        <g font-family="'Poppins', system-ui, sans-serif" font-size="8.5" fill="#2A251F" fill-opacity="0.6">
-          <text x="164" y="53"  text-anchor="start">Belfast</text>
-          <text x="112" y="27"  text-anchor="start">Derry</text>
-          <text x="176" y="114" text-anchor="start">Dublin</text>
-          <text x="20"  y="137" text-anchor="start">Galway</text>
-          <text x="85"  y="124" text-anchor="end">Athlone</text>
-          <text x="56"  y="168" text-anchor="end">Limerick</text>
-          <text x="130" y="172" text-anchor="end">Kilkenny</text>
-          <text x="84"  y="222" text-anchor="end">Cork</text>
-        </g>
-      </svg>
+  <g font-family="'Poppins', system-ui, sans-serif" font-size="8.5" fill="#2A251F" fill-opacity="0.6">
+    <text x="167" y="55"  text-anchor="end">Belfast</text>
+    <text x="128" y="31"  text-anchor="start">Derry</text>
+    <text x="155" y="133" text-anchor="end">Dublin</text>
+    <text x="56"  y="137" text-anchor="end">Galway</text>
+    <text x="105" y="127" text-anchor="start">Athlone</text>
+    <text x="71"  y="173" text-anchor="end">Limerick</text>
+    <text x="130" y="175" text-anchor="start">Kilkenny</text>
+    <text x="76"  y="232" text-anchor="end">Cork</text>
+  </g>
+</svg>
     </div>
   </div>
 
