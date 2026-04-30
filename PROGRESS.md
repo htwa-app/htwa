@@ -4,6 +4,39 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 30 April 2026 (Session 7)
+
+### What Was Built / Changed
+
+- **`website/index.html` completely rebuilt** — polished, on-brand landing page:
+  - **Logo mark** — teal rounded-square app icon, white Poppins 700, amber dot on the full stop; used in nav, hero, and footer
+  - **Three-column desktop hero** (full viewport height, vertically centred):
+    - Left: hand-coded SVG map of the island of Ireland — faint teal fill, 8 animated dashed route lines (Belfast→Dublin, Dublin→Cork, Galway→Dublin, Derry→Galway, Cork→Limerick, Limerick→Athlone, Athlone→Dublin, Kilkenny→Dublin) with amber arrowheads and staggered CSS flow animation; lavender city dots; city name labels
+    - Centre: logo mark (large), "Heading That Way Anyway?" tagline, subtext, MailerLite embedded form (`p3xCkw`) with full CSS overrides (teal pill submit button, rounded inputs, transparent background), three trust badges (ID Verified green, Women-only lavender, Always cheaper amber)
+    - Right: phone frame mockup in pure HTML/CSS — profile screen with avatar, verified badge, 4.95 star rating, stats, "this semester" teal savings card, two journey cards, one review
+  - **Mobile-first layout** — below 900px: map and phone hidden entirely; single-column form (heading + subtext + form + badges), full width
+  - **Three feature cards** below hero: Share my journey (teal), Women-only journeys (lavender), ID verified (green)
+  - **Minimal footer**: Instagram @htwa.app · hello@htwa-app.com · htwa-app.com · "Launching September 2026" pill
+  - "htwa" lowercase everywhere, no exceptions
+
+### Decisions Made
+
+| Decision | Rationale |
+|----------|-----------|
+| Map and phone hidden on mobile | Too small to be useful; mobile is form-only, no distractions |
+| SVG map drawn in code, not an image | No external assets; scales perfectly; animation is pure CSS |
+| MailerLite CSS overrides with `!important` | MailerLite injects its own stylesheet; only `!important` reliably overrides it |
+| Logo mark dot (.) in amber | Contrast against both white text and teal background; distinctive brand detail |
+
+### Suggested Next Steps
+
+1. **Deploy the website** — drag the `website/` folder to Netlify or Vercel; point htwa-app.com DNS to it (15 min)
+2. **Verify MailerLite form works** — submit a test entry, confirm it appears in the MailerLite dashboard subscriber list
+3. **Rebuild app home screen** — now that `constants/theme.ts` exists, rebuild `app/index.tsx` with the correct light theme from DESIGN-SPEC.md; install Poppins first (`npx expo install @expo-google-fonts/poppins expo-font`)
+4. **Build design system components** — `Button.tsx`, `Card.tsx`, `Input.tsx` using theme tokens (BUILD-PLAN Stage 10)
+
+---
+
 ## 29 April 2026 (Session 6)
 
 ### What Was Built / Changed
