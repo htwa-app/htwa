@@ -3,738 +3,912 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="HTWA — Cost-sharing rideshare for Irish students. Share the journey, split the cost. Safe, verified, affordable." />
-  <title>HTWA — Heading That Way Anyway?</title>
+  <meta name="description" content="htwa — Cost-sharing rides for students across the island of Ireland. Safe, verified, and always cheaper than the alternatives." />
+  <title>htwa — Heading That Way Anyway?</title>
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- MailerLite Universal -->
+  <script>
+    (function(w,d,e,u,f,l,n){w[f]=w[f]||function(){(w[f].q=w[f].q||[])
+    .push(arguments);},l=d.createElement(e),l.async=1,l.src=u,
+    n=d.getElementsByTagName(e)[0],n.parentNode.insertBefore(l,n);})
+    (window,document,'script','https://assets.mailerlite.com/js/universal.js','ml');
+    ml('account', '2305403');
+  </script>
+  <!-- End MailerLite Universal -->
+
   <style>
-    /* ── Reset & Base ─────────────────────────────────────────────────────── */
+    /* ── Reset ───────────────────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Poppins', system-ui, sans-serif;
+      background: #F7F3ED;
+      color: #2A251F;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
 
+    /* ── Design tokens ───────────────────────────────────────────────────── */
     :root {
-      --primary:        #1F7A78;
-      --primary-light:  #E8F4F4;
-      --lavender:       #C8B8E8;
-      --lavender-light: #F0EBF8;
-      --amber:          #E8A55A;
-      --amber-light:    #FDF3E7;
-      --background:     #F7F3ED;
-      --surface:        #FFFFFF;
-      --text-primary:   #2A251F;
-      --text-secondary: rgba(40,30,20,0.55);
-      --text-tertiary:  rgba(40,30,20,0.35);
-      --border:         rgba(40,30,20,0.10);
-      --verified:       #34C759;
-      --shadow:         rgba(0,0,0,0.07);
-
+      --primary:         #1F7A78;
+      --primary-light:   #E8F4F4;
+      --lavender:        #C8B8E8;
+      --lavender-light:  #F0EBF8;
+      --amber:           #E8A55A;
+      --amber-light:     #FDF3E7;
+      --background:      #F7F3ED;
+      --surface:         #FFFFFF;
+      --text-primary:    #2A251F;
+      --text-secondary:  rgba(40,30,20,0.55);
+      --text-tertiary:   rgba(40,30,20,0.35);
+      --border:          rgba(40,30,20,0.10);
+      --verified:        #34C759;
+      --shadow:          rgba(0,0,0,0.07);
       --radius-sm:  8px;
       --radius-md:  12px;
       --radius-lg:  16px;
       --radius-xl:  24px;
       --radius-full: 999px;
-
-      --screen-padding: 20px;
     }
 
-    html { scroll-behavior: smooth; }
-
-    body {
+    /* ── Logo mark ───────────────────────────────────────────────────────── */
+    .logo-mark {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--primary);
+      border-radius: 22%;
       font-family: 'Poppins', system-ui, sans-serif;
-      background: var(--background);
-      color: var(--text-primary);
-      line-height: 1.5;
-      -webkit-font-smoothing: antialiased;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1;
+      flex-shrink: 0;
     }
+    .logo-mark .dot { color: var(--amber); }
 
-    img { display: block; max-width: 100%; }
+    .logo-mark--sm  { width: 36px; height: 36px; font-size: 13px; letter-spacing: -0.5px; }
+    .logo-mark--md  { width: 52px; height: 52px; font-size: 18px; letter-spacing: -0.5px; }
+    .logo-mark--lg  { width: 72px; height: 72px; font-size: 26px; letter-spacing: -1px; }
 
-    a { color: inherit; text-decoration: none; }
-
-    /* ── Layout helpers ───────────────────────────────────────────────────── */
-    .container {
-      width: 100%;
-      max-width: 680px;
-      margin-inline: auto;
-      padding-inline: var(--screen-padding);
-    }
-
-    .section { padding-block: 56px; }
-
-    /* ── Nav ──────────────────────────────────────────────────────────────── */
+    /* ── Nav ─────────────────────────────────────────────────────────────── */
     nav {
       position: sticky;
       top: 0;
-      z-index: 100;
-      background: var(--surface);
+      z-index: 200;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--border);
     }
-
     .nav-inner {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      max-width: 680px;
-      margin-inline: auto;
-      padding: 14px var(--screen-padding);
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 12px 24px;
     }
-
-    .nav-logo {
-      font-size: 22px;
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+    .nav-name {
+      font-size: 18px;
       font-weight: 700;
       color: var(--primary);
-      letter-spacing: 2px;
+      letter-spacing: -0.3px;
     }
-
-    .nav-cta {
+    .nav-pill {
       display: inline-flex;
       align-items: center;
-      justify-content: center;
-      height: 40px;
-      padding: 0 20px;
+      gap: 6px;
+      height: 38px;
+      padding: 0 18px;
       background: var(--primary);
       color: #fff;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
       border-radius: var(--radius-full);
+      text-decoration: none;
       transition: opacity 0.15s;
     }
+    .nav-pill:hover { opacity: 0.88; }
 
-    .nav-cta:hover { opacity: 0.88; }
-
-    /* ── Hero ─────────────────────────────────────────────────────────────── */
+    /* ── Hero wrapper ────────────────────────────────────────────────────── */
     .hero {
-      padding-top: 64px;
-      padding-bottom: 56px;
-      text-align: center;
+      min-height: calc(100vh - 62px);
+      display: grid;
+      grid-template-columns: 1fr 1.15fr 1fr;
+      gap: 0;
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 32px 24px;
+      align-items: center;
     }
 
-    .hero-eyebrow {
-      display: inline-block;
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--primary);
-      background: var(--primary-light);
-      padding: 4px 14px;
-      border-radius: var(--radius-full);
-      margin-bottom: 20px;
-      letter-spacing: 0.4px;
-    }
-
-    .hero h1 {
-      font-size: clamp(32px, 8vw, 48px);
-      font-weight: 700;
-      line-height: 1.1;
-      color: var(--text-primary);
-      margin-bottom: 12px;
-    }
-
-    .hero h1 span { color: var(--primary); }
-
-    .hero-tagline {
-      font-size: 18px;
-      font-weight: 400;
-      color: var(--text-secondary);
-      margin-bottom: 36px;
-      max-width: 420px;
-      margin-inline: auto;
-    }
-
-    .hero-social-proof {
+    /* ── Left column — Ireland map ───────────────────────────────────────── */
+    .map-col {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      margin-bottom: 36px;
+      padding: 24px 16px;
+    }
+    .map-svg-wrap {
+      width: 100%;
+      max-width: 340px;
+    }
+    .map-svg-wrap svg {
+      width: 100%;
+      height: auto;
+      overflow: visible;
     }
 
-    .avatar-stack {
+    /* Animated route lines */
+    @keyframes flowRoute {
+      from { stroke-dashoffset: 0; }
+      to   { stroke-dashoffset: -42; }
+    }
+    .route-line {
+      stroke: var(--primary);
+      stroke-width: 1.6;
+      stroke-dasharray: 6 5;
+      fill: none;
+      opacity: 0.7;
+      animation: flowRoute 2.4s linear infinite;
+    }
+    .route-line:nth-child(1) { animation-delay: 0s; }
+    .route-line:nth-child(2) { animation-delay: -0.3s; }
+    .route-line:nth-child(3) { animation-delay: -0.7s; }
+    .route-line:nth-child(4) { animation-delay: -1.1s; }
+    .route-line:nth-child(5) { animation-delay: -1.5s; }
+    .route-line:nth-child(6) { animation-delay: -1.9s; }
+    .route-line:nth-child(7) { animation-delay: -2.1s; }
+    .route-line:nth-child(8) { animation-delay: -0.5s; }
+
+    /* ── Centre column — form ────────────────────────────────────────────── */
+    .form-col {
       display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 24px;
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+    }
+    .form-col-inner {
+      width: 100%;
+      max-width: 400px;
+    }
+    .hero-logo-row {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .hero-tagline {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.3;
+      text-align: center;
+      margin-top: 14px;
+      margin-bottom: 6px;
+    }
+    .hero-sub {
+      font-size: 14px;
+      color: var(--text-secondary);
+      text-align: center;
+      line-height: 1.55;
+      margin-bottom: 24px;
     }
 
-    .avatar-stack .avatar {
-      width: 32px;
-      height: 32px;
+    /* Trust badges */
+    .trust-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 18px;
+    }
+    .trust-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 5px 12px;
+      border-radius: var(--radius-full);
+    }
+    .trust-badge--green  { background: #EDFBF0; color: #1A7A34; }
+    .trust-badge--lavender { background: var(--lavender-light); color: #5A3E8A; }
+    .trust-badge--amber  { background: var(--amber-light); color: #8A5A1A; }
+
+    /* ── Right column — phone mockup ─────────────────────────────────────── */
+    .phone-col {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+    .phone-frame {
+      width: 224px;
+      height: 456px;
+      border: 3px solid rgba(255,255,255,0.9);
+      border-radius: 36px;
+      background: var(--surface);
+      box-shadow:
+        0 0 0 1px rgba(40,30,20,0.12),
+        0 20px 48px rgba(0,0,0,0.18),
+        0 4px 12px rgba(0,0,0,0.08);
+      overflow: hidden;
+      position: relative;
+      flex-shrink: 0;
+    }
+    /* notch */
+    .phone-frame::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 50%; transform: translateX(-50%);
+      width: 80px; height: 24px;
+      background: var(--surface);
+      border-bottom-left-radius: 14px;
+      border-bottom-right-radius: 14px;
+      z-index: 10;
+      box-shadow: 0 1px 0 rgba(40,30,20,0.08);
+    }
+    .phone-screen {
+      width: 100%;
+      height: 100%;
+      background: var(--background);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Phone status bar */
+    .phone-status {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 28px 14px 4px;
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    /* Phone header */
+    .phone-header {
+      display: flex;
+      align-items: center;
+      padding: 6px 14px 10px;
+      gap: 6px;
+    }
+    .phone-back {
+      font-size: 14px;
+      color: var(--primary);
+      font-weight: 600;
+    }
+    .phone-header-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    /* Profile hero inside phone */
+    .p-profile-hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 4px 14px 12px;
+    }
+    .p-avatar {
+      width: 52px;
+      height: 52px;
       border-radius: 50%;
-      border: 2px solid var(--surface);
       background: var(--lavender);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 11px;
-      font-weight: 600;
+      font-size: 16px;
+      font-weight: 700;
       color: var(--text-primary);
-      margin-left: -8px;
-    }
-
-    .avatar-stack .avatar:first-child { margin-left: 0; background: var(--primary-light); }
-    .avatar-stack .avatar:nth-child(2) { background: var(--amber-light); }
-    .avatar-stack .avatar:nth-child(3) { background: var(--lavender-light); }
-
-    .social-proof-text {
-      font-size: 13px;
-      color: var(--text-secondary);
-    }
-
-    .social-proof-text strong {
-      color: var(--text-primary);
-      font-weight: 600;
-    }
-
-    /* ── Waitlist form ────────────────────────────────────────────────────── */
-    .waitlist-card {
-      background: var(--surface);
-      border-radius: var(--radius-xl);
-      border: 1px solid var(--border);
+      border: 2.5px solid var(--surface);
       box-shadow: 0 2px 8px var(--shadow);
-      padding: 28px 24px;
-      max-width: 480px;
-      margin-inline: auto;
-    }
-
-    .waitlist-card h2 {
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 4px;
-      text-align: center;
-    }
-
-    .waitlist-card .form-subheading {
-      font-size: 13px;
-      color: var(--text-secondary);
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
-    .form-group { margin-bottom: 12px; }
-
-    .form-group label {
-      display: block;
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--text-secondary);
-      margin-bottom: 6px;
-    }
-
-    .form-group input,
-    .form-group select {
-      width: 100%;
-      height: 52px;
-      padding: 0 16px;
-      font-family: 'Poppins', system-ui, sans-serif;
-      font-size: 15px;
-      color: var(--text-primary);
-      background: var(--surface);
-      border: 1.5px solid var(--border);
-      border-radius: var(--radius-md);
-      outline: none;
-      appearance: none;
-      -webkit-appearance: none;
-      transition: border-color 0.15s;
-    }
-
-    .form-group input::placeholder { color: var(--text-tertiary); }
-
-    .form-group input:focus,
-    .form-group select:focus {
-      border-color: var(--primary);
-    }
-
-    .form-group select {
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%232A251F' stroke-opacity='.45' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 16px center;
-      padding-right: 40px;
-      cursor: pointer;
-    }
-
-    .region-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-
-    .region-option {
       position: relative;
     }
-
-    .region-option input[type="radio"] {
+    .p-verified-dot {
       position: absolute;
-      opacity: 0;
-      width: 0;
-      height: 0;
+      bottom: -1px; right: -1px;
+      width: 16px; height: 16px;
+      background: var(--verified);
+      border-radius: 50%;
+      border: 2px solid var(--surface);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 7px; color: #fff; font-weight: 700;
     }
-
-    .region-option label {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 52px;
-      border: 1.5px solid var(--border);
-      border-radius: var(--radius-md);
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--text-secondary);
-      cursor: pointer;
-      transition: border-color 0.15s, color 0.15s, background 0.15s;
-      margin-bottom: 0;
-    }
-
-    .region-option input[type="radio"]:checked + label {
-      border-color: var(--primary);
-      color: var(--primary);
-      background: var(--primary-light);
-    }
-
-    .submit-btn {
-      width: 100%;
-      height: 52px;
-      margin-top: 16px;
-      background: var(--primary);
-      color: #fff;
-      font-family: 'Poppins', system-ui, sans-serif;
-      font-size: 16px;
-      font-weight: 600;
-      border: none;
-      border-radius: var(--radius-full);
-      cursor: pointer;
-      transition: opacity 0.15s;
-    }
-
-    .submit-btn:hover { opacity: 0.88; }
-    .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    .form-legal {
-      font-size: 11px;
-      color: var(--text-tertiary);
-      text-align: center;
-      margin-top: 12px;
-    }
-
-    .form-success {
-      display: none;
-      text-align: center;
-      padding: 12px 0 4px;
-    }
-
-    .form-success .success-icon {
-      font-size: 40px;
-      margin-bottom: 10px;
-    }
-
-    .form-success h3 {
-      font-size: 17px;
-      font-weight: 600;
-      margin-bottom: 6px;
-    }
-
-    .form-success p {
-      font-size: 14px;
-      color: var(--text-secondary);
-    }
-
-    .form-error {
-      display: none;
+    .p-name {
       font-size: 13px;
-      color: #FF3B30;
-      text-align: center;
-      margin-top: 10px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-top: 6px;
     }
-
-    /* ── How it works ─────────────────────────────────────────────────────── */
-    .how-it-works { background: var(--surface); }
-
-    .section-heading {
-      font-size: 24px;
-      font-weight: 600;
-      text-align: center;
-      margin-bottom: 8px;
-    }
-
-    .section-subheading {
-      font-size: 15px;
+    .p-uni {
+      font-size: 9px;
       color: var(--text-secondary);
-      text-align: center;
-      margin-bottom: 40px;
+      margin-top: 1px;
     }
 
-    .steps {
+    /* Stats row */
+    .p-stats {
+      display: flex;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      margin: 0 10px;
+    }
+    .p-stat {
+      flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      align-items: center;
+      padding: 8px 4px;
+      border-right: 1px solid var(--border);
+    }
+    .p-stat:last-child { border-right: none; }
+    .p-stat-val {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .p-stat-lbl {
+      font-size: 7px;
+      color: var(--text-secondary);
+      margin-top: 1px;
     }
 
-    .step {
+    /* Semester card */
+    .p-semester {
+      margin: 8px 10px;
+      background: var(--primary);
+      border-radius: var(--radius-md);
+      padding: 8px 10px;
+    }
+    .p-semester-title {
+      font-size: 8px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.75);
+      margin-bottom: 4px;
+    }
+    .p-semester-stats {
       display: flex;
-      gap: 16px;
-      align-items: flex-start;
+      gap: 8px;
+    }
+    .p-sem-stat {
+      display: flex;
+      flex-direction: column;
+    }
+    .p-sem-val {
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .p-sem-lbl {
+      font-size: 7px;
+      color: rgba(255,255,255,0.7);
     }
 
-    .step-number {
-      flex-shrink: 0;
-      width: 44px;
-      height: 44px;
-      border-radius: var(--radius-full);
-      background: var(--primary-light);
+    /* Journey cards */
+    .p-section-title {
+      font-size: 8px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      padding: 4px 12px 4px;
+    }
+    .p-journey {
+      margin: 0 10px 5px;
+      background: var(--surface);
+      border-radius: var(--radius-sm);
+      padding: 6px 8px;
       display: flex;
       align-items: center;
-      justify-content: center;
-      font-size: 16px;
-      font-weight: 700;
-      color: var(--primary);
+      justify-content: space-between;
+      box-shadow: 0 1px 3px var(--shadow);
     }
-
-    .step-content h3 {
-      font-size: 16px;
+    .p-journey-route {
+      font-size: 9px;
       font-weight: 600;
-      margin-bottom: 4px;
+      color: var(--text-primary);
     }
-
-    .step-content p {
-      font-size: 14px;
+    .p-journey-date {
+      font-size: 7px;
       color: var(--text-secondary);
-      line-height: 1.5;
+    }
+    .p-journey-saved {
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--verified);
     }
 
-    /* ── Safety features ──────────────────────────────────────────────────── */
-    .safety-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-
-    .safety-card {
+    /* Review card */
+    .p-review {
+      margin: 0 10px 6px;
       background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 18px 16px;
-      box-shadow: 0 2px 8px var(--shadow);
+      border-radius: var(--radius-sm);
+      padding: 6px 8px;
+      box-shadow: 0 1px 3px var(--shadow);
     }
-
-    .safety-card .icon {
-      font-size: 26px;
-      margin-bottom: 10px;
+    .p-review-stars {
+      font-size: 8px;
+      color: var(--amber);
+      margin-bottom: 2px;
     }
-
-    .safety-card h3 {
-      font-size: 14px;
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
-
-    .safety-card p {
-      font-size: 12px;
+    .p-review-text {
+      font-size: 7.5px;
       color: var(--text-secondary);
-      line-height: 1.5;
+      line-height: 1.4;
+    }
+    .p-review-author {
+      font-size: 7px;
+      color: var(--text-tertiary);
+      margin-top: 2px;
     }
 
-    .safety-card.teal   { background: var(--primary-light); border-color: transparent; }
-    .safety-card.lavender { background: var(--lavender-light); border-color: transparent; }
-    .safety-card.green  { background: #EDFBF0; border-color: transparent; }
-    .safety-card.red    { background: #FFF0EF; border-color: transparent; }
-
-    /* ── Footer ───────────────────────────────────────────────────────────── */
-    footer {
+    /* ── Feature cards ───────────────────────────────────────────────────── */
+    .features {
+      background: var(--surface);
       border-top: 1px solid var(--border);
-      padding-block: 28px;
-      text-align: center;
     }
-
-    .footer-logo {
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--primary);
-      letter-spacing: 2px;
+    .features-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 48px 24px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    .feature-card {
+      border-radius: var(--radius-lg);
+      padding: 24px 20px;
+    }
+    .feature-card--teal    { background: var(--primary-light); }
+    .feature-card--lavender { background: var(--lavender-light); }
+    .feature-card--green   { background: #EDFBF0; }
+    .feature-icon { font-size: 28px; margin-bottom: 12px; }
+    .feature-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
       margin-bottom: 6px;
     }
-
-    .footer-tagline {
-      font-size: 12px;
-      color: var(--text-tertiary);
-      margin-bottom: 16px;
+    .feature-desc {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.55;
     }
 
+    /* ── Footer ──────────────────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 20px 24px;
+    }
+    .footer-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .footer-brand-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--primary);
+    }
     .footer-links {
       display: flex;
-      justify-content: center;
-      gap: 20px;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px 16px;
       font-size: 12px;
       color: var(--text-secondary);
     }
-
+    .footer-links a { text-decoration: none; color: inherit; }
     .footer-links a:hover { color: var(--primary); }
-
-    .footer-legal {
+    .footer-sep { color: var(--text-tertiary); }
+    .footer-launch {
       font-size: 11px;
-      color: var(--text-tertiary);
-      margin-top: 16px;
+      font-weight: 500;
+      color: var(--primary);
+      background: var(--primary-light);
+      padding: 4px 12px;
+      border-radius: var(--radius-full);
     }
 
-    /* ── Responsive ───────────────────────────────────────────────────────── */
-    @media (max-width: 400px) {
-      .safety-grid { grid-template-columns: 1fr; }
-      .region-row  { grid-template-columns: 1fr; }
+    /* ── MailerLite overrides ────────────────────────────────────────────── */
+    .ml-form-embedWrapper,
+    .ml-form-embedWrapper .ml-form-embedBody,
+    .ml-form-embedWrapper .ml-form-embedBody.ml-form-embedBodyDefault {
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+    }
+    .ml-form-embedWrapper .ml-form-embedBody .ml-form-fieldRow {
+      padding: 0 !important;
+      margin-bottom: 10px !important;
+    }
+    .ml-form-embedWrapper .ml-form-embedBody input[type="text"],
+    .ml-form-embedWrapper .ml-form-embedBody input[type="email"],
+    .ml-form-embedWrapper .ml-form-embedBody input[type="tel"] {
+      font-family: 'Poppins', system-ui, sans-serif !important;
+      font-size: 14px !important;
+      font-weight: 400 !important;
+      color: #2A251F !important;
+      background: #FFFFFF !important;
+      border: 1.5px solid rgba(40,30,20,0.15) !important;
+      border-radius: 12px !important;
+      height: 48px !important;
+      padding: 0 16px !important;
+      box-shadow: none !important;
+      outline: none !important;
+      width: 100% !important;
+      transition: border-color 0.15s !important;
+    }
+    .ml-form-embedWrapper .ml-form-embedBody input[type="text"]:focus,
+    .ml-form-embedWrapper .ml-form-embedBody input[type="email"]:focus,
+    .ml-form-embedWrapper .ml-form-embedBody input[type="tel"]:focus {
+      border-color: #1F7A78 !important;
+    }
+    .ml-form-embedWrapper .ml-form-embedBody input::placeholder {
+      color: rgba(40,30,20,0.35) !important;
+    }
+    .ml-form-embedWrapper .ml-form-embedBody .ml-form-embedSubmit {
+      margin-top: 14px !important;
+      padding: 0 !important;
+    }
+    .ml-form-embedWrapper .ml-form-embedBody .ml-form-embedSubmit button,
+    .ml-form-embedWrapper .ml-form-embedBody .ml-form-embedSubmit button[type="submit"] {
+      font-family: 'Poppins', system-ui, sans-serif !important;
+      font-size: 15px !important;
+      font-weight: 600 !important;
+      color: #FFFFFF !important;
+      background: #1F7A78 !important;
+      border: none !important;
+      border-radius: 999px !important;
+      height: 50px !important;
+      width: 100% !important;
+      cursor: pointer !important;
+      transition: opacity 0.15s !important;
+      box-shadow: none !important;
+      padding: 0 24px !important;
+    }
+    .ml-form-embedWrapper .ml-form-embedBody .ml-form-embedSubmit button:hover {
+      opacity: 0.88 !important;
+      background: #1F7A78 !important;
+    }
+    .ml-form-embedWrapper .ml-form-embedBody label {
+      font-family: 'Poppins', system-ui, sans-serif !important;
+      font-size: 11px !important;
+      font-weight: 500 !important;
+      color: rgba(40,30,20,0.55) !important;
+      margin-bottom: 5px !important;
+    }
+    .ml-form-embedWrapper .ml-form-embedBody .ml-form-checkboxRow,
+    .ml-form-embedWrapper .ml-form-embedBody .ml-form-interestOption {
+      font-size: 12px !important;
+      color: rgba(40,30,20,0.55) !important;
+    }
+    /* Success state */
+    .ml-form-embedWrapper .ml-form-successBody {
+      background: #EDFBF0 !important;
+      border-radius: 16px !important;
+      padding: 24px !important;
+      text-align: center !important;
+    }
+    .ml-form-embedWrapper .ml-form-successBody p {
+      font-family: 'Poppins', system-ui, sans-serif !important;
+      color: #1A7A34 !important;
+      font-size: 14px !important;
+    }
+
+    /* ── Responsive ──────────────────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .hero {
+        grid-template-columns: 1fr;
+        min-height: unset;
+        padding: 32px 20px;
+        gap: 0;
+      }
+      /* On mobile: show only the form — map and phone are too small to add value */
+      .map-col   { display: none; }
+      .phone-col { display: none; }
+      .form-col {
+        border: none;
+        padding: 0;
+        width: 100%;
+      }
+      .form-col-inner {
+        max-width: 100%;
+      }
+      .features-inner { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 480px) {
+      .nav-inner { padding: 10px 16px; }
+      .hero { padding: 24px 16px; }
+      .hero-tagline { font-size: 22px; }
+      .logo-mark--lg { width: 64px; height: 64px; font-size: 23px; }
     }
   </style>
 </head>
 <body>
 
-  <!-- Nav -->
-  <nav>
-    <div class="nav-inner">
-      <span class="nav-logo">HTWA</span>
-      <a href="#waitlist" class="nav-cta">Join the waitlist</a>
+<!-- ── Nav ─────────────────────────────────────────────────────────────────── -->
+<nav>
+  <div class="nav-inner">
+    <a class="nav-brand" href="/">
+      <span class="logo-mark logo-mark--sm" aria-hidden="true">htwa<span class="dot">.</span></span>
+      <span class="nav-name">htwa</span>
+    </a>
+    <a class="nav-pill" href="#waitlist">Join the waitlist ↗</a>
+  </div>
+</nav>
+
+<!-- ── Hero ────────────────────────────────────────────────────────────────── -->
+<section class="hero">
+
+  <!-- Left — Ireland map -->
+  <div class="map-col">
+    <div class="map-svg-wrap">
+      <svg viewBox="0 0 200 260" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Map of the island of Ireland with animated route lines">
+        <defs>
+          <!-- Amber arrowhead marker -->
+          <marker id="arrow" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0.5 L0,6.5 L6.5,3.5 Z" fill="#E8A55A" />
+          </marker>
+          <!-- Subtle drop shadow -->
+          <filter id="mapShadow" x="-5%" y="-5%" width="110%" height="110%">
+            <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#1F7A78" flood-opacity="0.08"/>
+          </filter>
+        </defs>
+
+        <!-- Ireland outline -->
+        <path
+          d="M 88,5
+             C 108,1 138,7 160,20
+             C 174,28 182,40 182,55
+             L 178,72
+             L 180,96
+             L 176,120
+             C 173,136 166,156 158,170
+             L 145,186
+             C 132,197 115,208 98,220
+             L 78,224
+             C 62,226 46,216 38,202
+             C 30,190 30,175 38,162
+             C 43,154 52,150 54,140
+             C 50,130 40,126 32,118
+             C 28,106 28,92 32,78
+             C 36,68 44,58 54,48
+             L 66,34
+             C 74,22 82,12 88,5
+             Z"
+          fill="rgba(31,122,120,0.07)"
+          stroke="rgba(31,122,120,0.28)"
+          stroke-width="1.5"
+          stroke-linejoin="round"
+          filter="url(#mapShadow)"
+        />
+
+        <!-- Route lines (animated dashed, with amber arrowheads) -->
+        <g class="route-lines">
+          <!-- Belfast → Dublin -->
+          <line class="route-line" x1="158" y1="55" x2="172" y2="116" marker-end="url(#arrow)" />
+          <!-- Dublin → Cork -->
+          <line class="route-line" x1="172" y1="116" x2="100" y2="212" marker-end="url(#arrow)" />
+          <!-- Galway → Dublin -->
+          <line class="route-line" x1="60" y1="138" x2="172" y2="116" marker-end="url(#arrow)" />
+          <!-- Derry → Galway -->
+          <line class="route-line" x1="106" y1="28" x2="60" y2="138" marker-end="url(#arrow)" />
+          <!-- Cork → Limerick -->
+          <line class="route-line" x1="100" y1="212" x2="78" y2="168" marker-end="url(#arrow)" />
+          <!-- Limerick → Athlone -->
+          <line class="route-line" x1="78" y1="168" x2="106" y2="126" marker-end="url(#arrow)" />
+          <!-- Athlone → Dublin -->
+          <line class="route-line" x1="106" y1="126" x2="172" y2="116" marker-end="url(#arrow)" />
+          <!-- Kilkenny → Dublin -->
+          <line class="route-line" x1="135" y1="160" x2="172" y2="116" marker-end="url(#arrow)" />
+        </g>
+
+        <!-- City dots (lavender) -->
+        <g fill="rgba(200,184,232,0.9)" stroke="#fff" stroke-width="1">
+          <circle cx="158" cy="55"  r="4.5" />  <!-- Belfast -->
+          <circle cx="106" cy="28"  r="4"   />  <!-- Derry -->
+          <circle cx="172" cy="116" r="5"   />  <!-- Dublin -->
+          <circle cx="60"  cy="138" r="4.5" />  <!-- Galway -->
+          <circle cx="106" cy="126" r="3.5" />  <!-- Athlone -->
+          <circle cx="78"  cy="168" r="3.5" />  <!-- Limerick -->
+          <circle cx="135" cy="160" r="3.5" />  <!-- Kilkenny -->
+          <circle cx="100" cy="212" r="4.5" />  <!-- Cork -->
+        </g>
+
+        <!-- City labels -->
+        <g font-family="'Poppins', system-ui, sans-serif" font-size="8.5" fill="#2A251F" fill-opacity="0.6">
+          <text x="164" y="53"  text-anchor="start">Belfast</text>
+          <text x="112" y="27"  text-anchor="start">Derry</text>
+          <text x="176" y="114" text-anchor="start">Dublin</text>
+          <text x="20"  y="137" text-anchor="start">Galway</text>
+          <text x="85"  y="124" text-anchor="end">Athlone</text>
+          <text x="56"  y="168" text-anchor="end">Limerick</text>
+          <text x="130" y="172" text-anchor="end">Kilkenny</text>
+          <text x="84"  y="222" text-anchor="end">Cork</text>
+        </g>
+      </svg>
     </div>
-  </nav>
+  </div>
 
-  <!-- Hero -->
-  <section class="hero container">
-    <span class="hero-eyebrow">Coming September 2026</span>
-    <h1>Heading<br><span>That Way Anyway?</span></h1>
-    <p class="hero-tagline">Cost-sharing rides for Irish students. Safe, verified, and always cheaper than the bus.</p>
+  <!-- Centre — form -->
+  <div class="form-col" id="waitlist">
+    <div class="form-col-inner">
 
-    <div class="hero-social-proof">
-      <div class="avatar-stack">
-        <div class="avatar">S</div>
-        <div class="avatar">C</div>
-        <div class="avatar">R</div>
+      <div class="hero-logo-row">
+        <span class="logo-mark logo-mark--lg" aria-label="htwa logo">htwa<span class="dot">.</span></span>
+        <h1 class="hero-tagline">Heading That Way Anyway?</h1>
+        <p class="hero-sub">Cost-sharing rides for students across the island of Ireland. Safe, verified, and always cheaper than the alternatives!</p>
       </div>
-      <p class="social-proof-text"><strong>Students</strong> already on the waitlist</p>
+
+      <!-- MailerLite embedded form -->
+      <div class="ml-embedded" data-form="p3xCkw"></div>
+
+      <div class="trust-badges">
+        <span class="trust-badge trust-badge--green">✓ ID Verified</span>
+        <span class="trust-badge trust-badge--lavender">○ Women-only journeys</span>
+        <span class="trust-badge trust-badge--amber">↗ Always cheaper</span>
+      </div>
+
     </div>
-  </section>
+  </div>
 
-  <!-- Waitlist form -->
-  <section id="waitlist" class="section container">
-    <div class="waitlist-card">
-      <h2>Get early access</h2>
-      <p class="form-subheading">Be first when we launch at your university.</p>
+  <!-- Right — phone mockup -->
+  <div class="phone-col">
+    <div class="phone-frame" aria-hidden="true">
+      <div class="phone-screen">
 
-      <form id="waitlist-form" novalidate>
-        <div class="form-group">
-          <label for="name">Full name</label>
-          <input type="text" id="name" name="name" placeholder="Your name" autocomplete="name" required />
+        <!-- Status bar -->
+        <div class="phone-status">
+          <span>9:41</span>
+          <span>● ● ●</span>
         </div>
 
-        <div class="form-group">
-          <label for="email">Email address</label>
-          <input type="email" id="email" name="email" placeholder="you@university.ie" autocomplete="email" required />
+        <!-- Header -->
+        <div class="phone-header">
+          <span class="phone-back">‹</span>
+          <span class="phone-header-title">Profile</span>
         </div>
 
-        <div class="form-group">
-          <label for="university">University or college</label>
-          <select id="university" name="university" required>
-            <option value="" disabled selected>Select your university</option>
-            <optgroup label="Republic of Ireland">
-              <option value="ucd">University College Dublin (UCD)</option>
-              <option value="tcd">Trinity College Dublin (TCD)</option>
-              <option value="ucc">University College Cork (UCC)</option>
-              <option value="nuig">University of Galway (NUIG)</option>
-              <option value="ul">University of Limerick (UL)</option>
-              <option value="dcu">Dublin City University (DCU)</option>
-              <option value="mu">Maynooth University</option>
-              <option value="tu-dublin">TU Dublin</option>
-              <option value="mtu">Munster Technological University (MTU)</option>
-              <option value="atu">Atlantic Technological University (ATU)</option>
-              <option value="setu">South East Technological University (SETU)</option>
-              <option value="tu-shannon">TUS — Midlands Midwest</option>
-            </optgroup>
-            <optgroup label="Northern Ireland">
-              <option value="qub">Queen's University Belfast (QUB)</option>
-              <option value="ulster">Ulster University</option>
-              <option value="stran">Stranmillis University College</option>
-              <option value="st-marys-ni">St Mary's University College Belfast</option>
-            </optgroup>
-            <option value="other">Other / not listed</option>
-          </select>
+        <!-- Profile hero -->
+        <div class="p-profile-hero">
+          <div class="p-avatar">
+            SM
+            <div class="p-verified-dot">✓</div>
+          </div>
+          <div class="p-name">Sarah Murphy</div>
+          <div class="p-uni">University College Dublin</div>
         </div>
 
-        <div class="form-group">
-          <label>Where are you based?</label>
-          <div class="region-row">
-            <div class="region-option">
-              <input type="radio" id="region-roi" name="region" value="ROI" required />
-              <label for="region-roi">🇮🇪 Republic of Ireland</label>
+        <!-- Stats -->
+        <div class="p-stats">
+          <div class="p-stat">
+            <span class="p-stat-val">⭐ 4.95</span>
+            <span class="p-stat-lbl">Rating</span>
+          </div>
+          <div class="p-stat">
+            <span class="p-stat-val">47</span>
+            <span class="p-stat-lbl">Trips</span>
+          </div>
+          <div class="p-stat">
+            <span class="p-stat-val">98%</span>
+            <span class="p-stat-lbl">Reliable</span>
+          </div>
+        </div>
+
+        <!-- This semester -->
+        <div class="p-semester">
+          <div class="p-semester-title">THIS SEMESTER ✨</div>
+          <div class="p-semester-stats">
+            <div class="p-sem-stat">
+              <span class="p-sem-val">€186</span>
+              <span class="p-sem-lbl">saved vs bus/train</span>
             </div>
-            <div class="region-option">
-              <input type="radio" id="region-ni" name="region" value="NI" />
-              <label for="region-ni">🇬🇧 Northern Ireland</label>
+            <div class="p-sem-stat">
+              <span class="p-sem-val">184kg</span>
+              <span class="p-sem-lbl">CO₂ saved</span>
             </div>
           </div>
         </div>
 
-        <button type="submit" class="submit-btn" id="submit-btn">Join the waitlist →</button>
-        <p class="form-legal">No spam. We'll only contact you when HTWA launches at your university.</p>
-        <p class="form-error" id="form-error">Something went wrong. Please try again.</p>
-      </form>
+        <!-- Recent journeys -->
+        <div class="p-section-title">RECENT JOURNEYS</div>
 
-      <div class="form-success" id="form-success">
-        <div class="success-icon">🎉</div>
-        <h3>You're on the list!</h3>
-        <p>We'll be in touch when HTWA launches at your university. Tell a friend — the more students who join, the better the routes.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- How it works -->
-  <section class="section how-it-works">
-    <div class="container">
-      <h2 class="section-heading">How it works</h2>
-      <p class="section-subheading">Three steps, no faff.</p>
-
-      <div class="steps">
-        <div class="step">
-          <div class="step-number">1</div>
-          <div class="step-content">
-            <h3>Verify your identity</h3>
-            <p>Upload a government ID and take a quick selfie. Every HTWA user is verified before they can book or offer a ride — no anonymity.</p>
+        <div class="p-journey">
+          <div>
+            <div class="p-journey-route">Dublin → Galway</div>
+            <div class="p-journey-date">28 Apr · as driver</div>
           </div>
+          <div class="p-journey-saved">Saved €14</div>
         </div>
 
-        <div class="step">
-          <div class="step-number">2</div>
-          <div class="step-content">
-            <h3>Find or offer a ride</h3>
-            <p>Search for available journeys or post your own route. Prices are calculated automatically based on government mileage rates — drivers share costs, never profit.</p>
+        <div class="p-journey">
+          <div>
+            <div class="p-journey-route">Cork → Dublin</div>
+            <div class="p-journey-date">22 Apr · as passenger</div>
           </div>
+          <div class="p-journey-saved">Saved €18</div>
         </div>
 
-        <div class="step">
-          <div class="step-number">3</div>
-          <div class="step-content">
-            <h3>Travel safely together</h3>
-            <p>Live location is shared with your nominated contact the moment your journey starts. In-app messaging, a silent SOS button, and a women-only mode are all built in.</p>
-          </div>
+        <!-- Review -->
+        <div class="p-review">
+          <div class="p-review-stars">★★★★★</div>
+          <div class="p-review-text">"Brilliant driver — always on time and great craic. Would definitely travel with Sarah again."</div>
+          <div class="p-review-author">— Ciarán O'Brien</div>
         </div>
+
       </div>
     </div>
-  </section>
+  </div>
 
-  <!-- Safety features -->
-  <section class="section container">
-    <h2 class="section-heading">Built with safety first</h2>
-    <p class="section-subheading">Safety isn't a feature — it's the product.</p>
+</section>
 
-    <div class="safety-grid">
-      <div class="safety-card teal">
-        <div class="icon">📍</div>
-        <h3>Share my journey</h3>
-        <p>Live location sent to your nominated contact the moment you set off.</p>
-      </div>
-
-      <div class="safety-card lavender">
-        <div class="icon">🌸</div>
-        <h3>Women-only mode</h3>
-        <p>Filter rides to women drivers and passengers only — your choice, always.</p>
-      </div>
-
-      <div class="safety-card green">
-        <div class="icon">✅</div>
-        <h3>Verified IDs</h3>
-        <p>Every driver and passenger is identity-checked. You always know who you're travelling with.</p>
-      </div>
-
-      <div class="safety-card red">
-        <div class="icon">🆘</div>
-        <h3>Silent SOS</h3>
-        <p>One tap sends your live location to your nominated contact — silently, discreetly.</p>
-      </div>
+<!-- ── Feature cards ────────────────────────────────────────────────────────── -->
+<section class="features">
+  <div class="features-inner">
+    <div class="feature-card feature-card--teal">
+      <div class="feature-icon">📍</div>
+      <div class="feature-title">Share my journey</div>
+      <p class="feature-desc">Live location shared with your nominated contact the moment you set off. They track you in real time — no app install needed.</p>
     </div>
-  </section>
-
-  <!-- Footer -->
-  <footer>
-    <div class="container">
-      <p class="footer-logo">HTWA</p>
-      <p class="footer-tagline">Heading That Way Anyway?</p>
-      <div class="footer-links">
-        <a href="/privacy">Privacy</a>
-        <a href="/terms">Terms</a>
-        <a href="mailto:hello@htwa-app.com">Contact</a>
-      </div>
-      <p class="footer-legal">Drivers share costs only — never profit from a journey. © 2026 HTWA. All rights reserved.</p>
+    <div class="feature-card feature-card--lavender">
+      <div class="feature-icon">🌸</div>
+      <div class="feature-title">Women-only journeys</div>
+      <p class="feature-desc">Filter rides to women drivers and passengers only. Your choice, always visible — a lavender badge on every matching ride.</p>
     </div>
-  </footer>
+    <div class="feature-card feature-card--green">
+      <div class="feature-icon">✅</div>
+      <div class="feature-title">ID verified drivers &amp; passengers</div>
+      <p class="feature-desc">Every account is identity-checked before they can book or offer a ride. You always know exactly who you're travelling with.</p>
+    </div>
+  </div>
+</section>
 
-  <script>
-    /**
-     * Waitlist form handler.
-     * Submits to Supabase REST API via fetch.
-     * SUPABASE_URL and SUPABASE_ANON_KEY are injected at deploy time.
-     */
-    (function () {
-      // These values are replaced at deploy time.
-      // For local testing, set them here temporarily.
-      var SUPABASE_URL  = '';
-      var SUPABASE_ANON = '';
-
-      var form       = document.getElementById('waitlist-form');
-      var successEl  = document.getElementById('form-success');
-      var errorEl    = document.getElementById('form-error');
-      var submitBtn  = document.getElementById('submit-btn');
-
-      form.addEventListener('submit', function (e) {
-        e.preventDefault();
-        errorEl.style.display = 'none';
-
-        var name       = document.getElementById('name').value.trim();
-        var email      = document.getElementById('email').value.trim();
-        var university = document.getElementById('university').value;
-        var region     = document.querySelector('input[name="region"]:checked');
-
-        if (!name || !email || !university || !region) {
-          errorEl.textContent = 'Please fill in all fields.';
-          errorEl.style.display = 'block';
-          return;
-        }
-
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Joining…';
-
-        var payload = {
-          name:       name,
-          email:      email,
-          university: university,
-          region:     region.value,
-        };
-
-        if (!SUPABASE_URL || !SUPABASE_ANON) {
-          // Supabase not yet configured — show success so the page is testable.
-          showSuccess();
-          return;
-        }
-
-        fetch(SUPABASE_URL + '/rest/v1/waitlist', {
-          method:  'POST',
-          headers: {
-            'Content-Type':  'application/json',
-            'apikey':        SUPABASE_ANON,
-            'Authorization': 'Bearer ' + SUPABASE_ANON,
-            'Prefer':        'return=minimal',
-          },
-          body: JSON.stringify(payload),
-        })
-          .then(function (res) {
-            if (res.ok || res.status === 201) {
-              showSuccess();
-            } else {
-              return res.text().then(function (t) { throw new Error(t); });
-            }
-          })
-          .catch(function (err) {
-            console.error('Waitlist submit error:', err);
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Join the waitlist →';
-            errorEl.textContent = 'Something went wrong. Please try again.';
-            errorEl.style.display = 'block';
-          });
-      });
-
-      function showSuccess() {
-        form.style.display = 'none';
-        successEl.style.display = 'block';
-      }
-    })();
-  </script>
+<!-- ── Footer ───────────────────────────────────────────────────────────────── -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <span class="logo-mark logo-mark--sm" aria-hidden="true">htwa<span class="dot">.</span></span>
+      <span class="footer-brand-name">htwa</span>
+    </div>
+    <div class="footer-links">
+      <a href="https://instagram.com/htwa.app" target="_blank" rel="noopener">Instagram @htwa.app</a>
+      <span class="footer-sep">·</span>
+      <a href="mailto:hello@htwa-app.com">hello@htwa-app.com</a>
+      <span class="footer-sep">·</span>
+      <a href="https://htwa-app.com">htwa-app.com</a>
+    </div>
+    <span class="footer-launch">Launching September 2026</span>
+  </div>
+</footer>
 
 </body>
 </html>
