@@ -680,26 +680,10 @@
     <filter id="mapShadow" x="-5%" y="-5%" width="110%" height="110%">
       <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#1F7A78" flood-opacity="0.08"/>
     </filter>
+    <!-- Clips UK path so only Northern Ireland is visible inside the viewBox -->
+    <clipPath id="island-clip"><rect width="200" height="260"/></clipPath>
   </defs>
-
-  <path
-    d="M 120,10
-       L 164,19 L 176,42 L 181,54 L 186,71 L 170,90
-       L 156,95 L 166,120 L 160,135 L 164,143 L 170,157
-       L 156,206 L 135,210 L 95,230 L 79,241 L 60,248 L 33,250
-       L 19,240 L 11,210 L 16,199
-       L 29,181 L 53,146
-       L 28,125 L 31,104 L 19,95 L 27,75
-       L 55,80 L 71,76
-       L 88,65 L 94,54 L 82,55 L 74,55 L 73,50
-       L 89,23 L 99,18
-       Z"
-    fill="rgba(31,122,120,0.07)"
-    stroke="rgba(31,122,120,0.28)"
-    stroke-width="1.5"
-    stroke-linejoin="round"
-    filter="url(#mapShadow)"
-  />
+  <!-- Ireland + Northern Ireland outline rendered by D3 — see script at bottom of page -->
 
   <g class="route-lines">
     <line class="route-line" x1="172" y1="57"  x2="160" y2="135" marker-end="url(#arrow)" />
@@ -887,6 +871,84 @@
     <span class="footer-launch">Launching September 2026</span>
   </div>
 </footer>
+
+<!-- D3 geo + TopoJSON — used only for the Ireland map SVG -->
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+<script>
+/**
+ * Renders the island of Ireland outline into the map SVG using D3 + world-atlas TopoJSON.
+ * Ireland = country code 372, UK = 826 (Northern Ireland is part of UK geometry).
+ * Projection is fitted to the island's geographic bounding box so city dots stay aligned.
+ */
+(function () {
+  var NS  = 'http://www.w3.org/2000/svg';
+  var svgEl  = document.querySelector('.map-svg-wrap svg');
+  var defsEl = svgEl.querySelector('defs');
+
+  /**
+   * Creates an SVG path element styled as the Ireland map outline.
+   * @param {string} d - SVG path data string from geoPath()
+   * @param {boolean} clip - whether to apply the island-clip clipPath (used for UK)
+   * @returns {SVGPathElement}
+   */
+  function makeOutlinePath(d, clip) {
+    var el = document.createElementNS(NS, 'path');
+    el.setAttribute('d', d);
+    el.setAttribute('fill', 'rgba(31,122,120,0.07)');
+    el.setAttribute('stroke', 'rgba(31,122,120,0.28)');
+    el.setAttribute('stroke-width', '1.5');
+    el.setAttribute('stroke-linejoin', 'round');
+    el.setAttribute('filter', 'url(#mapShadow)');
+    if (clip) { el.setAttribute('clip-path', 'url(#island-clip)'); }
+    return el;
+  }
+
+  fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json')
+    .then(function (r) { return r.json(); })
+    .then(function (world) {
+      var features = topojson.feature(world, world.objects.countries).features;
+      var ireland  = features.find(function (d) { return String(d.id) === '372'; });
+      var uk       = features.find(function (d) { return String(d.id) === '826'; });
+
+      if (!ireland) { console.warn('htwa map: Ireland feature not found in TopoJSON'); return; }
+
+      // Fit the projection to the island of Ireland's geographic bounding box.
+      // This keeps the island centred in the 200×260 viewBox and means the
+      // city dot coordinates (hand-placed) stay roughly in the right positions.
+      var islandBounds = {
+        type: 'Feature',
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [-10.7, 51.2], [-5.2, 51.2],
+            [-5.2, 55.5],  [-10.7, 55.5],
+            [-10.7, 51.2]
+          ]]
+        }
+      };
+
+      var projection = d3.geoMercator()
+        .fitExtent([[4, 4], [196, 256]], islandBounds);
+
+      var geoPath = d3.geoPath().projection(projection);
+
+      // Ireland (Republic) — renders entirely within the viewBox
+      var irelandEl = makeOutlinePath(geoPath(ireland), false);
+      defsEl.insertAdjacentElement('afterend', irelandEl);
+
+      // UK — clipped to the viewBox so only Northern Ireland (top-right of island) is visible;
+      // Great Britain projects east of x=200 and is hidden by the clipPath.
+      if (uk) {
+        var ukEl = makeOutlinePath(geoPath(uk), true);
+        irelandEl.insertAdjacentElement('afterend', ukEl);
+      }
+    })
+    .catch(function (err) {
+      console.warn('htwa map: failed to load world-atlas data', err);
+    });
+}());
+</script>
 
 </body>
 </html>
