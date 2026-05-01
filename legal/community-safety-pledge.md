@@ -40,13 +40,13 @@ I won't share other users' personal information outside the app. What happens on
 ## What HTWA Pledges to You:
 
 **We verify everyone.**  
-No one gets on the platform without completing ID and selfie verification. That green tick means something.
+We require ID and selfie verification for all users prior to use, subject to technical rollout and legal requirements. A verified badge indicates a user has completed this process.
 
 **We enforce the cost cap.**  
-Drivers can never charge more than the cost of the journey. The platform enforces this automatically.
+We enforce fare caps and will block charges that exceed the calculated journey cost. In exceptional technical or operational circumstances, manual review may apply.
 
 **We take safety seriously.**  
-We've built real safety features — live tracking, nominated contacts, Silent SOS — because we know that feeling safe matters more than anything else, especially for women travelling alone.
+We provide safety features including live tracking, nominated contacts, and Silent SOS. While these features are designed to enhance safety, they do not guarantee safety in all circumstances and are subject to availability at rollout.
 
 **We listen.**  
 If something goes wrong, contact us at hello@htwa-app.com. We'll take it seriously and act quickly.
@@ -56,4 +56,4 @@ HTWA exists because Irish students and commuters deserve a better, safer, more a
 
 ---
 
-*By using HTWA, you agree to this Community Safety Pledge and our full Terms of Service and Privacy Policy.*
+*By using HTWA, you agree to this Community Safety Pledge and our full [Terms of Service](/legal/terms-of-service) and [Privacy Policy](/legal/privacy-policy).*

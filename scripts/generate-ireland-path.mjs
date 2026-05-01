@@ -2,12 +2,28 @@ import { geoMercator, geoPath } from 'd3-geo';
 import { feature } from 'topojson-client';
 import fetch from 'node-fetch';
 
-const res = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json');
-const world = await res.json();
+const controller = new AbortController();
+const timeout = setTimeout(() => controller.abort(), 10_000);
+let world;
+try {
+  const res = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json', { signal: controller.signal });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch world atlas: ${res.status} ${res.statusText}`);
+  }
+  world = await res.json();
+} catch (err) {
+  console.error('[error] Could not load world atlas:', err.message);
+  process.exit(1);
+} finally {
+  clearTimeout(timeout);
+}
 
 const countries = feature(world, world.objects.countries).features;
 const ireland = countries.find(d => String(d.id) === '372');
 const uk      = countries.find(d => String(d.id) === '826');
+if (!ireland) { console.error('[error] Ireland (id 372) not found in world atlas'); process.exit(1); }
+if (!uk)      { console.error('[error] UK (id 826) not found in world atlas'); process.exit(1); }
+if (!uk.geometry?.coordinates) { console.error('[error] UK feature has no geometry coordinates'); process.exit(1); }
 
 // ─── Extract only the NI sub-polygon(s) from the UK MultiPolygon ──────────────
 // UK (826) is a MultiPolygon: one polygon = Great Britain, one = NI, others = small islands.

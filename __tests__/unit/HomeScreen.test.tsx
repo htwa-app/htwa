@@ -123,10 +123,12 @@ describe('HomeScreen — popular routes rendering', () => {
 
 describe('HomeScreen — platform variants', () => {
   it('renders correctly on Android (exercises android paddingTop branch)', () => {
-    const original = Platform.OS;
-    (Platform as any).OS = 'android';
-    expect(() => render(<HomeScreen />)).not.toThrow();
-    (Platform as any).OS = original;
+    const spy = jest.spyOn(Platform, 'OS', 'get').mockReturnValue('android');
+    try {
+      expect(() => render(<HomeScreen />)).not.toThrow();
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 

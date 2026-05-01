@@ -25,7 +25,7 @@
 ✅ **Stage 4** — App boots on iPhone 17 Pro Simulator
 ✅ **Stage 5** — Expo Router installed (file-based navigation)
 ✅ **Stage 6** — DESIGN-SPEC.md written (colours, typography, spacing, components)
-⬜ **Stage 7** — Quality control: Jest installed, smoke test written, GitHub Actions CI workflow set up (.github/workflows/ci.yml) — blocks merges if tests fail
+✅ **Stage 7** — Quality control: Jest installed, smoke test written, GitHub Actions CI workflow set up (.github/workflows/ci.yml) — blocks merges if tests fail
 
 ---
 

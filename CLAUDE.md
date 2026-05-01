@@ -26,7 +26,7 @@ HTWA is a **cost-sharing rideshare app for Ireland** (and Northern Ireland).
 
 It is not a taxi service. The legal model is a **carpool platform** — drivers share the cost of a journey with passengers, and can never profit from a ride. This distinction is what keeps the platform legal without requiring taxi/SPSV licensing.
 
-The name HTWA stands for **[confirm full name with Jordan]**. Domain purchased:
+The name HTWA stands for **Heading That Way Anyway**. Domain purchased:
 - `htwa-app.com` ✅
 
 Original domains (htwa.ie, htwa.app, htwa.co.uk) — decided not needed for now.

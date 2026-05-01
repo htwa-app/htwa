@@ -8,6 +8,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Colors } from '../constants/theme';
 
 export default function HomeScreen() {
   const [destination, setDestination] = useState('');
@@ -35,19 +36,20 @@ export default function HomeScreen() {
               value={destination}
               onChangeText={setDestination}
               returnKeyType="search"
+              accessibilityLabel="Search city, town or university"
             />
           </View>
         </View>
 
         {/* Primary CTAs */}
         <View style={styles.ctaRow}>
-          <TouchableOpacity style={[styles.ctaButton, styles.ctaFind]}>
+          <TouchableOpacity style={[styles.ctaButton, styles.ctaFind]} accessibilityRole="button" accessibilityLabel="Find a ride">
             <Text style={styles.ctaIcon}>🔍</Text>
             <Text style={styles.ctaTitle}>Find a ride</Text>
             <Text style={styles.ctaSubtitle}>Search available journeys</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.ctaButton, styles.ctaOffer]}>
+          <TouchableOpacity style={[styles.ctaButton, styles.ctaOffer]} accessibilityRole="button" accessibilityLabel="Offer a ride">
             <Text style={styles.ctaIcon}>🚗</Text>
             <Text style={styles.ctaTitle}>Offer a ride</Text>
             <Text style={styles.ctaSubtitle}>Share your journey</Text>
@@ -58,7 +60,7 @@ export default function HomeScreen() {
         <View style={styles.popularSection}>
           <Text style={styles.popularTitle}>Popular routes</Text>
           {POPULAR_ROUTES.map((route) => (
-            <TouchableOpacity key={route.id} style={styles.routeRow}>
+            <TouchableOpacity key={route.id} style={styles.routeRow} accessible={true} accessibilityRole="button" accessibilityLabel={`${route.from} to ${route.to}, ${route.price}`}>
               <View style={styles.routeDots}>
                 <View style={[styles.dot, styles.dotFrom]} />
                 <View style={styles.dotLine} />
@@ -89,11 +91,11 @@ export const POPULAR_ROUTES = [
   { id: '3', from: 'Cork', to: 'Limerick',  price: 'from €6' },
 ];
 
-const BRAND_GREEN = '#00C48C';
-const DARK_BG    = '#0D1B2A';
-const CARD_BG    = '#162232';
-const TEXT_PRIMARY   = '#FFFFFF';
-const TEXT_SECONDARY = '#8A9BB0';
+const BRAND_GREEN    = Colors.dark.brandGreen;
+const DARK_BG        = Colors.dark.background;
+const CARD_BG        = Colors.dark.surface;
+const TEXT_PRIMARY   = Colors.dark.textPrimary;
+const TEXT_SECONDARY = Colors.dark.textSecondary;
 
 const styles = StyleSheet.create({
   safe: {

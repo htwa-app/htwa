@@ -59,7 +59,9 @@ Entries are added at the top. Most recent session is always first.
   - Removed D3 v7 and topojson-client CDN `<script>` tags
   - Map now renders with zero network requests and works on `file://`
 
+
 ### City pixel coordinates (for reference)
+
 | City | x | y |
 |------|---|---|
 | Belfast | 187.9 | 55.6 |

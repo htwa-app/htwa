@@ -37,6 +37,19 @@ export const Colors = {
   sos: '#FF3B30',
   /** Soft card shadow colour */
   shadow: 'rgba(0,0,0,0.07)',
+  /** Dark mode colours — used in the HomeScreen dark UI */
+  dark: {
+    /** Brand green in dark mode */
+    brandGreen: '#00C48C',
+    /** Dark screen background */
+    background: '#0D1B2A',
+    /** Dark card/input background */
+    surface: '#162232',
+    /** Primary text on dark */
+    textPrimary: '#FFFFFF',
+    /** Secondary text on dark */
+    textSecondary: '#8A9BB0',
+  },
 } as const;
 
 // ─── Typography ───────────────────────────────────────────────────────────────
