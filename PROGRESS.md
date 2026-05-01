@@ -4,6 +4,56 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 1 May 2026 (Session 14)
+
+### What Was Built / Changed
+
+- **CodeRabbit PR review set up and actioned**:
+  - Added `.coderabbit.yaml` with HTWA-specific standards (TypeScript strictness, React Native performance, API security, GDPR)
+  - Opened test PR #1 (`test/coderabbit` branch) to verify CodeRabbit fires correctly
+  - Opened full codebase review PR #2 (`main` → `review/base`) to audit all existing code
+  - Actioned 19 of 21 findings from the review (2 skipped: one already correct, one rejected as incorrect)
+
+- **Fixes applied from CodeRabbit review** (all committed in `1f91416`):
+  - `__tests__/unit/HomeScreen.test.tsx` — replaced fragile `Platform.OS` direct mutation with `jest.spyOn` getter spy + `finally` restore
+  - `.github/workflows/ci.yml` — removed `--legacy-peer-deps` from `npm ci`; widened PR trigger from `[main]` to `['**']` so CI runs on all branches
+  - `app/index.tsx` — added `accessibilityLabel` to search TextInput; added `accessibilityRole="button"` and `accessibilityLabel` to both CTA TouchableOpacity components and all route row TouchableOpacity components
+  - `app/index.tsx` + `constants/theme.ts` — moved duplicate hardcoded dark-mode hex values into a `Colors.dark` sub-object in the design tokens file; `app/index.tsx` now imports from there
+  - `BUILD-PLAN.md` — Stage 7 marked ✅ (Jest + CI workflow confirmed in place)
+  - `CLAUDE.md` — resolved `[confirm full name with Jordan]` placeholder → "Heading That Way Anyway"
+  - `jest.config.js` — removed redundant `integration/**` pattern from `testMatch` (already covered by the broader pattern)
+  - `legal/community-safety-pledge.md` — replaced three absolute guarantee statements with scoped, qualified language; added Markdown links to Terms of Service and Privacy Policy in footer
+  - `PROGRESS.md` — fixed markdown lint spacing around heading and table
+  - `scripts/generate-ireland-path.mjs` — added `AbortController` 10s timeout, `res.ok` check, and null guards after country `find()` calls
+  - `.claude/settings.json` — Stop hook now reminds about both `PROGRESS.md` and `CLAUDE.md`
+  - `marketing/mailerlite-form-code.md` — fixed MD022/MD031 blank lines around headings and fenced code blocks
+
+- **Findings skipped**:
+  - `legal/privacy-policy.md` effective date — already reads "To be confirmed on launch", no change needed
+  - `website/index.html` route lines translate — rejected; the `-10px` shift was applied to the projection before exporting coordinates, so all elements share the same coordinate space; adding `translate(10,0)` would break alignment
+
+- **Earlier in session** (map work — see Sessions 12–13 entry):
+  - Mobile responsive CSS fix: all three hero columns stack vertically on mobile
+  - Map stroke removed for cleaner fill-only appearance
+  - Galway→Belfast and Sligo→Athlone route lines added; Athlone→Dublin and Kilkenny→Dublin removed
+  - City locations verified geographically accurate
+
+### Decisions Made
+
+- `Colors.dark` added to `constants/theme.ts` as the canonical source for dark-mode colour tokens — `app/index.tsx` and any future dark screens should import from there, not hardcode hex values
+- HTWA full name confirmed as "Heading That Way Anyway" (reflected in CLAUDE.md)
+- CodeRabbit will run automatically on all future PRs via `.coderabbit.yaml`
+
+### Next Steps
+
+- Merge or close PR #1 (CodeRabbit test) and PR #2 (full review) now that findings are actioned
+- Continue with folder structure cleanup (screens/, docs/, hooks/, types/, services/)
+- Deploy website to Netlify, point htwa-app.com DNS
+- Verify MailerLite form with a live test submission
+- Begin building design system components (Button, Card, Input, Badge)
+
+---
+
 ## 1 May 2026 (Sessions 12–13)
 
 ### What Was Built / Changed
