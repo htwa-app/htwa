@@ -4,6 +4,49 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 1 May 2026 (Sessions 12–13)
+
+### What Was Built / Changed
+
+- **Fixed NI northeast coast cut-off (Ards Peninsula)** — The merged topojson approach from Session 11 was still clipping County Down / Ards Peninsula, and any clip-path fix also accidentally clipped Scotland's Mull of Kintyre into view (only ~11px apart at this scale):
+  - Switched from `topojson.merge` (which includes all of Great Britain) to centroid-filtering the UK (826) MultiPolygon sub-polygons to extract NI only (centroid: -6.74°W, 54.52°N)
+  - Render ROI (372) and NI as two separate `<path>` elements — no GB geometry in the SVG at all, so a simple full-width `<rect>` clipPath works cleanly
+  - Shifted projection 10px left so Ards Peninsula (~x=207 pre-shift) lands at x≈197, well within the 200px viewBox
+  - NI path bounding box confirmed: x=92.5→195.6, y=12.3→91.7 — full coast including Portaferry and Donaghadee visible
+  - Updated `scripts/generate-ireland-path.mjs` accordingly
+- **Removed coastline stroke** — island paths changed from `stroke="rgba(31,122,120,0.28)" stroke-width="1.5"` to `stroke="none"` for a cleaner fill-only appearance
+- **Added route lines**: Galway→Belfast and Sligo→Athlone
+- **Removed route lines**: Athlone→Dublin and Kilkenny→Dublin
+- **City locations verified** — all 9 cities placed using real lat/lon coordinates via d3-geo Mercator projection; positions confirmed accurate against coastline outline
+- **Committed & pushed**: `54f969e`, `ff94d8a`, `03776ab`
+
+### Confirmed by Jordan ✅
+
+- Full island visible including Ards Peninsula and all northeast coastline, no Great Britain showing
+- City dots geographically accurate
+- Route lines correct
+
+---
+
+## 30 April 2026 (Session 11)
+
+### What Was Built / Changed
+
+- **Northern Ireland added to island map** — ROI-only outline was missing NI (which is part of the UK feature, id 826, not Ireland id 372):
+  - Updated `scripts/generate-ireland-path.mjs` to use `topojson.merge(world, targetGeoms)` — merges Ireland (372) + UK (826) into a single seamless MultiPolygon, dissolving the shared border so there is no visible line between ROI and NI
+  - Projection is still `geoMercator().fitExtent([[4,4],[196,256]], ireland)` — fitted to ROI only, which gives the correct scale and position; NI sits just north and falls within the same viewBox naturally
+  - Great Britain (part of the UK feature) projects to x > 200 and is hidden via `<clipPath id="island-clip"><rect x="0" y="0" width="200" height="260"/></clipPath>` applied to the path element
+  - Added `<clipPath>` to `<defs>` in `website/index.html`
+  - Replaced the `<path d="...">` with the new ~18KB merged path + `clip-path="url(#island-clip)"` attribute (via Python regex substitution — path string too large for text edit)
+  - City pixel coordinates unchanged from Session 10 (projection is the same)
+- **Committed** `bfc81c3` — "Add Northern Ireland to island map via topojson.merge" — pushed to GitHub
+
+### Confirmed by Jordan ✅
+
+- Map verified in browser — full island (ROI + NI) renders as one seamless shape, Great Britain not visible, city dots and route lines correct.
+
+---
+
 ## 30 April 2026 (Session 10)
 
 ### What Was Built / Changed
