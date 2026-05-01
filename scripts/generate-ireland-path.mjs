@@ -17,7 +17,7 @@ const islandMerged = merge(world, targetGeoms);
 // Fit projection to Ireland (Republic) — this scaling worked in the previous session
 // and places Dublin at (175.6, 138.5). NI sits just north of ROI so it falls within
 // the same viewBox. Great Britain projects far to the right and is clipped.
-const projection = geoMercator().fitExtent([[4, 4], [196, 256]], ireland);
+const projection = geoMercator().fitExtent([[4, 4], [182, 256]], ireland);
 const path = geoPath().projection(projection);
 
 // Sanity check
