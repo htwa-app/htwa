@@ -35,7 +35,7 @@ export default function SplashScreen() {
         </Text>
       </View>
       <Text style={styles.wordmark}>htwa</Text>
-      <Text style={styles.tagline}>Heading That Way Anyway?</Text>
+      <Text style={styles.tagline}>heading that way anyway?</Text>
       <ActivityIndicator
         style={styles.spinner}
         color={Colors.primary}
