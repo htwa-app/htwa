@@ -1,55 +1,72 @@
 import { geoMercator, geoPath } from 'd3-geo';
-import { feature, merge } from 'topojson-client';
+import { feature } from 'topojson-client';
 import fetch from 'node-fetch';
 
 const res = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json');
 const world = await res.json();
 
 const countries = feature(world, world.objects.countries).features;
+const ireland = countries.find(d => String(d.id) === '372');
+const uk      = countries.find(d => String(d.id) === '826');
 
-// Merge Ireland (372) + UK (826) — dissolves the shared border so NI joins ROI seamlessly
-const targetGeoms = world.objects.countries.geometries.filter(g =>
-  ['372', '826'].includes(String(g.id))
-);
-const islandMerged = merge(world, targetGeoms);
+// ─── Extract only the NI sub-polygon(s) from the UK MultiPolygon ──────────────
+// UK (826) is a MultiPolygon: one polygon = Great Britain, one = NI, others = small islands.
+// NI is geographically separate from GB (Irish Sea) so it appears as its own polygon.
+// Filter by centroid: NI is roughly lon -8.2→-5.4, lat 54.0→55.3
+const NI_LON = [-8.2, -5.4];
+const NI_LAT = [54.0, 55.3];
 
-// Two corner points spanning the full island bounding box, extended to -4.5°W
-// so County Down and the northeast coast fit within the 200px viewBox.
-// Using MultiPoint (not Polygon) avoids d3-geo's spherical winding ambiguity —
-// a Polygon rectangle gets interpreted as wrapping the entire globe, causing
-// all projected coordinates to cluster in a ~3px area.
-const islandBounds = {
+const niPolygons = uk.geometry.coordinates.filter(polygon => {
+  const ring = polygon[0];                                    // exterior ring
+  const avgLon = ring.reduce((s, p) => s + p[0], 0) / ring.length;
+  const avgLat = ring.reduce((s, p) => s + p[1], 0) / ring.length;
+  const inside = avgLon >= NI_LON[0] && avgLon <= NI_LON[1]
+              && avgLat >= NI_LAT[0] && avgLat <= NI_LAT[1];
+  if (inside) console.error(`[debug] NI polygon centroid: ${avgLon.toFixed(2)}, ${avgLat.toFixed(2)}`);
+  return inside;
+});
+
+console.error(`[debug] Found ${niPolygons.length} NI polygon(s) from UK feature`);
+
+// Build a GeoJSON Feature containing just NI (MultiPolygon)
+const niFeature = {
   type: 'Feature',
-  geometry: {
-    type: 'MultiPoint',
-    coordinates: [[-10.7, 51.0], [-4.5, 55.6]]
-  }
+  geometry: { type: 'MultiPolygon', coordinates: niPolygons }
 };
 
-const projection = geoMercator().fitExtent([[8, 6], [192, 254]], islandBounds);
+// ─── Projection ────────────────────────────────────────────────────────────────
+// Fit to the Republic of Ireland feature — this reliably produces correct scale
+// and city coordinates. Shift 10px left so NI's east coast (Ards ~x=207 pre-shift)
+// lands at ~x=197, well within the 200px viewBox.
+const projection = geoMercator().fitExtent([[4, 4], [196, 256]], ireland);
+const [tx, ty] = projection.translate();
+projection.translate([tx - 10, ty]);
 const path = geoPath().projection(projection);
 
-// Sanity checks — Dublin should be roughly centre-right, Strangford (Co. Down east coast)
-// must be < 200 for County Down to be fully visible.
-const dublinPx      = projection([-6.249, 53.333]);
-const strangfordPx  = projection([-5.57,  54.37]);
-console.error(`[debug] Dublin:     ${dublinPx[0].toFixed(1)}, ${dublinPx[1].toFixed(1)}`);
-console.error(`[debug] Strangford: ${strangfordPx[0].toFixed(1)}, ${strangfordPx[1].toFixed(1)}  (must be < 200)`);
+// Sanity checks
+const dublinPx  = projection([-6.249, 53.333]);
+const ardsPx    = projection([-5.44,  54.44]);
+const belfastPx = projection([-5.930, 54.597]);
+console.error(`[debug] Dublin:   ${dublinPx[0].toFixed(1)}, ${dublinPx[1].toFixed(1)}`);
+console.error(`[debug] Belfast:  ${belfastPx[0].toFixed(1)}, ${belfastPx[1].toFixed(1)}`);
+console.error(`[debug] Ards Pen: ${ardsPx[0].toFixed(1)}, ${ardsPx[1].toFixed(1)}  (must be < 200)`);
 
 const cities = {
-  Belfast:   [54.597, -5.930],
-  Derry:     [54.997, -7.309],
-  Dublin:    [53.333, -6.249],
-  Galway:    [53.270, -9.056],
-  Athlone:   [53.422, -7.944],
-  Limerick:  [52.668, -8.630],
-  Kilkenny:  [52.654, -7.252],
-  Cork:      [51.898, -8.471],
-  Sligo:     [54.270, -8.470],
+  Belfast:  [54.597, -5.930],
+  Derry:    [54.997, -7.309],
+  Dublin:   [53.333, -6.249],
+  Galway:   [53.270, -9.056],
+  Athlone:  [53.422, -7.944],
+  Limerick: [52.668, -8.630],
+  Kilkenny: [52.654, -7.252],
+  Cork:     [51.898, -8.471],
+  Sligo:    [54.270, -8.470],
 };
 
-console.log('ISLAND PATH:');
-console.log(path(islandMerged));
+console.log('ROI PATH:');
+console.log(path(ireland));
+console.log('\nNI PATH:');
+console.log(path(niFeature));
 console.log('\nCITY PIXELS:');
 for (const [name, [lat, lon]] of Object.entries(cities)) {
   const [x, y] = projection([lon, lat]);
