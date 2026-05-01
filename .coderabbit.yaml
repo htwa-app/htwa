@@ -1,0 +1,73 @@
+version: "2"
+
+language: "en-US"
+
+tone_instructions: >
+  Be direct and specific. Flag real problems clearly. Don't praise code for
+  meeting basic expectations — that's the baseline. Focus on what could be
+  better, what could break, or what could be done more cleanly.
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: true
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+
+  path_filters:
+    - "!**/node_modules/**"
+    - "!**/.expo/**"
+    - "!**/dist/**"
+    - "!**/*.lock"
+    - "!**/*.png"
+    - "!**/*.jpg"
+    - "!**/*.svg"
+
+  path_instructions:
+    - path: "**/*.ts"
+      instructions: >
+        Review for: strict TypeScript usage (no `any`, no implicit returns),
+        single-responsibility functions, clear naming, no dead code, no
+        commented-out blocks. Flag anything that would cause unnecessary
+        re-renders in React Native. Check that all async functions handle
+        errors properly.
+
+    - path: "**/*.tsx"
+      instructions: >
+        Review for: component purity, no business logic inside UI components,
+        correct use of hooks, no inline styles (use StyleSheet), no hardcoded
+        strings that should be constants. Flag any prop that is passed but
+        never used. Ensure accessibility props are present on interactive elements.
+
+    - path: "**/api/**"
+      instructions: >
+        This is the highest-risk area of the codebase. Review for:
+        authentication on every route, input validation on every user-supplied
+        field (client and server), no sensitive data returned unnecessarily in
+        responses, correct HTTP status codes, no secrets or credentials in code.
+        Flag any route that could be reached without a valid session token.
+
+    - path: "**/*.env*"
+      instructions: >
+        Flag immediately if any real credentials, API keys, or secrets appear
+        here. .env files should never be committed — check .gitignore.
+
+    - path: "website/**"
+      instructions: >
+        Review for: semantic HTML, accessibility (alt tags, ARIA labels,
+        keyboard navigation), performance (no render-blocking resources,
+        images optimised), and correct meta tags for SEO.
+
+  finishing_touches:
+    docstrings:
+      enabled: false
+
+chat:
+  auto_reply: true
