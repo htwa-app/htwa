@@ -11,9 +11,6 @@ create table if not exists waitlist (
   created_at  timestamptz not null default now()
 );
 
--- Index for fast email lookups and duplicate prevention
-create index if not exists waitlist_email_idx on waitlist (email);
-
 -- Row Level Security: allow anonymous inserts (form submissions), block reads
 alter table waitlist enable row level security;
 
