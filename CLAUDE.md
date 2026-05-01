@@ -20,6 +20,40 @@ If in doubt about whether an action falls under these rules, stop and ask first.
 
 ---
 
+## ⚠️ HOW TO WORK WITH CLAUDE EFFECTIVELY — KNOWN WEAKNESSES & MITIGATIONS
+
+Claude has specific weaknesses as a software engineer. These mitigations are baked in as standing instructions.
+
+### 1. Claude cannot run code — it only reads it
+**Risk:** Changes may look correct but fail at runtime.
+**Standing rule:** After any code change, Jordan runs it and pastes errors back. Never assume it works because Claude said it should.
+
+### 2. Context degrades over long sessions
+**Risk:** Claude forgets decisions made earlier in a conversation or in previous sessions, leading to contradictions or repeated mistakes.
+**Standing rule:** CLAUDE.md and PROGRESS.md are the memory. If something important was decided in a previous session, paste the relevant section at the start of the new one. If something seems off, tell Claude: "check PROGRESS.md first."
+
+### 3. Claude is overconfident about things it cannot verify
+**Risk:** Claude says something "looks right" when it would need to run the code to actually know. This happened with map coordinates — Claude declared them correct before visual verification.
+**Standing rule:** For anything visual or behavioural, force verification: "show me a screenshot" or "verify it in the browser." Don't accept abstract reasoning as proof.
+
+### 4. Claude hallucinates APIs and library defaults
+**Risk:** Claude confidently uses a method, prop, or config option that doesn't exist or behaves differently in the version installed.
+**Standing rule:** For any new library usage, ask Claude to state which version is installed and whether the API exists in that version. Check the docs for anything unfamiliar.
+
+### 5. Claude changes more than it was asked to
+**Risk:** Claude fixes adjacent things it wasn't asked to touch, making diffs hard to review. This happened when the form-col border was removed without being asked.
+**Standing rule:** Be explicit about scope: "only change X, nothing else." After any change ask: "what else did you touch?" Claude must answer honestly.
+
+### 6. Claude buries uncertainty behind confident language
+**Risk:** When unsure, Claude tends to give a confident-sounding answer rather than flagging the uncertainty.
+**Standing rule:** After any significant task, ask: **"What could go wrong with what you just did, and what should I verify?"** This is the single most effective prompt for drawing out honest uncertainty.
+
+### 7. Claude lacks accumulated project taste
+**Risk:** Claude doesn't remember past mistakes or "we tried that, it broke X" lessons across sessions.
+**Standing rule:** Document recurring patterns and past mistakes in this file under the Lessons Learned section below. Claude reads this every session.
+
+---
+
 ## 1. What Is HTWA?
 
 HTWA is a **cost-sharing rideshare app for Ireland** (and Northern Ireland).
@@ -176,6 +210,17 @@ This folder (`~/Documents/HTWA/`) is the **shared workspace** between Cowork and
 | Apr 2026 | Savings displayed as money saved vs bus/train equivalent | More compelling than showing money shared |
 | Apr 2026 | Mandatory ID + selfie verification before app use | All users must complete before accessing platform. Shows as green "Verified" tick on profile. |
 | Apr 2026 | Nominated contact receives live journey tracking | Selected by user in app settings. Receives real-time tracking link for every trip, similar to Uber's share journey feature. |
+
+---
+
+## 11. Lessons Learned (add to this as the project grows)
+
+| Date | Lesson | Detail |
+|------|--------|--------|
+| May 2026 | Don't trust coordinate reasoning without visual verification | Claude declared map city coordinates correct purely by reading code. They were only confirmed correct after forcing a browser screenshot. |
+| May 2026 | Scope creep — Claude removed the form-col border unprompted | When asked to "remove the border on the map", Claude incorrectly removed the form column borders instead. Always confirm scope before accepting a change. |
+| May 2026 | d3-geo Polygon bbox clustering bug | Passing a GeoJSON Polygon rectangle to `fitExtent` causes spherical winding ambiguity — all coordinates cluster in ~3px. Use MultiPoint or an actual geographic feature instead. |
+| May 2026 | `topojson.merge` on UK includes all of Great Britain | Merging Ireland (372) + UK (826) brings in Scotland and England. Fix: filter UK MultiPolygon sub-polygons by centroid to extract NI only. |
 
 ---
 
