@@ -15,13 +15,13 @@ create table if not exists waitlist (
 alter table waitlist enable row level security;
 
 -- Allow the website form (anon key) to insert
-create policy "Allow anon insert" on waitlist
+create policy allow_anon_insert on waitlist
   for insert
   to anon
   with check (true);
 
 -- Only authenticated users (admin dashboard) can read the list
-create policy "Allow auth read" on waitlist
+create policy allow_auth_read on waitlist
   for select
   to authenticated
   using (true);
