@@ -31,12 +31,16 @@ describe('LoginScreen — brand rules', () => {
     expect(screen.getByText('htwa')).toBeTruthy();
   });
 
-  it('displays the tagline in all-lowercase with a question mark', () => {
-    expect(screen.getByText('heading that way anyway?')).toBeTruthy();
+  it('displays the tagline in all-lowercase ending with a period', () => {
+    expect(screen.getByText('heading that way anyway.')).toBeTruthy();
+  });
+
+  it('does NOT display the tagline with a question mark', () => {
+    expect(screen.queryByText('heading that way anyway?')).toBeNull();
   });
 
   it('does NOT display the tagline in title case', () => {
-    expect(screen.queryByText('Heading That Way Anyway?')).toBeNull();
+    expect(screen.queryByText('Heading That Way Anyway.')).toBeNull();
   });
 });
 

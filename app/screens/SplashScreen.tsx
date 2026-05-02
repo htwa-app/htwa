@@ -36,11 +36,8 @@ export default function SplashScreen() {
         </Text>
       </View>
 
-      {/* Wordmark */}
-      <Text style={styles.wordmark}>htwa</Text>
-
-      {/* Tagline — all lowercase, no exceptions */}
-      <Text style={styles.tagline}>heading that way anyway?</Text>
+      {/* Tagline — all lowercase, ends with a period, no exceptions */}
+      <Text style={styles.tagline}>heading that way anyway.</Text>
 
       {/* Loading indicator */}
       <ActivityIndicator style={styles.spinner} color={Colors.primary} size="small" />
@@ -73,15 +70,6 @@ const styles = StyleSheet.create({
   },
   logoDot: {
     color: Colors.amber,
-  },
-
-  // Wordmark — teal, 32px, bold
-  wordmark: {
-    marginTop: 16,
-    fontSize: 32,
-    fontFamily: FontFamily.bold,
-    color: Colors.primary,
-    letterSpacing: -0.5,
   },
 
   // Tagline — secondary text, 14px regular

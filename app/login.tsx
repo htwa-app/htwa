@@ -28,7 +28,7 @@ export default function LoginScreen() {
       <Text style={styles.wordmark}>htwa</Text>
 
       {/* Tagline */}
-      <Text style={styles.tagline}>heading that way anyway?</Text>
+      <Text style={styles.tagline}>heading that way anyway.</Text>
 
       {/* Primary CTA */}
       <TouchableOpacity

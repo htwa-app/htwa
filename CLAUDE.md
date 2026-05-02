@@ -23,7 +23,7 @@ If in doubt about whether an action falls under these rules, stop and ask first.
 ## ⚠️ BRAND NAMING RULES — NEVER GET THESE WRONG
 
 - The app name is always **htwa** — all lowercase, never "HTWA", "Htwa", or "H T W A"
-- The tagline is always **"heading that way anyway?"** — all lowercase, including the first word, always with a question mark
+- The tagline is always **"heading that way anyway."** — all lowercase, including the first word, always with a period (not a question mark)
 - The logo always renders as **htwa.** with an amber dot on the period
 - These rules apply everywhere without exception — in-app copy, code comments, documents, and marketing
 
