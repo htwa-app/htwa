@@ -20,6 +20,15 @@ If in doubt about whether an action falls under these rules, stop and ask first.
 
 ---
 
+## ⚠️ BRAND NAMING RULES — NEVER GET THESE WRONG
+
+- The app name is always **htwa** — all lowercase, never "HTWA", "Htwa", or "H T W A"
+- The tagline is always **"heading that way anyway?"** — all lowercase, including the first word, always with a question mark
+- The logo always renders as **htwa.** with an amber dot on the period
+- These rules apply everywhere without exception — in-app copy, code comments, documents, and marketing
+
+---
+
 ## ⚠️ HOW TO WORK WITH CLAUDE EFFECTIVELY — KNOWN WEAKNESSES & MITIGATIONS
 
 Claude has specific weaknesses as a software engineer. These mitigations are baked in as standing instructions.
@@ -221,6 +230,9 @@ This folder (`~/Documents/HTWA/`) is the **shared workspace** between Cowork and
 | May 2026 | Scope creep — Claude removed the form-col border unprompted | When asked to "remove the border on the map", Claude incorrectly removed the form column borders instead. Always confirm scope before accepting a change. |
 | May 2026 | d3-geo Polygon bbox clustering bug | Passing a GeoJSON Polygon rectangle to `fitExtent` causes spherical winding ambiguity — all coordinates cluster in ~3px. Use MultiPoint or an actual geographic feature instead. |
 | May 2026 | `topojson.merge` on UK includes all of Great Britain | Merging Ireland (372) + UK (826) brings in Scotland and England. Fix: filter UK MultiPolygon sub-polygons by centroid to extract NI only. |
+| May 2026 | `jest.spyOn(Platform, 'OS', 'get')` fails in jest-expo | `Platform.OS` is a plain value property, not a getter — spying on it with `'get'` access type throws at test time. Fix: `Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true, writable: true })` inside a `try/finally` that restores the original value. |
+| May 2026 | Never call `render()` inside `act()` in RTL | `@testing-library/react-native`'s `act()` unmounts the component when it exits, causing "Can't access .root on unmounted test renderer". Pattern: call `render()` outside `act`, use `waitFor()` for async assertions. |
+| May 2026 | AsyncStorage must be mocked globally in Jest | `@react-native-async-storage/async-storage` uses a native module that doesn't exist in Jest. Always add `'@react-native-async-storage/async-storage': require.resolve('@react-native-async-storage/async-storage/jest/async-storage-mock')` to `moduleNameMapper` in `jest.config.js`. |
 
 ---
 

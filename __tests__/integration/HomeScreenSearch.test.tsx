@@ -9,7 +9,7 @@
  */
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react-native';
-import HomeScreen from '../../app/index';
+import HomeScreen from '../../app/home';
 
 describe('HomeScreen search — user journey', () => {
   it('shows empty input on first render', () => {

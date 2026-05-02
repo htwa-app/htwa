@@ -1,7 +1,7 @@
 import React from 'react';
 import { Platform } from 'react-native';
 import { render, screen, fireEvent } from '@testing-library/react-native';
-import HomeScreen, { POPULAR_ROUTES } from '../../app/index';
+import HomeScreen, { POPULAR_ROUTES } from '../../app/home';
 
 // ─── Smoke test ───────────────────────────────────────────────────────────────
 
@@ -123,11 +123,12 @@ describe('HomeScreen — popular routes rendering', () => {
 
 describe('HomeScreen — platform variants', () => {
   it('renders correctly on Android (exercises android paddingTop branch)', () => {
-    const spy = jest.spyOn(Platform, 'OS', 'get').mockReturnValue('android');
+    const original = Platform.OS;
+    Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true, writable: true });
     try {
       expect(() => render(<HomeScreen />)).not.toThrow();
     } finally {
-      spy.mockRestore();
+      Object.defineProperty(Platform, 'OS', { value: original, configurable: true, writable: true });
     }
   });
 });
