@@ -23,7 +23,7 @@ If in doubt about whether an action falls under these rules, stop and ask first.
 ## ⚠️ BRAND NAMING RULES — NEVER GET THESE WRONG
 
 - The app name is always **htwa** — all lowercase, never "HTWA", "Htwa", or "H T W A"
-- The tagline is always **"heading that way anyway?"** — all lowercase, including the first word, always with a question mark
+- The tagline is always **"heading that way anyway."** — all lowercase, including the first word, always with a period (not a question mark)
 - The logo always renders as **htwa.** with an amber dot on the period
 - These rules apply everywhere without exception — in-app copy, code comments, documents, and marketing
 
@@ -219,6 +219,7 @@ This folder (`~/Documents/HTWA/`) is the **shared workspace** between Cowork and
 | Apr 2026 | Savings displayed as money saved vs bus/train equivalent | More compelling than showing money shared |
 | Apr 2026 | Mandatory ID + selfie verification before app use | All users must complete before accessing platform. Shows as green "Verified" tick on profile. |
 | Apr 2026 | Nominated contact receives live journey tracking | Selected by user in app settings. Receives real-time tracking link for every trip, similar to Uber's share journey feature. |
+| May 2026 | Women-only mode works both ways | A female driver can toggle women-only mode when offering a ride — only female passengers can request to join. A female passenger can filter search results to show only women-only rides. Both directions must be enforced at the database level, not just the UI. |
 
 ---
 

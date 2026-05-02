@@ -4,219 +4,471 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  ScrollView,
   StyleSheet,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors } from '../constants/theme';
+import {
+  Colors,
+  FontFamily,
+  Typography,
+  Spacing,
+  Radius,
+  ShadowCard,
+} from '../constants/theme';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type TabId = 'find' | 'offer';
+
+interface Route {
+  id: string;
+  from: string;
+  to: string;
+  price: string;
+}
+
+// ─── Data ─────────────────────────────────────────────────────────────────────
+
+export const POPULAR_ROUTES: Route[] = [
+  { id: '1', from: 'Dublin',  to: 'Galway',   price: 'from €8'  },
+  { id: '2', from: 'Belfast', to: 'Dublin',   price: 'from €10' },
+  { id: '3', from: 'Cork',    to: 'Limerick', price: 'from €6'  },
+];
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
-  const [destination, setDestination] = useState('');
-  const androidPadding = Platform.OS === 'android' ? 40 : 16;
+  const [activeTab, setActiveTab] = useState<TabId>('find');
+  const [fromText, setFromText]   = useState('');
+  const [toText, setToText]       = useState('');
+
+  // ── Handlers ─────────────────────────────────────────────────────────────
+
+  const handleFindRidePress  = () => setActiveTab('find');
+  const handleOfferRidePress = () => setActiveTab('offer');
+
+  const handleSearchPress = () => {
+    // TODO: navigate to search results once the route exists
+    console.log('Search rides pressed — from:', fromText, 'to:', toText);
+  };
+
+  const handleRoutePress = (route: Route) => {
+    // TODO: navigate to route detail once the route exists
+    console.log('Route pressed:', route.from, '→', route.to);
+  };
+
+  const handleSwap = () => {
+    setFromText(toText);
+    setToText(fromText);
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={[styles.container, { paddingTop: androidPadding }]}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={Platform.OS === 'android' ? styles.contentAndroid : styles.content}
+        showsVerticalScrollIndicator={false}
+      >
 
-        {/* Header */}
+        {/* ── Header ─────────────────────────────────────────────────────── */}
         <View style={styles.header}>
-          <Text style={styles.logo}>HTWA</Text>
-          <Text style={styles.tagline}>Share the journey. Split the cost.</Text>
-        </View>
-
-        {/* Search */}
-        <View style={styles.searchSection}>
-          <Text style={styles.searchLabel}>Where are you going?</Text>
-          <View style={styles.inputRow}>
-            <Text style={styles.inputIcon}>📍</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="City, town or university…"
-              placeholderTextColor="#8A9BB0"
-              value={destination}
-              onChangeText={setDestination}
-              returnKeyType="search"
-              accessibilityLabel="Search city, town or university"
-            />
+          <Text style={styles.greeting}>Hey Jordan 👋</Text>
+          <View style={styles.avatar} accessibilityLabel="Profile">
+            <Text style={styles.avatarInitial}>J</Text>
           </View>
         </View>
 
-        {/* Primary CTAs */}
-        <View style={styles.ctaRow}>
-          <TouchableOpacity style={[styles.ctaButton, styles.ctaFind]} accessibilityRole="button" accessibilityLabel="Find a ride">
-            <Text style={styles.ctaIcon}>🔍</Text>
-            <Text style={styles.ctaTitle}>Find a ride</Text>
-            <Text style={styles.ctaSubtitle}>Search available journeys</Text>
+        {/* ── Toggle tabs ────────────────────────────────────────────────── */}
+        <View style={styles.tabContainer}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'find' && styles.tabActive]}
+            onPress={handleFindRidePress}
+            accessibilityRole="tab"
+            accessibilityLabel="Find a ride"
+            accessibilityState={{ selected: activeTab === 'find' }}
+          >
+            <Text style={[styles.tabText, activeTab === 'find' && styles.tabTextActive]}>
+              Find a ride
+            </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.ctaButton, styles.ctaOffer]} accessibilityRole="button" accessibilityLabel="Offer a ride">
-            <Text style={styles.ctaIcon}>🚗</Text>
-            <Text style={styles.ctaTitle}>Offer a ride</Text>
-            <Text style={styles.ctaSubtitle}>Share your journey</Text>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'offer' && styles.tabActive]}
+            onPress={handleOfferRidePress}
+            accessibilityRole="tab"
+            accessibilityLabel="Offer a ride"
+            accessibilityState={{ selected: activeTab === 'offer' }}
+          >
+            <Text style={[styles.tabText, activeTab === 'offer' && styles.tabTextActive]}>
+              Offer a ride
+            </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Popular routes */}
-        <View style={styles.popularSection}>
-          <Text style={styles.popularTitle}>Popular routes</Text>
-          {POPULAR_ROUTES.map((route) => (
-            <TouchableOpacity key={route.id} style={styles.routeRow} accessible={true} accessibilityRole="button" accessibilityLabel={`${route.from} to ${route.to}, ${route.price}`}>
-              <View style={styles.routeDots}>
-                <View style={[styles.dot, styles.dotFrom]} />
-                <View style={styles.dotLine} />
-                <View style={[styles.dot, styles.dotTo]} />
-              </View>
-              <View style={styles.routeText}>
-                <Text style={styles.routeFrom}>{route.from}</Text>
-                <Text style={styles.routeTo}>{route.to}</Text>
-              </View>
-              <Text style={styles.routePrice}>{route.price}</Text>
+        {/* ── Route input card ───────────────────────────────────────────── */}
+        <View style={styles.routeCard}>
+          {/* From row */}
+          <View style={styles.inputRow}>
+            <View style={[styles.routeDot, styles.routeDotFrom]} />
+            <TextInput
+              style={styles.routeInput}
+              placeholder="From — city, town or university"
+              placeholderTextColor={Colors.textTertiary}
+              value={fromText}
+              onChangeText={setFromText}
+              returnKeyType="next"
+              accessibilityLabel="From location"
+            />
+          </View>
+
+          <View style={styles.inputDivider} />
+
+          {/* To row */}
+          <View style={styles.inputRow}>
+            <View style={[styles.routeDot, styles.routeDotTo]} />
+            <TextInput
+              style={styles.routeInput}
+              placeholder="City, town or university…"
+              placeholderTextColor={Colors.textTertiary}
+              value={toText}
+              onChangeText={setToText}
+              returnKeyType="search"
+              accessibilityLabel="To location"
+            />
+            <TouchableOpacity
+              onPress={handleSwap}
+              style={styles.swapButton}
+              accessibilityRole="button"
+              accessibilityLabel="Swap origin and destination"
+            >
+              <Text style={styles.swapIcon}>⇅</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* ── Filter chips ───────────────────────────────────────────────── */}
+        <View style={styles.chipsRow}>
+          {['Today', 'Any time', '1+ seats'].map((label) => (
+            <TouchableOpacity
+              key={label}
+              style={styles.chip}
+              accessibilityRole="button"
+              accessibilityLabel={label}
+            >
+              <Text style={styles.chipText}>{label}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* Legal note */}
+        {/* ── Search CTA ─────────────────────────────────────────────────── */}
+        <TouchableOpacity
+          style={styles.searchButton}
+          onPress={handleSearchPress}
+          accessibilityRole="button"
+          accessibilityLabel="Search rides"
+        >
+          <Text style={styles.searchButtonText}>Search rides</Text>
+        </TouchableOpacity>
+
+        {/* ── Safety section ─────────────────────────────────────────────── */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Built with you in mind</Text>
+          <TouchableOpacity accessibilityRole="link" accessibilityLabel="Safety hub">
+            <Text style={styles.sectionLink}>Safety hub →</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.safetyGrid}>
+          <View style={[styles.safetyCard, styles.safetyCardTeal]}>
+            <Text style={styles.safetyIcon}>📍</Text>
+            <Text style={styles.safetyCardTitle}>Share my journey</Text>
+            <Text style={styles.safetyCardBody}>Live tracking for your trusted contacts</Text>
+          </View>
+          <View style={[styles.safetyCard, styles.safetyCardLavender]}>
+            <Text style={styles.safetyIcon}>🌸</Text>
+            <Text style={styles.safetyCardTitle}>Women-only mode</Text>
+            <Text style={styles.safetyCardBody}>Travel with verified women only</Text>
+          </View>
+        </View>
+
+        <View style={[styles.safetyGrid, styles.safetyGridBottom]}>
+          <View style={[styles.safetyCard, styles.safetyCardGreen]}>
+            <Text style={styles.safetyIcon}>✓</Text>
+            <Text style={styles.safetyCardTitle}>Verified IDs</Text>
+            <Text style={styles.safetyCardBody}>Every account checked against a college email</Text>
+          </View>
+          <View style={[styles.safetyCard, styles.safetyCardRed]}>
+            <Text style={styles.safetyIcon}>🆘</Text>
+            <Text style={styles.safetyCardTitle}>In-app SOS</Text>
+            <Text style={styles.safetyCardBody}>Silent alert sent to emergency contacts</Text>
+          </View>
+        </View>
+
+        {/* ── Upcoming for you ───────────────────────────────────────────── */}
+        <Text style={styles.sectionTitle}>Upcoming for you</Text>
+
+        {POPULAR_ROUTES.map((route) => (
+          <TouchableOpacity
+            key={route.id}
+            style={styles.upcomingCard}
+            onPress={() => handleRoutePress(route)}
+            accessibilityRole="button"
+            accessibilityLabel={`${route.from} to ${route.to}, ${route.price}`}
+          >
+            <View style={styles.upcomingRoute}>
+              <View style={styles.upcomingDots}>
+                <View style={[styles.dot, styles.dotFrom]} />
+                <View style={styles.dotLine} />
+                <View style={[styles.dot, styles.dotTo]} />
+              </View>
+              <View style={styles.upcomingCities}>
+                <Text style={styles.cityFrom}>{route.from}</Text>
+                <Text style={styles.cityTo}>{route.to}</Text>
+              </View>
+            </View>
+            <Text style={styles.routePrice}>{route.price}</Text>
+          </TouchableOpacity>
+        ))}
+
+        {/* ── Legal note ─────────────────────────────────────────────────── */}
         <Text style={styles.legalNote}>
           Drivers share costs only — never profit from a journey.
         </Text>
 
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-export const POPULAR_ROUTES = [
-  { id: '1', from: 'Dublin', to: 'Galway',  price: 'from €8' },
-  { id: '2', from: 'Belfast', to: 'Dublin', price: 'from €10' },
-  { id: '3', from: 'Cork', to: 'Limerick',  price: 'from €6' },
-];
-
-const BRAND_GREEN    = Colors.dark.brandGreen;
-const DARK_BG        = Colors.dark.background;
-const CARD_BG        = Colors.dark.surface;
-const TEXT_PRIMARY   = Colors.dark.textPrimary;
-const TEXT_SECONDARY = Colors.dark.textSecondary;
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: DARK_BG,
+    backgroundColor: Colors.background,
   },
-  container: {
+  scroll: {
     flex: 1,
-    paddingHorizontal: 24,
+  },
+  // iOS: SafeAreaView handles top inset — no extra paddingTop needed
+  content: {
+    paddingHorizontal: Spacing.screenPadding,
+    paddingBottom: Spacing.xxxxxl,
+    paddingTop: 0,
+  },
+  // Android: manually clear the status bar (SafeAreaView doesn't on all devices)
+  contentAndroid: {
+    paddingHorizontal: Spacing.screenPadding,
+    paddingBottom: Spacing.xxxxxl,
+    paddingTop: 40,
   },
 
   // Header
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 32,
+    paddingTop: Spacing.lg,
+    marginBottom: Spacing.xxl,
   },
-  logo: {
-    fontSize: 42,
-    fontWeight: '800',
-    color: BRAND_GREEN,
-    letterSpacing: 6,
+  greeting: {
+    ...Typography.headingLarge,
+    color: Colors.textPrimary,
   },
-  tagline: {
-    fontSize: 15,
-    color: TEXT_SECONDARY,
-    marginTop: 6,
-    letterSpacing: 0.3,
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitial: {
+    ...Typography.label,
+    color: Colors.surface,
   },
 
-  // Search
-  searchSection: {
-    marginBottom: 24,
+  // Toggle tabs
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: Colors.primaryLight,
+    borderRadius: Radius.full,
+    padding: 4,
+    marginBottom: Spacing.lg,
   },
-  searchLabel: {
-    fontSize: 13,
-    color: TEXT_SECONDARY,
-    marginBottom: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: Radius.full,
+    alignItems: 'center',
+  },
+  tabActive: {
+    backgroundColor: Colors.primary,
+  },
+  tabText: {
+    ...Typography.buttonSmall,
+    color: Colors.primary,
+  },
+  tabTextActive: {
+    color: Colors.surface,
+  },
+
+  // Route input card
+  routeCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.large,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    ...ShadowCard,
+    marginBottom: Spacing.md,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: CARD_BG,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    height: 52,
-    borderWidth: 1,
-    borderColor: '#243447',
+    paddingHorizontal: Spacing.cardPadding,
+    paddingVertical: 14,
   },
-  inputIcon: {
+  routeDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 12,
+  },
+  routeDotFrom: {
+    backgroundColor: Colors.primary,
+  },
+  routeDotTo: {
+    backgroundColor: Colors.amber,
+  },
+  routeInput: {
+    flex: 1,
+    ...Typography.bodyLarge,
+    color: Colors.textPrimary,
+  },
+  inputDivider: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginLeft: Spacing.cardPadding + 10 + 12, // align with text start
+  },
+  swapButton: {
+    padding: 4,
+    marginLeft: 8,
+  },
+  swapIcon: {
     fontSize: 18,
-    marginRight: 10,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    color: TEXT_PRIMARY,
+    color: Colors.textSecondary,
   },
 
-  // CTAs
-  ctaRow: {
+  // Filter chips
+  chipsRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 32,
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
   },
-  ctaButton: {
-    flex: 1,
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
+  chip: {
+    backgroundColor: Colors.primaryLight,
+    borderRadius: Radius.full,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
   },
-  ctaFind: {
-    backgroundColor: BRAND_GREEN,
-  },
-  ctaOffer: {
-    backgroundColor: CARD_BG,
-    borderWidth: 1,
-    borderColor: '#243447',
-  },
-  ctaIcon: {
-    fontSize: 26,
-    marginBottom: 8,
-  },
-  ctaTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: TEXT_PRIMARY,
-    marginBottom: 2,
-  },
-  ctaSubtitle: {
-    fontSize: 12,
-    color: TEXT_SECONDARY,
+  chipText: {
+    ...Typography.label,
+    color: Colors.primary,
   },
 
-  // Popular routes
-  popularSection: {
-    backgroundColor: CARD_BG,
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#243447',
+  // Search button
+  searchButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: Radius.full,
+    height: Spacing.buttonHeight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.xxl,
   },
-  popularTitle: {
-    fontSize: 13,
-    color: TEXT_SECONDARY,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 16,
+  searchButtonText: {
+    ...Typography.button,
+    color: Colors.surface,
   },
-  routeRow: {
+
+  // Safety section
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  sectionTitle: {
+    ...Typography.headingMedium,
+    color: Colors.textPrimary,
+    marginBottom: Spacing.md,
+  },
+  sectionLink: {
+    ...Typography.label,
+    color: Colors.primary,
+  },
+  safetyGrid: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  safetyGridBottom: {
+    marginTop: Spacing.md,
+    marginBottom: Spacing.xxl,
+  },
+  safetyCard: {
+    flex: 1,
+    borderRadius: Radius.large,
+    padding: Spacing.cardPadding,
+    ...ShadowCard,
+  },
+  safetyCardTeal: {
+    backgroundColor: Colors.primaryLight,
+  },
+  safetyCardLavender: {
+    backgroundColor: Colors.lavenderLight,
+  },
+  safetyCardGreen: {
+    backgroundColor: '#EDFAF1',
+  },
+  safetyCardRed: {
+    backgroundColor: '#FFF0EF',
+  },
+  safetyIcon: {
+    fontSize: 20,
+    marginBottom: 6,
+  },
+  safetyCardTitle: {
+    ...Typography.headingSmall,
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  safetyCardBody: {
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
+  },
+
+  // Upcoming routes
+  upcomingCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1E3047',
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.large,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: Spacing.cardPadding,
+    marginBottom: Spacing.itemGap,
+    ...ShadowCard,
   },
-  routeDots: {
-    width: 20,
+  upcomingRoute: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 14,
+  },
+  upcomingDots: {
+    width: 16,
+    alignItems: 'center',
+    marginRight: 12,
     gap: 2,
   },
   dot: {
@@ -225,42 +477,38 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   dotFrom: {
-    backgroundColor: BRAND_GREEN,
+    backgroundColor: Colors.primary,
   },
   dotTo: {
-    backgroundColor: TEXT_SECONDARY,
+    backgroundColor: Colors.amber,
   },
   dotLine: {
     width: 1,
-    height: 10,
-    backgroundColor: '#243447',
+    height: 8,
+    backgroundColor: Colors.border,
   },
-  routeText: {
-    flex: 1,
+  upcomingCities: {
     gap: 4,
   },
-  routeFrom: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: TEXT_PRIMARY,
+  cityFrom: {
+    ...Typography.headingSmall,
+    color: Colors.textPrimary,
   },
-  routeTo: {
-    fontSize: 13,
-    color: TEXT_SECONDARY,
+  cityTo: {
+    ...Typography.bodyMedium,
+    color: Colors.textSecondary,
   },
   routePrice: {
-    fontSize: 13,
-    color: BRAND_GREEN,
-    fontWeight: '600',
+    ...Typography.headingSmall,
+    color: Colors.primary,
   },
 
   // Legal
   legalNote: {
     textAlign: 'center',
-    fontSize: 11,
-    color: TEXT_SECONDARY,
-    marginTop: 20,
-    paddingBottom: 16,
-    opacity: 0.7,
+    ...Typography.micro,
+    color: Colors.textTertiary,
+    marginTop: Spacing.xl,
+    paddingBottom: Spacing.lg,
   },
 });

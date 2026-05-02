@@ -271,3 +271,12 @@ Use `@expo/vector-icons` with the `Ionicons` set throughout. Icon colour follows
 - **Safe, not sterile.** Safety features are prominent but don't make the app feel clinical.
 - **Irish, not generic.** Route names, university references, and language should feel locally relevant.
 - **Never dark mode** (unless building the dark variant specifically). Default is always light/off-white.
+
+---
+
+## 11. Brand Voice & Naming Rules
+
+- The app name is always **htwa** — all lowercase, never "HTWA" or "Htwa"
+- The tagline is always **"heading that way anyway."** — all lowercase, including the first word, ending with a period (not a question mark)
+- The logo always renders as **htwa.** with an amber dot on the period — never spaced out, never capitalised
+- These rules apply everywhere: in-app copy, marketing, documents, and code comments
