@@ -4,6 +4,30 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 2 May 2026 (Session 16)
+
+### What Was Built / Changed
+
+- **SplashScreen verified on simulator** — confirmed correct: warm off-white background, teal logo mark with amber dot, "heading that way anyway." tagline, spinner. No wordmark text below logo (logo mark already says htwa.).
+- **Tagline changed from ? to .** across all screens — "heading that way anyway?" → "heading that way anyway." (Jordan's decision). Applied to SplashScreen, LoginScreen. Brand rules updated in CLAUDE.md and DESIGN-SPEC.md §11.
+- **Wordmark text removed** from SplashScreen and LoginScreen — the logo mark already displays "htwa." so the separate "htwa" text node below was redundant.
+- **Root cause of simulator not updating**: native build has an embedded JS bundle; `expo start` dev server changes are not reflected until a full `expo run:ios` rebuild. Fixed by running `npx expo run:ios` with `LANG=en_US.UTF-8` (CocoaPods requires UTF-8 locale).
+- **All tests passing**: 63/63, 100% branch coverage.
+
+### Decisions Made
+
+- Tagline ends with a period, not a question mark — baked into CLAUDE.md brand rules
+- Logo mark alone is sufficient branding on the splash and login screens — no separate wordmark text node needed
+- `expo run:ios` (not `expo start`) is required to update the native build on simulator
+
+### Next Steps
+
+- Merge PR #3 (fix/ci-tests) and PR #4 (feat/screen-branding-fix) once CI is green
+- Build Login screen properly per DESIGN-SPEC §9.1 — social proof, auth buttons (Apple, Google, email)
+- Close old PRs #1 and #2 (CodeRabbit test PRs)
+
+---
+
 ## 2 May 2026 (Session 15)
 
 ### What Was Built / Changed
