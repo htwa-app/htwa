@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Colors } from '../../constants/theme';
+import { Colors, FontFamily } from '../../constants/theme';
 
 const AUTH_TOKEN_KEY = 'auth_token';
 
@@ -29,18 +29,21 @@ export default function SplashScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Logo mark — teal rounded square */}
       <View style={styles.logoMark}>
         <Text style={styles.logoText}>
           htwa<Text style={styles.logoDot}>.</Text>
         </Text>
       </View>
+
+      {/* Wordmark */}
       <Text style={styles.wordmark}>htwa</Text>
+
+      {/* Tagline — all lowercase, no exceptions */}
       <Text style={styles.tagline}>heading that way anyway?</Text>
-      <ActivityIndicator
-        style={styles.spinner}
-        color={Colors.primary}
-        size="small"
-      />
+
+      {/* Loading indicator */}
+      <ActivityIndicator style={styles.spinner} color={Colors.primary} size="small" />
     </View>
   );
 }
@@ -53,43 +56,43 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // Logo mark block
+  // Logo mark block — 72×72 teal rounded square
   logoMark: {
     width: 72,
     height: 72,
-    borderRadius: 72 * 0.22,   // 22% of size
+    borderRadius: 72 * 0.22, // 22% of size per spec
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   logoText: {
     fontSize: 26,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontFamily: FontFamily.bold,
+    color: Colors.surface,
     letterSpacing: -1,
   },
   logoDot: {
     color: Colors.amber,
   },
 
-  // Wordmark beneath logo
+  // Wordmark — teal, 32px, bold
   wordmark: {
     marginTop: 16,
     fontSize: 32,
-    fontWeight: '700',
+    fontFamily: FontFamily.bold,
     color: Colors.primary,
     letterSpacing: -0.5,
   },
 
-  // Tagline
+  // Tagline — secondary text, 14px regular
   tagline: {
     marginTop: 6,
     fontSize: 14,
-    fontWeight: '400',
+    fontFamily: FontFamily.regular,
     color: Colors.textSecondary,
   },
 
-  // Loading indicator
+  // Spinner
   spinner: {
     marginTop: 32,
   },
