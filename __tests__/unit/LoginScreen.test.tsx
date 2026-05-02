@@ -27,10 +27,6 @@ describe('LoginScreen — smoke', () => {
 describe('LoginScreen — brand rules', () => {
   beforeEach(() => render(<LoginScreen />));
 
-  it('displays the wordmark in all-lowercase "htwa"', () => {
-    expect(screen.getByText('htwa')).toBeTruthy();
-  });
-
   it('displays the tagline in all-lowercase ending with a period', () => {
     expect(screen.getByText('heading that way anyway.')).toBeTruthy();
   });

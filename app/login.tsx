@@ -24,10 +24,7 @@ export default function LoginScreen() {
         </Text>
       </View>
 
-      {/* Wordmark */}
-      <Text style={styles.wordmark}>htwa</Text>
-
-      {/* Tagline */}
+      {/* Tagline — all lowercase, ends with a period */}
       <Text style={styles.tagline}>heading that way anyway.</Text>
 
       {/* Primary CTA */}
@@ -81,16 +78,7 @@ const styles = StyleSheet.create({
     color: Colors.amber,
   },
 
-  // Wordmark
-  wordmark: {
-    marginTop: 16,
-    fontSize: 32,
-    fontFamily: FontFamily.bold,
-    color: Colors.primary,
-    letterSpacing: -0.5,
-  },
-
-  // Tagline — all lowercase, no exceptions
+  // Tagline — all lowercase, ends with a period, no exceptions
   tagline: {
     marginTop: 6,
     ...Typography.bodyMedium,
