@@ -4,6 +4,42 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 2 May 2026 (Session 15)
+
+### What Was Built / Changed
+
+- **SplashScreen built** (`app/screens/SplashScreen.tsx`):
+  - Shows htwa logo mark (teal rounded square, amber dot on period), wordmark, tagline, and `ActivityIndicator` spinner
+  - On mount: reads `auth_token` from AsyncStorage; routes to `/home` if found, `/login` if not, `/login` on any storage error
+  - `app/index.tsx` now re-exports SplashScreen as the root route (`/`)
+  - `app/home.tsx` created — HomeScreen moved here from `app/index.tsx`
+  - `app/login.tsx` created — stub screen ("Login screen — coming soon")
+
+- **CI failures fixed** (PR #3 `fix/ci-tests`):
+  - **Integration test import**: `HomeScreenSearch.test.tsx` was importing `HomeScreen` from `app/index` (now resolves to SplashScreen). Fixed: import updated to `app/home`.
+  - **Platform.OS mock**: `jest.spyOn(Platform, 'OS', 'get')` blew up because `Platform.OS` is a value property, not a getter. Fixed: replaced with `Object.defineProperty` pattern with `finally` restore.
+  - **AsyncStorage native module crash in Jest**: `AsyncStorage` requires a native module that doesn't exist under Jest. Fixed: added `@react-native-async-storage/async-storage/jest/async-storage-mock` to `moduleNameMapper` in `jest.config.js`.
+  - **New: SplashScreen unit tests** (`__tests__/unit/SplashScreen.test.tsx`) — 8 tests covering: smoke render, brand rules (lowercase `htwa` wordmark, lowercase tagline, absence of title-case version), and all three auth routing paths (token found → `/home`, no token → `/login`, storage error → `/login`).
+
+- **All tests passing**: 37/37 tests pass. Coverage: statements 92%, branches 100%, functions 83%, lines 92% — all above 70% threshold.
+
+### Decisions Made
+
+- `jest.spyOn(Platform, 'OS', 'get')` cannot be used in this jest-expo setup — `Platform.OS` is a value property. Standard fix is `Object.defineProperty` with `configurable: true`. Baked into CLAUDE.md Lessons Learned.
+- Never call `render()` inside `act()` in `@testing-library/react-native` — the component unmounts when `act` exits, causing "Can't access .root on unmounted test renderer". Call `render()` outside `act`, use `waitFor()` for async assertions.
+- AsyncStorage must always be mocked in Jest via `moduleNameMapper` — do not import the native module directly in tests.
+
+### Next Steps
+
+- Merge PR #3 once CI green and CodeRabbit review complete
+- Merge or close old PRs #1 and #2 (CodeRabbit test PRs)
+- Build Login screen (Screen #2) — `app/login.tsx` is currently a stub
+- Folder structure cleanup (screens/, docs/, hooks/, types/, services/)
+- Deploy website to Netlify, point htwa-app.com DNS
+- Verify MailerLite form with a live test submission
+
+---
+
 ## 1 May 2026 (Session 14)
 
 ### What Was Built / Changed
