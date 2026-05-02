@@ -44,8 +44,20 @@ export default function HomeScreen() {
   const [fromText, setFromText]   = useState('');
   const [toText, setToText]       = useState('');
 
-  // Android-specific top padding to clear the status bar
-  const androidPadding = Platform.OS === 'android' ? 40 : 0;
+  // ── Handlers ─────────────────────────────────────────────────────────────
+
+  const handleFindRidePress  = () => setActiveTab('find');
+  const handleOfferRidePress = () => setActiveTab('offer');
+
+  const handleSearchPress = () => {
+    // TODO: navigate to search results once the route exists
+    console.log('Search rides pressed — from:', fromText, 'to:', toText);
+  };
+
+  const handleRoutePress = (route: Route) => {
+    // TODO: navigate to route detail once the route exists
+    console.log('Route pressed:', route.from, '→', route.to);
+  };
 
   const handleSwap = () => {
     setFromText(toText);
@@ -56,7 +68,7 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.safe}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.content, { paddingTop: androidPadding }]}
+        contentContainerStyle={Platform.OS === 'android' ? styles.contentAndroid : styles.content}
         showsVerticalScrollIndicator={false}
       >
 
@@ -72,7 +84,7 @@ export default function HomeScreen() {
         <View style={styles.tabContainer}>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'find' && styles.tabActive]}
-            onPress={() => setActiveTab('find')}
+            onPress={handleFindRidePress}
             accessibilityRole="tab"
             accessibilityLabel="Find a ride"
             accessibilityState={{ selected: activeTab === 'find' }}
@@ -84,7 +96,7 @@ export default function HomeScreen() {
 
           <TouchableOpacity
             style={[styles.tab, activeTab === 'offer' && styles.tabActive]}
-            onPress={() => setActiveTab('offer')}
+            onPress={handleOfferRidePress}
             accessibilityRole="tab"
             accessibilityLabel="Offer a ride"
             accessibilityState={{ selected: activeTab === 'offer' }}
@@ -153,6 +165,7 @@ export default function HomeScreen() {
         {/* ── Search CTA ─────────────────────────────────────────────────── */}
         <TouchableOpacity
           style={styles.searchButton}
+          onPress={handleSearchPress}
           accessibilityRole="button"
           accessibilityLabel="Search rides"
         >
@@ -200,6 +213,7 @@ export default function HomeScreen() {
           <TouchableOpacity
             key={route.id}
             style={styles.upcomingCard}
+            onPress={() => handleRoutePress(route)}
             accessibilityRole="button"
             accessibilityLabel={`${route.from} to ${route.to}, ${route.price}`}
           >
@@ -238,9 +252,17 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1,
   },
+  // iOS: SafeAreaView handles top inset — no extra paddingTop needed
   content: {
     paddingHorizontal: Spacing.screenPadding,
     paddingBottom: Spacing.xxxxxl,
+    paddingTop: 0,
+  },
+  // Android: manually clear the status bar (SafeAreaView doesn't on all devices)
+  contentAndroid: {
+    paddingHorizontal: Spacing.screenPadding,
+    paddingBottom: Spacing.xxxxxl,
+    paddingTop: 40,
   },
 
   // Header

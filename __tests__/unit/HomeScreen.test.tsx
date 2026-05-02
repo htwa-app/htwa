@@ -123,6 +123,12 @@ describe('HomeScreen — search CTA', () => {
     render(<HomeScreen />);
     expect(screen.getByRole('button', { name: 'Search rides' })).toBeTruthy();
   });
+
+  it('Search rides button has an onPress handler', () => {
+    render(<HomeScreen />);
+    const btn = screen.getByRole('button', { name: 'Search rides' });
+    expect(() => fireEvent.press(btn)).not.toThrow();
+  });
 });
 
 // ─── Safety section ───────────────────────────────────────────────────────────
@@ -185,6 +191,16 @@ describe('HomeScreen — upcoming routes', () => {
   it('renders exactly as many route rows as POPULAR_ROUTES entries', () => {
     const prices = screen.getAllByText(/^from €/);
     expect(prices).toHaveLength(POPULAR_ROUTES.length);
+  });
+
+  it('each route row has an onPress handler', () => {
+    render(<HomeScreen />);
+    POPULAR_ROUTES.forEach((route) => {
+      const btn = screen.getByRole('button', {
+        name: `${route.from} to ${route.to}, ${route.price}`,
+      });
+      expect(() => fireEvent.press(btn)).not.toThrow();
+    });
   });
 });
 
