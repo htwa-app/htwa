@@ -2,6 +2,10 @@
 module.exports = {
   preset: 'jest-expo',
   setupFilesAfterEnv: ['@testing-library/jest-native/extend-expect'],
+  moduleNameMapper: {
+    '@react-native-async-storage/async-storage':
+      require.resolve('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+  },
   testMatch: [
     '**/__tests__/**/*.test.(ts|tsx)',
   ],
