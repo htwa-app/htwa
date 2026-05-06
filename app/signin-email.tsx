@@ -1,9 +1,20 @@
-import { View, Text } from 'react-native';
+/**
+ * app/signin-email.tsx
+ *
+ * Sign in with email stub.
+ * Auto-navigates to /(tabs) on mount — simulates a successful auth for
+ * development. Replace with real email/password flow in Stage 16.
+ */
 
-export default function SignInEmailScreen() {
-  return (
-    <View>
-      <Text>Sign in with email — coming soon</Text>
-    </View>
-  );
+import { useEffect } from 'react';
+import { useRouter } from 'expo-router';
+
+export default function SignInEmail() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace('/(tabs)');
+  }, [router]);
+
+  return null;
 }

@@ -4,6 +4,80 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 6 May 2026 (Session 19)
+
+### What Was Built / Changed
+- CodeRabbit fixes merged via PR #5 (feat/login-screen)
+- Squash-merge rebase pattern documented in CLAUDE.md Lessons Learned
+- Stage 8 confirmed complete (constants/theme.ts, 259 lines, sosLight token added)
+- Stage 9 confirmed complete (components/Text.tsx, 12 variants, 62 tests — existed from Session 17)
+- Stage 10 confirmed complete (Button, Card, Input, Badge, Chip, Avatar — 109 tests — existed from Session 17)
+- Stage 11 complete: `(tabs)` group created with correct Expo Router architecture — tab bar correctly hidden on Splash and Login screens
+- Stage 12 complete: `app/home.tsx` fully rebuilt using design system components, visually verified on iPhone 17 Pro simulator
+- Women-only safety card reverted to non-interactive — toggle belongs on Search Results screen (Stage 33)
+- iOS build error fixed: stale `ExpoModulesCore` umbrella header resolved by clean pod reinstall
+
+### Decisions Made
+- Safety grid on Home screen is informational only — features are interactive in context (women-only on search, SOS on live trip, journey sharing on live trip)
+- Soft-reset to `origin/main` is correct pattern when branch carries squash-merge ancestors
+- Tab bar lives in `(tabs)` group, not root `_layout.tsx`
+
+### Files Changed
+- `app/home.tsx` — full rebuild: Avatar, Button, Card, Chip, Ionicons, SAFETY_FEATURES data array
+- `app/(tabs)/_layout.tsx` — Tabs navigator, 4 tabs, theme tokens
+- `app/(tabs)/index.tsx`, `search.tsx`, `trips.tsx`, `profile.tsx` — home re-export + 3 stubs
+- `app/screens/SplashScreen.tsx` — auth routes to `/(tabs)`
+- `app/signin-apple.tsx`, `signin-google.tsx`, `signin-mobile.tsx`, `signin-email.tsx` — auto-navigate to `/(tabs)` on mount
+- `__tests__/unit/HomeScreen.test.tsx`, `TabLayout.test.tsx`, `SplashScreen.test.tsx` — updated
+- `__tests__/integration/HomeScreenSearch.test.tsx` — Ionicons mock added
+- `CLAUDE.md` — squash-merge lesson + PROGRESS.md standing rule
+- `BUILD-PLAN.md` — Stages 8–12 marked ✅
+- `constants/theme.ts` — sosLight token
+
+### Test Results
+- 441 tests, 17 suites, 100% passing
+
+### Next Steps
+- Open PR for feat/design-system → main
+- Phase 3: Authentication (Stages 13–20)
+
+
+### What Was Built / Changed
+- CodeRabbit fixes from PR #5 (feat/login-screen) committed and merged — console.log removal, chip interactivity, Safety hub link, type assertions, footer tappable links, brand constants extracted to SplashScreen.tsx
+- Squash-merge rebase pattern documented in CLAUDE.md Lessons Learned
+- Stage 8 confirmed complete (constants/theme.ts — 259 lines, sosLight token added)
+- Stage 9 confirmed complete (components/Text.tsx — already existed from Session 17, 62 tests passing)
+- Stage 10 confirmed complete (Button, Card, Input, Badge, Chip, Avatar — 109 component tests, all from Session 17)
+- Branch feat/design-system created from clean main (354 tests, 100% coverage)
+- 417 tests total including worktree; 354 canonical tests, 100% coverage
+
+### Decisions Made
+- Soft-reset to origin/main is the correct pattern when a branch carries squash-merge ancestors — replaces straight rebase to avoid duplicate commit conflicts
+- `trusted` Badge variant intentionally not built — no §6 spec definition exists yet; only mentioned by name in a §9 screen mockup
+- Button and Input use RN `Text` with explicit `Typography` token spreads rather than `components/Text.tsx` — correct pattern; avoids a second `useFonts` call inside components already rendered inside a screen that loads fonts
+- Avatar accepts a pre-computed `initials` string, not a `name` prop — correct for a design-system primitive; caller decides what to display
+
+- Stage 11 complete: `(tabs)` route group created with correct Expo Router architecture
+  - `app/(tabs)/_layout.tsx` — Tabs navigator, 4 tabs, all tint/border/height tokens from theme.ts; spec-local colours declared as named constants (not added to theme.ts)
+  - `app/(tabs)/index.tsx` — re-export from `app/home.tsx`
+  - `app/(tabs)/search.tsx`, `trips.tsx`, `profile.tsx` — stub screens using theme tokens, ready for their stages
+  - `app/screens/SplashScreen.tsx` — auth success now routes to `/(tabs)` instead of `/home`
+  - `__tests__/unit/SplashScreen.test.tsx` — updated assertions to match `/(tabs)`
+  - `__tests__/unit/TabLayout.test.tsx` — 29 new tests covering constants, icon names, token values, renderer
+- 442 tests total, 100% coverage
+
+### Decisions Made
+- Soft-reset to origin/main is the correct pattern when a branch carries squash-merge ancestors — replaces straight rebase to avoid duplicate commit conflicts
+- `trusted` Badge variant intentionally not built — no §6 spec definition exists yet; only mentioned by name in a §9 screen mockup
+- Button and Input use RN `Text` with explicit `Typography` token spreads rather than `components/Text.tsx` — correct pattern; avoids a second `useFonts` call inside components already rendered inside a screen that loads fonts
+- Avatar accepts a pre-computed `initials` string, not a `name` prop — correct for a design-system primitive; caller decides what to display
+- **Tabs navigator lives in `(tabs)` group, not root `_layout.tsx`** — tab bar is correctly hidden on Splash and Login screens; auth screens remain in the parent Stack
+
+### Next Steps
+- Stage 12: Home screen rebuilt from scratch using DESIGN-SPEC.md
+
+---
+
 ## 6 May 2026 (Session 18)
 
 ### What Was Built / Changed

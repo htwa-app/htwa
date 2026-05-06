@@ -15,6 +15,7 @@ These rules apply to all Claude tools (Cowork, Claude Code, Claude in Chrome) at
 2. **Personal email** — Never access or read Jordan's personal email accounts.
 3. **Personal social media** — Never access personal social media accounts. The business Instagram (@htwa.app) is fine.
 4. **Passwords & personal info** — Never share Jordan's passwords or personal information with any third party or service.
+5. **PROGRESS.md entry required** — Every session must end with a PROGRESS.md entry listing every file created or modified. No exceptions. If the session ends without one, write it before closing.
 
 If in doubt about whether an action falls under these rules, stop and ask first.
 
@@ -232,6 +233,8 @@ This folder (`~/Documents/HTWA/`) is the **shared workspace** between Cowork and
 
 | Date | Lesson | Detail |
 |------|--------|--------|
+| May 2026 | ExpoModulesCore/ExpoBridgeModule.h build failure is a stale Pods issue | Fix: `cd ios && rm -rf Pods Podfile.lock && LANG=en_US.UTF-8 pod install`. Always try this first if the iOS build fails with a missing header error. |
+| May 2026 | Squash-merge ancestors cause rebase conflicts | When a branch carries commits from PRs that were squash-merged into main, a straight rebase replays duplicate commits and causes file conflicts. Fix: soft-reset to origin/main, which collapses to the net diff, then single clean commit and force-push. Use this pattern any time a branch has squash-merge ancestors. |
 | May 2026 | Don't trust coordinate reasoning without visual verification | Claude declared map city coordinates correct purely by reading code. They were only confirmed correct after forcing a browser screenshot. |
 | May 2026 | Scope creep — Claude removed the form-col border unprompted | When asked to "remove the border on the map", Claude incorrectly removed the form column borders instead. Always confirm scope before accepting a change. |
 | May 2026 | d3-geo Polygon bbox clustering bug | Passing a GeoJSON Polygon rectangle to `fitExtent` causes spherical winding ambiguity — all coordinates cluster in ~3px. Use MultiPoint or an actual geographic feature instead. |

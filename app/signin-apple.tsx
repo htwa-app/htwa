@@ -1,9 +1,20 @@
-import { View, Text } from 'react-native';
+/**
+ * app/signin-apple.tsx
+ *
+ * Sign in with Apple stub.
+ * Auto-navigates to /(tabs) on mount — simulates a successful auth for
+ * development. Replace with real Apple Sign-In flow in Stage 16.
+ */
 
-export default function SignInAppleScreen() {
-  return (
-    <View>
-      <Text>Sign in with Apple — coming soon</Text>
-    </View>
-  );
+import { useEffect } from 'react';
+import { useRouter } from 'expo-router';
+
+export default function SignInApple() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace('/(tabs)');
+  }, [router]);
+
+  return null;
 }

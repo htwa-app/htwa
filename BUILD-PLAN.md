@@ -32,11 +32,11 @@
 ## PHASE 2 — DESIGN SYSTEM
 *Build the shared foundations every screen uses. Do this once, use everywhere.*
 
-⬜ **Stage 8** — Design tokens file (`constants/theme.ts`) — exports all colours, font sizes, spacing, border radius, shadows as named constants matching DESIGN-SPEC.md
+✅ **Stage 8** — Design tokens file (`constants/theme.ts`) — exports all colours, font sizes, spacing, border radius, shadows as named constants matching DESIGN-SPEC.md
 
-⬜ **Stage 9** — Typography component (`components/Text.tsx`) — wraps all text styles (displayLarge, headingMedium, bodySmall etc.) with Poppins font loaded via expo-google-fonts
+✅ **Stage 9** — Typography component (`components/Text.tsx`) — wraps all text styles (displayLarge, headingMedium, bodySmall etc.) with Poppins font loaded via expo-google-fonts
 
-⬜ **Stage 10** — Core UI components built and unit tested:
+✅ **Stage 10** — Core UI components built and unit tested:
 - `Button.tsx` (primary, secondary, disabled states)
 - `Card.tsx`
 - `Input.tsx`
@@ -44,9 +44,9 @@
 - `Chip.tsx` (route chips, filter chips)
 - `Avatar.tsx`
 
-⬜ **Stage 11** — Tab bar navigation (`app/_layout.tsx`) — Home, Search, Trips, Profile tabs with correct icons and teal active state
+✅ **Stage 11** — Tab bar navigation (`app/(tabs)/_layout.tsx`) — Home, Search, Trips, Profile tabs with correct icons and teal active state
 
-⬜ **Stage 12** — Home screen rebuilt from scratch using DESIGN-SPEC.md and the HTML design file as reference — greeting, Find/Offer toggle, route input, safety grid, upcoming rides
+✅ **Stage 12** — Home screen rebuilt from scratch using DESIGN-SPEC.md and the HTML design file as reference — greeting, Find/Offer toggle, route input, safety grid, upcoming rides
 
 ---
 

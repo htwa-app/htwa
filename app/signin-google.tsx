@@ -1,9 +1,20 @@
-import { View, Text } from 'react-native';
+/**
+ * app/signin-google.tsx
+ *
+ * Sign in with Google stub.
+ * Auto-navigates to /(tabs) on mount — simulates a successful auth for
+ * development. Replace with real Google Sign-In flow in Stage 16.
+ */
 
-export default function SignInGoogleScreen() {
-  return (
-    <View>
-      <Text>Sign in with Google — coming soon</Text>
-    </View>
-  );
+import { useEffect } from 'react';
+import { useRouter } from 'expo-router';
+
+export default function SignInGoogle() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace('/(tabs)');
+  }, [router]);
+
+  return null;
 }
