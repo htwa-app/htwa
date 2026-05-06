@@ -26,7 +26,6 @@ import {
   ScrollView,
   StyleSheet,
   Platform,
-  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -104,8 +103,6 @@ export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState<TabId>('find');
   const [fromText, setFromText]   = useState('');
   const [toText, setToText]       = useState('');
-  // TODO: pass womenOnly state to search query in Stage 33
-  const [womenOnly, setWomenOnly] = useState(false);
 
   // TODO: replace with auth context when Stage 20 is complete
   const user          = { name: 'Jordan' };
@@ -246,56 +243,22 @@ export default function HomeScreen() {
         {/* 2×2 grid — two rows of two cards each */}
         <View style={styles.safetyGrid}>
           <View style={styles.safetyRow}>
-            {SAFETY_FEATURES.slice(0, 2).map((feature) =>
-              feature.id === 'women' ? (
-                // Women-only card — has an interactive Switch on the right of the title row
-                <View
-                  key="women"
-                  style={[
-                    styles.safetyCard,
-                    { backgroundColor: womenOnly ? Colors.lavender : Colors.lavenderLight },
-                  ]}
-                  testID="safety-card-women"
-                >
-                  <Ionicons
-                    name={feature.icon}
-                    size={24}
-                    color={Colors.textPrimary}
-                    style={styles.safetyIcon}
-                  />
-                  <View style={styles.safetyWomenTitleRow}>
-                    <Text style={[styles.safetyCardTitle, styles.safetyWomenTitleText]}>
-                      {feature.title}
-                    </Text>
-                    <Switch
-                      value={womenOnly}
-                      onValueChange={setWomenOnly}
-                      thumbColor={womenOnly ? Colors.primary : Colors.surface}
-                      trackColor={{ false: Colors.lavenderLight, true: Colors.lavender }}
-                      accessibilityLabel="Women-only mode toggle"
-                      testID="women-only-switch"
-                    />
-                  </View>
-                  <Text style={styles.safetyCardBody}>{feature.description}</Text>
-                </View>
-              ) : (
-                // Standard safety card
-                <View
-                  key={feature.id}
-                  style={[styles.safetyCard, { backgroundColor: feature.background }]}
-                  testID={`safety-card-${feature.id}`}
-                >
-                  <Ionicons
-                    name={feature.icon}
-                    size={24}
-                    color={Colors.textPrimary}
-                    style={styles.safetyIcon}
-                  />
-                  <Text style={styles.safetyCardTitle}>{feature.title}</Text>
-                  <Text style={styles.safetyCardBody}>{feature.description}</Text>
-                </View>
-              )
-            )}
+            {SAFETY_FEATURES.slice(0, 2).map((feature) => (
+              <View
+                key={feature.id}
+                style={[styles.safetyCard, { backgroundColor: feature.background }]}
+                testID={`safety-card-${feature.id}`}
+              >
+                <Ionicons
+                  name={feature.icon}
+                  size={24}
+                  color={Colors.textPrimary}
+                  style={styles.safetyIcon}
+                />
+                <Text style={styles.safetyCardTitle}>{feature.title}</Text>
+                <Text style={styles.safetyCardBody}>{feature.description}</Text>
+              </View>
+            ))}
           </View>
 
           <View style={[styles.safetyRow, styles.safetyRowBottom]}>
@@ -492,19 +455,6 @@ const styles = StyleSheet.create({
   safetyCardBody: {
     ...Typography.bodySmall,
     color: Colors.textSecondary,
-  },
-
-  // Women-only card title row — icon stays above, title + Switch sit side by side
-  safetyWomenTitleRow: {
-    flexDirection:  'row',
-    alignItems:     'center',
-    justifyContent: 'space-between',
-    marginBottom:   Spacing.xs,
-  },
-  safetyWomenTitleText: {
-    flex:         1,
-    marginBottom: 0,          // row wrapper owns the bottom spacing instead
-    marginRight:  Spacing.xs,
   },
 
   // ── Upcoming for you ────────────────────────────────────────────────────────

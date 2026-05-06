@@ -247,41 +247,6 @@ describe('HomeScreen — safety section', () => {
   });
 });
 
-// ─── Women-only toggle ────────────────────────────────────────────────────────
-
-describe('HomeScreen — women-only toggle', () => {
-  it('renders the Switch on the Women-only card', () => {
-    render(<HomeScreen />);
-    expect(screen.getByTestId('women-only-switch')).toBeTruthy();
-  });
-
-  it('Switch is off by default', () => {
-    render(<HomeScreen />);
-    expect(screen.getByTestId('women-only-switch').props.value).toBe(false);
-  });
-
-  it('toggling Switch on changes its value to true', () => {
-    render(<HomeScreen />);
-    const toggle = screen.getByTestId('women-only-switch');
-    fireEvent(toggle, 'valueChange', true);
-    expect(screen.getByTestId('women-only-switch').props.value).toBe(true);
-  });
-
-  it('toggling Switch off after on changes its value back to false', () => {
-    render(<HomeScreen />);
-    const toggle = screen.getByTestId('women-only-switch');
-    fireEvent(toggle, 'valueChange', true);
-    fireEvent(toggle, 'valueChange', false);
-    expect(screen.getByTestId('women-only-switch').props.value).toBe(false);
-  });
-
-  it('Switch has the correct accessibilityLabel', () => {
-    render(<HomeScreen />);
-    const toggle = screen.getByTestId('women-only-switch');
-    expect(toggle.props.accessibilityLabel).toBe('Women-only mode toggle');
-  });
-});
-
 // ─── Upcoming section ─────────────────────────────────────────────────────────
 
 describe('HomeScreen — upcoming section', () => {
