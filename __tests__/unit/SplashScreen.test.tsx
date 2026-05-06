@@ -44,6 +44,11 @@ describe('SplashScreen — brand rules', () => {
   it('does NOT display the tagline in title case', () => {
     expect(screen.queryByText('Heading That Way Anyway.')).toBeNull();
   });
+
+  it('renders the htwa. logo with amber dot', () => {
+    expect(screen.getByText('htwa.')).toBeTruthy();
+    expect(screen.getByTestId('logo-dot')).toBeTruthy();
+  });
 });
 
 // ─── Auth routing ─────────────────────────────────────────────────────────────

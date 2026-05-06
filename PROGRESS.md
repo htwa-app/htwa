@@ -4,6 +4,133 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 6 May 2026 (Session 18)
+
+### What Was Built / Changed
+
+**CodeRabbit findings — all actioned**
+
+| Finding | File | What Changed |
+|---------|------|--------------|
+| Brand name | `app.json` | `"name": "HTWA"` → `"name": "htwa"` |
+| Brand constants | `app/screens/SplashScreen.tsx` | Extracted `BRAND_NAME`, `BRAND_DOT`, `BRAND_TAGLINE` constants; replaced all inline string literals; added `testID="logo-dot"` to amber dot |
+| `as never` casts | `app/login.tsx` | Removed all 4 `as never` assertions on `router.push` calls; created proper stub screens |
+| Stub route screens | `app/signin-apple.tsx`, `app/signin-google.tsx`, `app/signin-mobile.tsx`, `app/signin-email.tsx` | Created 4 placeholder screens so Expo Router recognises the routes |
+| Static footer | `app/login.tsx` | Split into tappable "Terms" + "Community Safety Pledge" nodes with `onPress` handlers and underline style; `footerLink` style added |
+| Safety hub `TouchableOpacity` (no `onPress`) | `app/home.tsx` | Replaced with `View`; `accessibilityRole="link"` removed — non-interactive until navigation exists |
+| Filter chips `TouchableOpacity` (no `onPress`) | `app/home.tsx` | Replaced with `View`; `accessibilityRole="button"` removed |
+| Hardcoded hex colours | `app/home.tsx`, `constants/theme.ts` | `#EDFAF1` → `Colors.primaryLight`; `#FFF0EF` → new `Colors.sosLight` token added to theme.ts |
+| `paddingTop: 40` magic number | `app/home.tsx` | → `Spacing.xxxxl` (verified = 40px before substituting) |
+| Hardcoded greeting/initial | `app/home.tsx` | `"Hey Jordan 👋"` / `"J"` → derived from `user` stub object with fallbacks (`"Hey there 👋"` / `"?"`) |
+| `console.log` user input | `app/home.tsx` | Removed logs from `handleSearchPress` and `handleRoutePress`; silent TODO stubs |
+| Logo wordmark tests | `__tests__/unit/LoginScreen.test.tsx` | Added `getByText('htwa.')` and `getByTestId('logo-dot')` tests |
+| Logo wordmark test | `__tests__/unit/SplashScreen.test.tsx` | Added `getByText('htwa.')` and `getByTestId('logo-dot')` test |
+| Safety hub test | `__tests__/unit/HomeScreen.test.tsx` | `getByRole('link')` → `getByText('Safety hub →')` |
+| Token count | `__tests__/unit/theme.test.ts` | Updated assertion from 15 → 16 tokens; added `sosLight` assertion |
+
+### Test Results
+
+| Metric | Result |
+|--------|--------|
+| Total tests | 354 |
+| Statements | 100% |
+| Branches | 100% |
+| Functions | 100% |
+| Lines | 100% |
+| Test suites | 12 |
+
+### Decisions Made
+
+| Decision | Rationale |
+|----------|-----------|
+| `Colors.sosLight = '#FFF0EF'` added to theme.ts | Hardcoded hex on safety card replaced with named token; follows the "no magic numbers" rule |
+| `Spacing.xxxxl` (not `Spacing.xl`) for Android paddingTop | `Spacing.xxxxl = 40` exactly matches the previous magic number; `Spacing.xl = 20` would have been wrong |
+| User stub `{ name: 'Jordan' }` retained | Greeting still shows "Hey Jordan 👋" so the existing HomeScreen test passes unchanged; swap for auth context when auth is wired |
+| `handleSearchPress` / `handleRoutePress` are silent stubs | No navigation target exists yet; a silent TODO comment is cleaner than a no-data log |
+
+### Next Steps
+
+1. **Simulator screenshot of Login screen** — run `LANG=en_US.UTF-8 npx expo run:ios`, navigate to Login, share screenshot for Jordan's approval before merging PR #5
+2. **Merge PR #5** after screenshot approved
+3. **Wire real auth flows** into the 4 stub sign-in screens
+4. **Set up Stripe Connect account**
+5. **Navigation structure** — tab bar (Home, Search, Trips, Profile) using Expo Router
+
+---
+
+## 2–3 May 2026 (Session 17)
+
+### What Was Built / Changed
+
+**PR cleanup**
+- PR #1 (CodeRabbit test) was already closed
+- PR #2 (CodeRabbit full audit) — closed with comment
+- PR #3 (fix/ci-tests) — CI green → squash-merged to main
+- PR #4 (feat/screen-branding-fix) — rebased onto main after #3 squash-merge caused conflict; CI re-run → squash-merged to main
+- PR #5 (feat/login-screen) — open, awaiting simulator screenshot approval
+
+**`constants/theme.ts` formalised**
+- Added `BorderRadius` (spec-canonical name, §4) — `Radius` kept as backward-compat alias
+- Added `Shadows.card` / `Shadows.elevated` (spec-canonical names, §5) — `ShadowCard` / `ShadowElevated` kept as aliases
+- Added `FontWeights` with raw numeric values (400/500/600/700) from §2
+- Removed `Colors.dark` sub-object (not in DESIGN-SPEC §1, zero references in codebase)
+- 100 exhaustive token tests in `__tests__/unit/theme.test.ts` — every hex, rgba, fontSize, lineHeight, spacing, radius, and shadow value verified against spec
+
+**`components/Text.tsx`**
+- Self-contained Text component; loads Poppins via `useFonts`
+- `variant` prop typed as `keyof typeof Typography` — all 12 DESIGN-SPEC §2 styles
+- Graceful fallback: strips `fontFamily` when fonts not yet loaded
+- Passes through all standard RN Text props; `style` merges after variant
+- 67 unit tests
+
+**6 design-system components (all in `components/`)**
+
+| Component | Spec | Key details |
+|-----------|------|-------------|
+| `Button.tsx` | §6.1, §6.2 | primary / secondary / disabled; suppresses `onPress` when disabled; `accessibilityState` wired |
+| `Card.tsx` | §6.4 | surface wrapper with shadow, 16px border-radius, 16px padding |
+| `Input.tsx` | §6.3 | focus state border (Colors.border → Colors.primary); label + error slots; `containerTestID` for style assertions |
+| `Badge.tsx` | §6.5, §6.7 | verified (green pill, ✓ + "Verified") and womenOnly (lavender pill) |
+| `Chip.tsx` | §6.6 | 28px pill; TouchableOpacity when `onPress` provided, View otherwise |
+| `Avatar.tsx` | §6.9 | initials (≤2 chars, uppercase) or imageUri; primary/lavender bg; custom size; circle with white border + card shadow |
+
+All values from `constants/theme.ts`. The 4 values absent from the §1 palette (`#C8C8C8` disabled, `rgba(40,30,20,0.08)` card border, `11px` badge font, `#2A1F4A` women-only text) are declared as named local constants with spec-section comments — not anonymous magic numbers.
+
+### Test Results
+
+| Metric | Result |
+|--------|--------|
+| Total tests | 350 |
+| Statements | 100% |
+| Branches | 100% |
+| Functions | 100% |
+| Lines | 100% |
+| Test suites | 12 |
+
+### Decisions Made
+
+| Decision | Rationale |
+|----------|-----------|
+| Component-specific spec values kept as local constants, not added to Colors | User rule: "only change these files". Values like disabled grey (#C8C8C8) exist in §6 but not the §1 brand palette — they belong in the component, named and documented |
+| `containerTestID` separate from `testID` on Input | Lets tests independently target the bordered wrapper (focus state) and the TextInput (value/placeholder) without ambiguity |
+| Chip renders View when no onPress, TouchableOpacity when onPress provided | Matches spec semantics: a display-only chip shouldn't have `accessibilityRole="button"` |
+| Avatar `testID` used as prefix for image: `${testID}-image` | Allows test assertions on both the container and the image element without adding extra props |
+
+### Problems Encountered
+
+- **Squash-merge conflict on PR #4** — PR #3 was squash-merged to main, making the commits in PR #4 (which was based on #3's branch) conflict. Fixed by `git rebase origin/main` which auto-dropped already-upstream commits, then force-pushed.
+- **`jest.doMock` + dynamic `import()` fails** — testing the "fonts not loaded" branch with `jest.doMock` + `await import(...)` requires `--experimental-vm-modules` which jest-expo doesn't enable. Fixed by using a mutable `const mockUseFonts = jest.fn()` pattern — flip return value per suite in `beforeEach`.
+
+### Next Steps
+
+1. **Simulator screenshot** — run `LANG=en_US.UTF-8 npx expo run:ios`, navigate to Login screen, share screenshot for Jordan's approval
+2. **Merge PR #5** after screenshot approved
+3. **Sign-in screens** — `/signin-apple`, `/signin-google`, `/signin-mobile`, `/signin-email` stub screens or real flows
+4. **Set up Stripe Connect account**
+5. **Navigation structure** — tab bar (Home, Search, Trips, Profile) using Expo Router
+
+---
+
 ## 2 May 2026 (Session 16)
 
 ### What Was Built / Changed

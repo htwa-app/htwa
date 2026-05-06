@@ -44,6 +44,11 @@ export default function HomeScreen() {
   const [fromText, setFromText]   = useState('');
   const [toText, setToText]       = useState('');
 
+  // TODO: replace with auth context
+  const user = { name: 'Jordan' };
+  const greeting     = user.name ? `Hey ${user.name} 👋` : 'Hey there 👋';
+  const avatarInitial = user.name ? user.name[0] : '?';
+
   // ── Handlers ─────────────────────────────────────────────────────────────
 
   const handleFindRidePress  = () => setActiveTab('find');
@@ -51,12 +56,10 @@ export default function HomeScreen() {
 
   const handleSearchPress = () => {
     // TODO: navigate to search results once the route exists
-    console.log('Search rides pressed — from:', fromText, 'to:', toText);
   };
 
-  const handleRoutePress = (route: Route) => {
+  const handleRoutePress = (_route: Route) => {
     // TODO: navigate to route detail once the route exists
-    console.log('Route pressed:', route.from, '→', route.to);
   };
 
   const handleSwap = () => {
@@ -74,9 +77,9 @@ export default function HomeScreen() {
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <View style={styles.header}>
-          <Text style={styles.greeting}>Hey Jordan 👋</Text>
+          <Text style={styles.greeting}>{greeting}</Text>
           <View style={styles.avatar} accessibilityLabel="Profile">
-            <Text style={styles.avatarInitial}>J</Text>
+            <Text style={styles.avatarInitial}>{avatarInitial}</Text>
           </View>
         </View>
 
@@ -151,14 +154,13 @@ export default function HomeScreen() {
         {/* ── Filter chips ───────────────────────────────────────────────── */}
         <View style={styles.chipsRow}>
           {['Today', 'Any time', '1+ seats'].map((label) => (
-            <TouchableOpacity
+            <View
               key={label}
               style={styles.chip}
-              accessibilityRole="button"
               accessibilityLabel={label}
             >
               <Text style={styles.chipText}>{label}</Text>
-            </TouchableOpacity>
+            </View>
           ))}
         </View>
 
@@ -175,9 +177,9 @@ export default function HomeScreen() {
         {/* ── Safety section ─────────────────────────────────────────────── */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Built with you in mind</Text>
-          <TouchableOpacity accessibilityRole="link" accessibilityLabel="Safety hub">
+          <View accessibilityLabel="Safety hub">
             <Text style={styles.sectionLink}>Safety hub →</Text>
-          </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.safetyGrid}>
@@ -262,7 +264,7 @@ const styles = StyleSheet.create({
   contentAndroid: {
     paddingHorizontal: Spacing.screenPadding,
     paddingBottom: Spacing.xxxxxl,
-    paddingTop: 40,
+    paddingTop: Spacing.xxxxl, // 40px — clear the Android status bar
   },
 
   // Header
@@ -429,10 +431,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.lavenderLight,
   },
   safetyCardGreen: {
-    backgroundColor: '#EDFAF1',
+    backgroundColor: Colors.primaryLight,
   },
   safetyCardRed: {
-    backgroundColor: '#FFF0EF',
+    backgroundColor: Colors.sosLight,
   },
   safetyIcon: {
     fontSize: 20,
