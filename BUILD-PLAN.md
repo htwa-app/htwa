@@ -44,7 +44,7 @@
 - `Chip.tsx` (route chips, filter chips)
 - `Avatar.tsx`
 
-⬜ **Stage 11** — Tab bar navigation (`app/_layout.tsx`) — Home, Search, Trips, Profile tabs with correct icons and teal active state
+✅ **Stage 11** — Tab bar navigation (`app/(tabs)/_layout.tsx`) — Home, Search, Trips, Profile tabs with correct icons and teal active state
 
 ⬜ **Stage 12** — Home screen rebuilt from scratch using DESIGN-SPEC.md and the HTML design file as reference — greeting, Find/Offer toggle, route input, safety grid, upcoming rides
 

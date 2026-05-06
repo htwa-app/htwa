@@ -21,8 +21,24 @@ Entries are added at the top. Most recent session is always first.
 - Button and Input use RN `Text` with explicit `Typography` token spreads rather than `components/Text.tsx` — correct pattern; avoids a second `useFonts` call inside components already rendered inside a screen that loads fonts
 - Avatar accepts a pre-computed `initials` string, not a `name` prop — correct for a design-system primitive; caller decides what to display
 
+- Stage 11 complete: `(tabs)` route group created with correct Expo Router architecture
+  - `app/(tabs)/_layout.tsx` — Tabs navigator, 4 tabs, all tint/border/height tokens from theme.ts; spec-local colours declared as named constants (not added to theme.ts)
+  - `app/(tabs)/index.tsx` — re-export from `app/home.tsx`
+  - `app/(tabs)/search.tsx`, `trips.tsx`, `profile.tsx` — stub screens using theme tokens, ready for their stages
+  - `app/screens/SplashScreen.tsx` — auth success now routes to `/(tabs)` instead of `/home`
+  - `__tests__/unit/SplashScreen.test.tsx` — updated assertions to match `/(tabs)`
+  - `__tests__/unit/TabLayout.test.tsx` — 29 new tests covering constants, icon names, token values, renderer
+- 442 tests total, 100% coverage
+
+### Decisions Made
+- Soft-reset to origin/main is the correct pattern when a branch carries squash-merge ancestors — replaces straight rebase to avoid duplicate commit conflicts
+- `trusted` Badge variant intentionally not built — no §6 spec definition exists yet; only mentioned by name in a §9 screen mockup
+- Button and Input use RN `Text` with explicit `Typography` token spreads rather than `components/Text.tsx` — correct pattern; avoids a second `useFonts` call inside components already rendered inside a screen that loads fonts
+- Avatar accepts a pre-computed `initials` string, not a `name` prop — correct for a design-system primitive; caller decides what to display
+- **Tabs navigator lives in `(tabs)` group, not root `_layout.tsx`** — tab bar is correctly hidden on Splash and Login screens; auth screens remain in the parent Stack
+
 ### Next Steps
-- Stage 11: Tab bar navigation (app/_layout.tsx) — Home, Search, Trips, Profile tabs
+- Stage 12: Home screen rebuilt from scratch using DESIGN-SPEC.md
 
 ---
 
