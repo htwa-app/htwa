@@ -233,6 +233,7 @@ This folder (`~/Documents/HTWA/`) is the **shared workspace** between Cowork and
 
 | Date | Lesson | Detail |
 |------|--------|--------|
+| May 2026 | ExpoModulesCore/ExpoBridgeModule.h build failure is a stale Pods issue | Fix: `cd ios && rm -rf Pods Podfile.lock && LANG=en_US.UTF-8 pod install`. Always try this first if the iOS build fails with a missing header error. |
 | May 2026 | Squash-merge ancestors cause rebase conflicts | When a branch carries commits from PRs that were squash-merged into main, a straight rebase replays duplicate commits and causes file conflicts. Fix: soft-reset to origin/main, which collapses to the net diff, then single clean commit and force-push. Use this pattern any time a branch has squash-merge ancestors. |
 | May 2026 | Don't trust coordinate reasoning without visual verification | Claude declared map city coordinates correct purely by reading code. They were only confirmed correct after forcing a browser screenshot. |
 | May 2026 | Scope creep — Claude removed the form-col border unprompted | When asked to "remove the border on the map", Claude incorrectly removed the form column borders instead. Always confirm scope before accepting a change. |
