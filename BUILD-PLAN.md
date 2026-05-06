@@ -32,9 +32,9 @@
 ## PHASE 2 — DESIGN SYSTEM
 *Build the shared foundations every screen uses. Do this once, use everywhere.*
 
-⬜ **Stage 8** — Design tokens file (`constants/theme.ts`) — exports all colours, font sizes, spacing, border radius, shadows as named constants matching DESIGN-SPEC.md
+✅ **Stage 8** — Design tokens file (`constants/theme.ts`) — exports all colours, font sizes, spacing, border radius, shadows as named constants matching DESIGN-SPEC.md
 
-⬜ **Stage 9** — Typography component (`components/Text.tsx`) — wraps all text styles (displayLarge, headingMedium, bodySmall etc.) with Poppins font loaded via expo-google-fonts
+✅ **Stage 9** — Typography component (`components/Text.tsx`) — wraps all text styles (displayLarge, headingMedium, bodySmall etc.) with Poppins font loaded via expo-google-fonts
 
 ⬜ **Stage 10** — Core UI components built and unit tested:
 - `Button.tsx` (primary, secondary, disabled states)

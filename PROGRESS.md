@@ -4,6 +4,23 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 6 May 2026 (Session 19)
+
+### What Was Built / Changed
+- CodeRabbit fixes from PR #5 (feat/login-screen) committed and merged — console.log removal, chip interactivity, Safety hub link, type assertions, footer tappable links, brand constants extracted to SplashScreen.tsx
+- Squash-merge rebase pattern documented in CLAUDE.md Lessons Learned
+- Stage 8 confirmed complete (constants/theme.ts — 259 lines, sosLight token added)
+- Stage 9 confirmed complete (components/Text.tsx — already existed from Session 17, 62 tests passing)
+- Branch feat/design-system created from clean main (354 tests, 100% coverage)
+
+### Decisions Made
+- Soft-reset to origin/main is the correct pattern when a branch carries squash-merge ancestors — replaces straight rebase to avoid duplicate commit conflicts
+
+### Next Steps
+- Stage 10: Core UI components (Button, Card, Input, Badge, Chip, Avatar)
+
+---
+
 ## 6 May 2026 (Session 18)
 
 ### What Was Built / Changed
