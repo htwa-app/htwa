@@ -1,3 +1,22 @@
+/**
+ * app/home.tsx
+ *
+ * Home screen per DESIGN-SPEC.md §9.2.
+ *
+ * Layout (top → bottom):
+ *   Header          — greeting + Avatar
+ *   Toggle tabs     — Find a ride / Offer a ride
+ *   Route input     — Card with From/To inputs + swap button
+ *   Filter chips    — Today / Any time / 1+ seats (display-only for now)
+ *   Search CTA      — full-width primary Button
+ *   Safety section  — "Built with you in mind" 2×2 feature grid
+ *   Upcoming        — "Upcoming for you" placeholder (real data in Stage 38)
+ *   Legal note
+ *
+ * All values from constants/theme.ts. No magic numbers.
+ * No inline styles — all styles in StyleSheet at the bottom.
+ */
+
 import { useState } from 'react';
 import {
   View,
@@ -9,32 +28,73 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import {
   Colors,
   FontFamily,
   Typography,
   Spacing,
-  Radius,
-  ShadowCard,
+  BorderRadius,
 } from '../constants/theme';
+import { Avatar }  from '../components/Avatar';
+import { Button }  from '../components/Button';
+import { Card }    from '../components/Card';
+import { Chip }    from '../components/Chip';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type TabId = 'find' | 'offer';
 
-interface Route {
-  id: string;
-  from: string;
-  to: string;
-  price: string;
-}
+// ─── Spec-local constants ─────────────────────────────────────────────────────
 
-// ─── Data ─────────────────────────────────────────────────────────────────────
+/** Input row vertical padding — not in Spacing scale */
+const INPUT_ROW_PADDING_VERTICAL = 14;
 
-export const POPULAR_ROUTES: Route[] = [
-  { id: '1', from: 'Dublin',  to: 'Galway',   price: 'from €8'  },
-  { id: '2', from: 'Belfast', to: 'Dublin',   price: 'from €10' },
-  { id: '3', from: 'Cork',    to: 'Limerick', price: 'from €6'  },
+/** Route dot diameter — §9.2 design detail */
+const ROUTE_DOT_SIZE = 10;
+
+/** Route dot right margin — aligns text across both rows */
+const ROUTE_DOT_MARGIN_RIGHT = 12;
+
+// ─── Safety feature data ──────────────────────────────────────────────────────
+
+type SafetyFeature = {
+  id:          string;
+  icon:        React.ComponentProps<typeof Ionicons>['name'];
+  title:       string;
+  description: string;
+  background:  string;
+};
+
+const SAFETY_FEATURES: SafetyFeature[] = [
+  {
+    id:          'journey',
+    icon:        'location-outline',
+    title:       'Share my journey',
+    description: 'Live tracking for your trusted contacts',
+    background:  Colors.primaryLight,
+  },
+  {
+    id:          'women',
+    icon:        'shield-checkmark-outline',
+    title:       'Women-only mode',
+    description: 'Travel with verified women only',
+    background:  Colors.lavenderLight,
+  },
+  {
+    id:          'verified',
+    icon:        'checkmark-circle-outline',
+    title:       'Verified IDs',
+    description: 'Every account checked against a college email',
+    background:  Colors.primaryLight,
+  },
+  {
+    id:          'sos',
+    icon:        'alert-circle-outline',
+    title:       'In-app SOS',
+    description: 'Silent alert sent to emergency contacts',
+    background:  Colors.sosLight,
+  },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -44,46 +104,47 @@ export default function HomeScreen() {
   const [fromText, setFromText]   = useState('');
   const [toText, setToText]       = useState('');
 
-  // TODO: replace with auth context
-  const user = { name: 'Jordan' };
-  const greeting     = user.name ? `Hey ${user.name} 👋` : 'Hey there 👋';
+  // TODO: replace with auth context when Stage 20 is complete
+  const user          = { name: 'Jordan' };
+  const greeting      = user.name ? `Hey ${user.name} 👋` : 'Hey there 👋';
   const avatarInitial = user.name ? user.name[0] : '?';
 
-  // ── Handlers ─────────────────────────────────────────────────────────────
+  // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleFindRidePress  = () => setActiveTab('find');
   const handleOfferRidePress = () => setActiveTab('offer');
-
-  const handleSearchPress = () => {
-    // TODO: navigate to search results once the route exists
-  };
-
-  const handleRoutePress = (_route: Route) => {
-    // TODO: navigate to route detail once the route exists
-  };
 
   const handleSwap = () => {
     setFromText(toText);
     setToText(fromText);
   };
 
+  const handleSearchPress = () => {
+    // TODO: navigate to search results (Stage 33)
+  };
+
+  // ── Render ────────────────────────────────────────────────────────────────
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={Platform.OS === 'android' ? styles.contentAndroid : styles.content}
+        contentContainerStyle={
+          Platform.OS === 'android' ? styles.contentAndroid : styles.content
+        }
         showsVerticalScrollIndicator={false}
       >
 
-        {/* ── Header ─────────────────────────────────────────────────────── */}
+        {/* ── Header ──────────────────────────────────────────────────────── */}
         <View style={styles.header}>
           <Text style={styles.greeting}>{greeting}</Text>
-          <View style={styles.avatar} accessibilityLabel="Profile">
-            <Text style={styles.avatarInitial}>{avatarInitial}</Text>
-          </View>
+          <Avatar
+            initials={avatarInitial}
+            testID="header-avatar"
+          />
         </View>
 
-        {/* ── Toggle tabs ────────────────────────────────────────────────── */}
+        {/* ── Find / Offer toggle ─────────────────────────────────────────── */}
         <View style={styles.tabContainer}>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'find' && styles.tabActive]}
@@ -110,9 +171,11 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ── Route input card ───────────────────────────────────────────── */}
-        <View style={styles.routeCard}>
-          {/* From row */}
+        {/* ── Route input card ────────────────────────────────────────────── */}
+        {/* Card padding overridden to 0 so the divider spans edge-to-edge.   */}
+        {/* Each inputRow handles its own horizontal padding.                 */}
+        <Card style={styles.routeCard}>
+          {/* From */}
           <View style={styles.inputRow}>
             <View style={[styles.routeDot, styles.routeDotFrom]} />
             <TextInput
@@ -126,9 +189,10 @@ export default function HomeScreen() {
             />
           </View>
 
+          {/* Divider — left-aligned with the text start */}
           <View style={styles.inputDivider} />
 
-          {/* To row */}
+          {/* To */}
           <View style={styles.inputRow}>
             <View style={[styles.routeDot, styles.routeDotTo]} />
             <TextInput
@@ -146,95 +210,87 @@ export default function HomeScreen() {
               accessibilityRole="button"
               accessibilityLabel="Swap origin and destination"
             >
-              <Text style={styles.swapIcon}>⇅</Text>
+              <Ionicons
+                name="swap-vertical-outline"
+                size={20}
+                color={Colors.textSecondary}
+              />
             </TouchableOpacity>
           </View>
-        </View>
+        </Card>
 
-        {/* ── Filter chips ───────────────────────────────────────────────── */}
+        {/* ── Filter chips ────────────────────────────────────────────────── */}
         <View style={styles.chipsRow}>
-          {['Today', 'Any time', '1+ seats'].map((label) => (
-            <View
-              key={label}
-              style={styles.chip}
-              accessibilityLabel={label}
-            >
-              <Text style={styles.chipText}>{label}</Text>
-            </View>
-          ))}
+          <Chip label="Today"    />
+          <Chip label="Any time" />
+          <Chip label="1+ seats" />
         </View>
 
-        {/* ── Search CTA ─────────────────────────────────────────────────── */}
-        <TouchableOpacity
-          style={styles.searchButton}
+        {/* ── Search CTA ──────────────────────────────────────────────────── */}
+        <Button
+          title="Search rides"
           onPress={handleSearchPress}
-          accessibilityRole="button"
-          accessibilityLabel="Search rides"
-        >
-          <Text style={styles.searchButtonText}>Search rides</Text>
-        </TouchableOpacity>
+          style={styles.searchButton}
+        />
 
-        {/* ── Safety section ─────────────────────────────────────────────── */}
+        {/* ── Safety section ──────────────────────────────────────────────── */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Built with you in mind</Text>
-          <View accessibilityLabel="Safety hub">
-            <Text style={styles.sectionLink}>Safety hub →</Text>
-          </View>
+          {/* Non-interactive for now — navigation target exists in Stage 47 */}
+          <Text style={styles.sectionLink}>Safety hub →</Text>
         </View>
 
+        {/* 2×2 grid — two rows of two cards each */}
         <View style={styles.safetyGrid}>
-          <View style={[styles.safetyCard, styles.safetyCardTeal]}>
-            <Text style={styles.safetyIcon}>📍</Text>
-            <Text style={styles.safetyCardTitle}>Share my journey</Text>
-            <Text style={styles.safetyCardBody}>Live tracking for your trusted contacts</Text>
+          <View style={styles.safetyRow}>
+            {SAFETY_FEATURES.slice(0, 2).map((feature) => (
+              <View
+                key={feature.id}
+                style={[styles.safetyCard, { backgroundColor: feature.background }]}
+                testID={`safety-card-${feature.id}`}
+              >
+                <Ionicons
+                  name={feature.icon}
+                  size={24}
+                  color={Colors.textPrimary}
+                  style={styles.safetyIcon}
+                />
+                <Text style={styles.safetyCardTitle}>{feature.title}</Text>
+                <Text style={styles.safetyCardBody}>{feature.description}</Text>
+              </View>
+            ))}
           </View>
-          <View style={[styles.safetyCard, styles.safetyCardLavender]}>
-            <Text style={styles.safetyIcon}>🌸</Text>
-            <Text style={styles.safetyCardTitle}>Women-only mode</Text>
-            <Text style={styles.safetyCardBody}>Travel with verified women only</Text>
+
+          <View style={[styles.safetyRow, styles.safetyRowBottom]}>
+            {SAFETY_FEATURES.slice(2, 4).map((feature) => (
+              <View
+                key={feature.id}
+                style={[styles.safetyCard, { backgroundColor: feature.background }]}
+                testID={`safety-card-${feature.id}`}
+              >
+                <Ionicons
+                  name={feature.icon}
+                  size={24}
+                  color={Colors.textPrimary}
+                  style={styles.safetyIcon}
+                />
+                <Text style={styles.safetyCardTitle}>{feature.title}</Text>
+                <Text style={styles.safetyCardBody}>{feature.description}</Text>
+              </View>
+            ))}
           </View>
         </View>
 
-        <View style={[styles.safetyGrid, styles.safetyGridBottom]}>
-          <View style={[styles.safetyCard, styles.safetyCardGreen]}>
-            <Text style={styles.safetyIcon}>✓</Text>
-            <Text style={styles.safetyCardTitle}>Verified IDs</Text>
-            <Text style={styles.safetyCardBody}>Every account checked against a college email</Text>
-          </View>
-          <View style={[styles.safetyCard, styles.safetyCardRed]}>
-            <Text style={styles.safetyIcon}>🆘</Text>
-            <Text style={styles.safetyCardTitle}>In-app SOS</Text>
-            <Text style={styles.safetyCardBody}>Silent alert sent to emergency contacts</Text>
-          </View>
-        </View>
+        {/* ── Upcoming for you ────────────────────────────────────────────── */}
+        {/* Placeholder until ride data is available (Stage 38).             */}
+        <Text style={[styles.sectionTitle, styles.upcomingHeading]}>
+          Upcoming for you
+        </Text>
+        <Text style={styles.upcomingPlaceholder}>
+          Your upcoming rides will appear here.
+        </Text>
 
-        {/* ── Upcoming for you ───────────────────────────────────────────── */}
-        <Text style={styles.sectionTitle}>Upcoming for you</Text>
-
-        {POPULAR_ROUTES.map((route) => (
-          <TouchableOpacity
-            key={route.id}
-            style={styles.upcomingCard}
-            onPress={() => handleRoutePress(route)}
-            accessibilityRole="button"
-            accessibilityLabel={`${route.from} to ${route.to}, ${route.price}`}
-          >
-            <View style={styles.upcomingRoute}>
-              <View style={styles.upcomingDots}>
-                <View style={[styles.dot, styles.dotFrom]} />
-                <View style={styles.dotLine} />
-                <View style={[styles.dot, styles.dotTo]} />
-              </View>
-              <View style={styles.upcomingCities}>
-                <Text style={styles.cityFrom}>{route.from}</Text>
-                <Text style={styles.cityTo}>{route.to}</Text>
-              </View>
-            </View>
-            <Text style={styles.routePrice}>{route.price}</Text>
-          </TouchableOpacity>
-        ))}
-
-        {/* ── Legal note ─────────────────────────────────────────────────── */}
+        {/* ── Legal note ──────────────────────────────────────────────────── */}
         <Text style={styles.legalNote}>
           Drivers share costs only — never profit from a journey.
         </Text>
@@ -247,6 +303,8 @@ export default function HomeScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+
+  // ── Scaffold ────────────────────────────────────────────────────────────────
   safe: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -254,57 +312,43 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1,
   },
-  // iOS: SafeAreaView handles top inset — no extra paddingTop needed
   content: {
     paddingHorizontal: Spacing.screenPadding,
-    paddingBottom: Spacing.xxxxxl,
-    paddingTop: 0,
+    paddingBottom:     Spacing.xxxxxl,
+    paddingTop:        0,
   },
-  // Android: manually clear the status bar (SafeAreaView doesn't on all devices)
   contentAndroid: {
     paddingHorizontal: Spacing.screenPadding,
-    paddingBottom: Spacing.xxxxxl,
-    paddingTop: Spacing.xxxxl, // 40px — clear the Android status bar
+    paddingBottom:     Spacing.xxxxxl,
+    paddingTop:        Spacing.xxxxl,   // 40 px — clears Android status bar
   },
 
-  // Header
+  // ── Header ──────────────────────────────────────────────────────────────────
   header: {
-    flexDirection: 'row',
+    flexDirection:  'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: Spacing.lg,
-    marginBottom: Spacing.xxl,
+    alignItems:     'center',
+    paddingTop:     Spacing.lg,
+    marginBottom:   Spacing.xxl,
   },
   greeting: {
     ...Typography.headingLarge,
     color: Colors.textPrimary,
   },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitial: {
-    ...Typography.label,
-    color: Colors.surface,
-  },
 
-  // Toggle tabs
+  // ── Toggle tabs ─────────────────────────────────────────────────────────────
   tabContainer: {
-    flexDirection: 'row',
+    flexDirection:   'row',
     backgroundColor: Colors.primaryLight,
-    borderRadius: Radius.full,
-    padding: 4,
-    marginBottom: Spacing.lg,
+    borderRadius:    BorderRadius.full,
+    padding:         Spacing.xs,         // 4 px inner padding
+    marginBottom:    Spacing.lg,
   },
   tab: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: Radius.full,
-    alignItems: 'center',
+    flex:          1,
+    paddingVertical: Spacing.sm + 2,     // 10 px
+    borderRadius:  BorderRadius.full,
+    alignItems:    'center',
   },
   tabActive: {
     backgroundColor: Colors.primary,
@@ -317,200 +361,118 @@ const styles = StyleSheet.create({
     color: Colors.surface,
   },
 
-  // Route input card
+  // ── Route input card ────────────────────────────────────────────────────────
   routeCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.large,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    ...ShadowCard,
+    padding:      0,               // override Card default; rows handle own padding
     marginBottom: Spacing.md,
   },
   inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection:   'row',
+    alignItems:      'center',
     paddingHorizontal: Spacing.cardPadding,
-    paddingVertical: 14,
+    paddingVertical: INPUT_ROW_PADDING_VERTICAL,
   },
   routeDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 12,
+    width:        ROUTE_DOT_SIZE,
+    height:       ROUTE_DOT_SIZE,
+    borderRadius: ROUTE_DOT_SIZE / 2,
+    marginRight:  ROUTE_DOT_MARGIN_RIGHT,
   },
   routeDotFrom: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primary,  // teal — origin
   },
   routeDotTo: {
-    backgroundColor: Colors.amber,
+    backgroundColor: Colors.amber,    // orange — destination
   },
   routeInput: {
-    flex: 1,
-    ...Typography.bodyLarge,
-    color: Colors.textPrimary,
+    flex:       1,
+    fontSize:   Typography.bodyLarge.fontSize,   // 16 px
+    fontFamily: FontFamily.regular,              // Poppins 400
+    color:      Colors.textPrimary,
+    padding:    0,                               // removes default Android padding
   },
   inputDivider: {
-    height: 1,
+    height:          1,
     backgroundColor: Colors.border,
-    marginLeft: Spacing.cardPadding + 10 + 12, // align with text start
+    // indent to align with the text start: left edge + horizontal padding + dot + dot margin
+    marginLeft: Spacing.cardPadding + ROUTE_DOT_SIZE + ROUTE_DOT_MARGIN_RIGHT,
   },
   swapButton: {
-    padding: 4,
-    marginLeft: 8,
-  },
-  swapIcon: {
-    fontSize: 18,
-    color: Colors.textSecondary,
+    padding:    Spacing.xs,
+    marginLeft: Spacing.sm,
   },
 
-  // Filter chips
+  // ── Filter chips ────────────────────────────────────────────────────────────
   chipsRow: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.lg,
-  },
-  chip: {
-    backgroundColor: Colors.primaryLight,
-    borderRadius: Radius.full,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-  },
-  chipText: {
-    ...Typography.label,
-    color: Colors.primary,
+    gap:           Spacing.sm,
+    marginBottom:  Spacing.lg,
   },
 
-  // Search button
+  // ── Search CTA ──────────────────────────────────────────────────────────────
   searchButton: {
-    backgroundColor: Colors.primary,
-    borderRadius: Radius.full,
-    height: Spacing.buttonHeight,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginBottom: Spacing.xxl,
   },
-  searchButtonText: {
-    ...Typography.button,
-    color: Colors.surface,
-  },
 
-  // Safety section
+  // ── Safety section ──────────────────────────────────────────────────────────
   sectionHeader: {
-    flexDirection: 'row',
+    flexDirection:  'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
+    alignItems:     'center',
+    marginBottom:   Spacing.md,
   },
   sectionTitle: {
     ...Typography.headingMedium,
     color: Colors.textPrimary,
-    marginBottom: Spacing.md,
   },
   sectionLink: {
     ...Typography.label,
     color: Colors.primary,
   },
   safetyGrid: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-  },
-  safetyGridBottom: {
-    marginTop: Spacing.md,
     marginBottom: Spacing.xxl,
   },
+  safetyRow: {
+    flexDirection: 'row',
+    gap:           Spacing.md,
+  },
+  safetyRowBottom: {
+    marginTop: Spacing.md,
+  },
   safetyCard: {
-    flex: 1,
-    borderRadius: Radius.large,
-    padding: Spacing.cardPadding,
-    ...ShadowCard,
-  },
-  safetyCardTeal: {
-    backgroundColor: Colors.primaryLight,
-  },
-  safetyCardLavender: {
-    backgroundColor: Colors.lavenderLight,
-  },
-  safetyCardGreen: {
-    backgroundColor: Colors.primaryLight,
-  },
-  safetyCardRed: {
-    backgroundColor: Colors.sosLight,
+    flex:         1,
+    borderRadius: BorderRadius.large,
+    padding:      Spacing.cardPadding,
   },
   safetyIcon: {
-    fontSize: 20,
-    marginBottom: 6,
+    marginBottom: Spacing.sm,
   },
   safetyCardTitle: {
     ...Typography.headingSmall,
-    color: Colors.textPrimary,
-    marginBottom: 4,
+    color:        Colors.textPrimary,
+    marginBottom: Spacing.xs,
   },
   safetyCardBody: {
     ...Typography.bodySmall,
     color: Colors.textSecondary,
   },
 
-  // Upcoming routes
-  upcomingCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.large,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: Spacing.cardPadding,
-    marginBottom: Spacing.itemGap,
-    ...ShadowCard,
+  // ── Upcoming for you ────────────────────────────────────────────────────────
+  upcomingHeading: {
+    marginBottom: Spacing.md,
   },
-  upcomingRoute: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  upcomingDots: {
-    width: 16,
-    alignItems: 'center',
-    marginRight: 12,
-    gap: 2,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  dotFrom: {
-    backgroundColor: Colors.primary,
-  },
-  dotTo: {
-    backgroundColor: Colors.amber,
-  },
-  dotLine: {
-    width: 1,
-    height: 8,
-    backgroundColor: Colors.border,
-  },
-  upcomingCities: {
-    gap: 4,
-  },
-  cityFrom: {
-    ...Typography.headingSmall,
-    color: Colors.textPrimary,
-  },
-  cityTo: {
+  upcomingPlaceholder: {
     ...Typography.bodyMedium,
-    color: Colors.textSecondary,
-  },
-  routePrice: {
-    ...Typography.headingSmall,
-    color: Colors.primary,
+    color:        Colors.textSecondary,
+    marginBottom: Spacing.xxl,
   },
 
-  // Legal
+  // ── Legal note ──────────────────────────────────────────────────────────────
   legalNote: {
-    textAlign: 'center',
+    textAlign:    'center',
     ...Typography.micro,
-    color: Colors.textTertiary,
-    marginTop: Spacing.xl,
+    color:        Colors.textTertiary,
+    marginTop:    Spacing.xl,
     paddingBottom: Spacing.lg,
   },
 });

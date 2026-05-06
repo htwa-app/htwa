@@ -11,6 +11,13 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react-native';
 import HomeScreen from '../../app/home';
 
+// Ionicons requires native vector font loading — swap for a lightweight stub.
+jest.mock('@expo/vector-icons', () => ({
+  Ionicons: ({ testID }: { testID?: string }) =>
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require('react').createElement(require('react-native').View, { testID }),
+}));
+
 // ─── Destination input ────────────────────────────────────────────────────────
 
 describe('HomeScreen search — destination input', () => {
