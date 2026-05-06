@@ -7,6 +7,42 @@ Entries are added at the top. Most recent session is always first.
 ## 6 May 2026 (Session 19)
 
 ### What Was Built / Changed
+- CodeRabbit fixes merged via PR #5 (feat/login-screen)
+- Squash-merge rebase pattern documented in CLAUDE.md Lessons Learned
+- Stage 8 confirmed complete (constants/theme.ts, 259 lines, sosLight token added)
+- Stage 9 confirmed complete (components/Text.tsx, 12 variants, 62 tests — existed from Session 17)
+- Stage 10 confirmed complete (Button, Card, Input, Badge, Chip, Avatar — 109 tests — existed from Session 17)
+- Stage 11 complete: `(tabs)` group created with correct Expo Router architecture — tab bar correctly hidden on Splash and Login screens
+- Stage 12 complete: `app/home.tsx` fully rebuilt using design system components, visually verified on iPhone 17 Pro simulator
+- Women-only safety card reverted to non-interactive — toggle belongs on Search Results screen (Stage 33)
+- iOS build error fixed: stale `ExpoModulesCore` umbrella header resolved by clean pod reinstall
+
+### Decisions Made
+- Safety grid on Home screen is informational only — features are interactive in context (women-only on search, SOS on live trip, journey sharing on live trip)
+- Soft-reset to `origin/main` is correct pattern when branch carries squash-merge ancestors
+- Tab bar lives in `(tabs)` group, not root `_layout.tsx`
+
+### Files Changed
+- `app/home.tsx` — full rebuild: Avatar, Button, Card, Chip, Ionicons, SAFETY_FEATURES data array
+- `app/(tabs)/_layout.tsx` — Tabs navigator, 4 tabs, theme tokens
+- `app/(tabs)/index.tsx`, `search.tsx`, `trips.tsx`, `profile.tsx` — home re-export + 3 stubs
+- `app/screens/SplashScreen.tsx` — auth routes to `/(tabs)`
+- `app/signin-apple.tsx`, `signin-google.tsx`, `signin-mobile.tsx`, `signin-email.tsx` — auto-navigate to `/(tabs)` on mount
+- `__tests__/unit/HomeScreen.test.tsx`, `TabLayout.test.tsx`, `SplashScreen.test.tsx` — updated
+- `__tests__/integration/HomeScreenSearch.test.tsx` — Ionicons mock added
+- `CLAUDE.md` — squash-merge lesson + PROGRESS.md standing rule
+- `BUILD-PLAN.md` — Stages 8–12 marked ✅
+- `constants/theme.ts` — sosLight token
+
+### Test Results
+- 441 tests, 17 suites, 100% passing
+
+### Next Steps
+- Open PR for feat/design-system → main
+- Phase 3: Authentication (Stages 13–20)
+
+
+### What Was Built / Changed
 - CodeRabbit fixes from PR #5 (feat/login-screen) committed and merged — console.log removal, chip interactivity, Safety hub link, type assertions, footer tappable links, brand constants extracted to SplashScreen.tsx
 - Squash-merge rebase pattern documented in CLAUDE.md Lessons Learned
 - Stage 8 confirmed complete (constants/theme.ts — 259 lines, sosLight token added)
