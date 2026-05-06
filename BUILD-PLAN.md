@@ -36,7 +36,7 @@
 
 ✅ **Stage 9** — Typography component (`components/Text.tsx`) — wraps all text styles (displayLarge, headingMedium, bodySmall etc.) with Poppins font loaded via expo-google-fonts
 
-⬜ **Stage 10** — Core UI components built and unit tested:
+✅ **Stage 10** — Core UI components built and unit tested:
 - `Button.tsx` (primary, secondary, disabled states)
 - `Card.tsx`
 - `Input.tsx`

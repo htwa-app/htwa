@@ -11,13 +11,18 @@ Entries are added at the top. Most recent session is always first.
 - Squash-merge rebase pattern documented in CLAUDE.md Lessons Learned
 - Stage 8 confirmed complete (constants/theme.ts — 259 lines, sosLight token added)
 - Stage 9 confirmed complete (components/Text.tsx — already existed from Session 17, 62 tests passing)
+- Stage 10 confirmed complete (Button, Card, Input, Badge, Chip, Avatar — 109 component tests, all from Session 17)
 - Branch feat/design-system created from clean main (354 tests, 100% coverage)
+- 417 tests total including worktree; 354 canonical tests, 100% coverage
 
 ### Decisions Made
 - Soft-reset to origin/main is the correct pattern when a branch carries squash-merge ancestors — replaces straight rebase to avoid duplicate commit conflicts
+- `trusted` Badge variant intentionally not built — no §6 spec definition exists yet; only mentioned by name in a §9 screen mockup
+- Button and Input use RN `Text` with explicit `Typography` token spreads rather than `components/Text.tsx` — correct pattern; avoids a second `useFonts` call inside components already rendered inside a screen that loads fonts
+- Avatar accepts a pre-computed `initials` string, not a `name` prop — correct for a design-system primitive; caller decides what to display
 
 ### Next Steps
-- Stage 10: Core UI components (Button, Card, Input, Badge, Chip, Avatar)
+- Stage 11: Tab bar navigation (app/_layout.tsx) — Home, Search, Trips, Profile tabs
 
 ---
 
