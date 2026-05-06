@@ -54,10 +54,10 @@ describe('SplashScreen — brand rules', () => {
 // ─── Auth routing ─────────────────────────────────────────────────────────────
 
 describe('SplashScreen — auth routing', () => {
-  it('navigates to /home when a valid auth token is stored', async () => {
+  it('navigates to /(tabs) when a valid auth token is stored', async () => {
     (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce('valid-token-abc');
     render(<SplashScreen />);
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/home'));
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/(tabs)'));
     expect(mockReplace).not.toHaveBeenCalledWith('/login');
   });
 
@@ -65,14 +65,14 @@ describe('SplashScreen — auth routing', () => {
     (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce(null);
     render(<SplashScreen />);
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/login'));
-    expect(mockReplace).not.toHaveBeenCalledWith('/home');
+    expect(mockReplace).not.toHaveBeenCalledWith('/(tabs)');
   });
 
   it('navigates to /login when storage throws an error (safe default)', async () => {
     (AsyncStorage.getItem as jest.Mock).mockRejectedValueOnce(new Error('Disk read failure'));
     render(<SplashScreen />);
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/login'));
-    expect(mockReplace).not.toHaveBeenCalledWith('/home');
+    expect(mockReplace).not.toHaveBeenCalledWith('/(tabs)');
   });
 
   it('reads from the correct storage key (auth_token)', async () => {
