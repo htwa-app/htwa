@@ -4,11 +4,17 @@ import LoginScreen from '../../app/login';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-const mockPush    = jest.fn();
-const mockReplace = jest.fn();
+const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: mockPush, replace: mockReplace }),
+  useRouter: () => ({ push: mockPush }),
 }));
+
+jest.mock('@expo/vector-icons', () => {
+  const { View } = require('react-native');
+  return {
+    Ionicons: (props: Record<string, unknown>) => <View testID={`icon-${props.name}`} />,
+  };
+});
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -38,6 +44,14 @@ describe('LoginScreen — brand rules', () => {
   it('does NOT display the tagline in title case', () => {
     expect(screen.queryByText('Heading That Way Anyway.')).toBeNull();
   });
+
+  it('displays the logo wordmark "htwa."', () => {
+    expect(screen.getByText('htwa.')).toBeTruthy();
+  });
+
+  it('renders the amber dot with testID logo-dot', () => {
+    expect(screen.getByTestId('logo-dot')).toBeTruthy();
+  });
 });
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
@@ -45,34 +59,78 @@ describe('LoginScreen — brand rules', () => {
 describe('LoginScreen — layout', () => {
   beforeEach(() => render(<LoginScreen />));
 
-  it('renders the Sign in button', () => {
-    expect(screen.getByRole('button', { name: 'Sign in' })).toBeTruthy();
+  it('displays the social proof text', () => {
+    expect(screen.getByText('2,400+ verified students')).toBeTruthy();
   });
 
-  it('renders the Retry button', () => {
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
+  it('displays the trust note', () => {
+    expect(screen.getByText('Every account verified before use')).toBeTruthy();
+  });
+
+  it('displays the footer text', () => {
+    expect(
+      screen.getByText('By continuing you agree to our Terms & Community Safety Pledge')
+    ).toBeTruthy();
+  });
+
+  it('renders the Continue with Apple button', () => {
+    expect(screen.getByRole('button', { name: 'Continue with Apple' })).toBeTruthy();
+  });
+
+  it('renders the Continue with Google button', () => {
+    expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeTruthy();
+  });
+
+  it('renders the Continue with mobile number button', () => {
+    expect(screen.getByRole('button', { name: 'Continue with mobile number' })).toBeTruthy();
+  });
+
+  it('renders the Continue with email button', () => {
+    expect(screen.getByRole('button', { name: 'Continue with email' })).toBeTruthy();
   });
 });
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
 
 describe('LoginScreen — navigation', () => {
-  it('Sign in button has an onPress handler that does not throw', () => {
-    render(<LoginScreen />);
+  beforeEach(() => render(<LoginScreen />));
+
+  it('Continue with Apple button does not throw on press', () => {
     expect(() =>
-      fireEvent.press(screen.getByRole('button', { name: 'Sign in' }))
+      fireEvent.press(screen.getByRole('button', { name: 'Continue with Apple' }))
     ).not.toThrow();
   });
 
-  it('Sign in button calls router.push', () => {
-    render(<LoginScreen />);
-    fireEvent.press(screen.getByRole('button', { name: 'Sign in' }));
-    expect(mockPush).toHaveBeenCalledTimes(1);
+  it('Continue with Apple calls router.push with /signin-apple', () => {
+    fireEvent.press(screen.getByRole('button', { name: 'Continue with Apple' }));
+    expect(mockPush).toHaveBeenCalledWith('/signin-apple');
   });
 
-  it('Retry button calls router.replace with "/"', () => {
-    render(<LoginScreen />);
-    fireEvent.press(screen.getByRole('button', { name: 'Retry' }));
-    expect(mockReplace).toHaveBeenCalledWith('/');
+  it('Continue with Google calls router.push with /signin-google', () => {
+    fireEvent.press(screen.getByRole('button', { name: 'Continue with Google' }));
+    expect(mockPush).toHaveBeenCalledWith('/signin-google');
+  });
+
+  it('Continue with mobile number calls router.push with /signin-mobile', () => {
+    fireEvent.press(screen.getByRole('button', { name: 'Continue with mobile number' }));
+    expect(mockPush).toHaveBeenCalledWith('/signin-mobile');
+  });
+
+  it('Continue with email calls router.push with /signin-email', () => {
+    fireEvent.press(screen.getByRole('button', { name: 'Continue with email' }));
+    expect(mockPush).toHaveBeenCalledWith('/signin-email');
+  });
+
+  it('each button press calls router.push exactly once', () => {
+    const buttons = [
+      'Continue with Apple',
+      'Continue with Google',
+      'Continue with mobile number',
+      'Continue with email',
+    ];
+    buttons.forEach((label, i) => {
+      fireEvent.press(screen.getByRole('button', { name: label }));
+      expect(mockPush).toHaveBeenCalledTimes(i + 1);
+    });
   });
 });

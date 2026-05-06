@@ -15,6 +15,7 @@ module.exports = {
   ],
   collectCoverageFrom: [
     'app/**/*.{ts,tsx}',
+    'components/**/*.{ts,tsx}',
     '!app/**/_layout.tsx',
     '!**/node_modules/**',
   ],

@@ -1,65 +1,137 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontFamily, Typography, Spacing, Radius } from '../constants/theme';
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function LoginScreen() {
   const router = useRouter();
 
-  const handleSignIn = () => {
-    // TODO: navigate to sign-in flow once the route exists
-    router.push('/signin' as never);
-  };
+  // ── Handlers — stub routes, will be real screens in later sprints ──────────
+  const handleApple  = () => router.push('/signin-apple');
+  const handleGoogle = () => router.push('/signin-google');
+  const handleMobile = () => router.push('/signin-mobile');
+  const handleEmail  = () => router.push('/signin-email');
 
-  const handleRetry = () => {
-    // Route back to splash screen to re-run the auth check
-    router.replace('/');
-  };
+  const handleOpenTerms         = () => console.log('TODO: navigate to terms');
+  const handleOpenSafetyPledge  = () => console.log('TODO: navigate to safety pledge');
 
   return (
-    <View style={styles.container}>
-      {/* Logo mark — matches SplashScreen */}
+    <ScrollView
+      contentContainerStyle={styles.container}
+      bounces={false}
+      showsVerticalScrollIndicator={false}
+    >
+
+      {/* ── Logo mark ──────────────────────────────────────────────────────── */}
       <View style={styles.logoMark}>
         <Text style={styles.logoText}>
-          htwa<Text style={styles.logoDot}>.</Text>
+          htwa<Text style={styles.logoDot} testID="logo-dot">.</Text>
         </Text>
       </View>
 
-      {/* Tagline — all lowercase, ends with a period */}
+      {/* ── Tagline — all lowercase, period not question mark ──────────────── */}
       <Text style={styles.tagline}>heading that way anyway.</Text>
 
-      {/* Primary CTA */}
-      <TouchableOpacity
-        style={styles.signInButton}
-        onPress={handleSignIn}
-        accessibilityRole="button"
-        accessibilityLabel="Sign in"
-      >
-        <Text style={styles.signInText}>Sign in</Text>
-      </TouchableOpacity>
+      {/* ── Social proof ───────────────────────────────────────────────────── */}
+      <View style={styles.socialProofRow}>
+        <View style={styles.avatars}>
+          <View style={[styles.avatar, styles.avatarTeal]} />
+          <View style={[styles.avatar, styles.avatarLavender]} />
+          <View style={[styles.avatar, styles.avatarAmber]} />
+        </View>
+        <Text style={styles.socialText}>2,400+ verified students</Text>
+      </View>
 
-      {/* Retry option — for users routed here after a storage error */}
-      <TouchableOpacity
-        style={styles.retryButton}
-        onPress={handleRetry}
-        accessibilityRole="button"
-        accessibilityLabel="Retry"
-      >
-        <Text style={styles.retryText}>Retry</Text>
-      </TouchableOpacity>
-    </View>
+      {/* ── Trust note ─────────────────────────────────────────────────────── */}
+      <View style={styles.trustRow}>
+        <Ionicons
+          name="shield-checkmark-outline"
+          size={14}
+          color={Colors.textSecondary}
+        />
+        <Text style={styles.trustText}>Every account verified before use</Text>
+      </View>
+
+      {/* ── Auth buttons ───────────────────────────────────────────────────── */}
+      <View style={styles.buttons}>
+
+        {/* Continue with Apple */}
+        <TouchableOpacity
+          style={[styles.button, styles.buttonApple]}
+          onPress={handleApple}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Continue with Apple"
+        >
+          <Ionicons name="logo-apple" size={20} color={Colors.surface} style={styles.buttonIcon} />
+          <Text style={[styles.buttonText, styles.buttonTextLight]}>Continue with Apple</Text>
+        </TouchableOpacity>
+
+        {/* Continue with Google */}
+        <TouchableOpacity
+          style={[styles.button, styles.buttonGoogle]}
+          onPress={handleGoogle}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Continue with Google"
+        >
+          <Ionicons name="logo-google" size={18} color={Colors.textPrimary} style={styles.buttonIcon} />
+          <Text style={[styles.buttonText, styles.buttonTextDark]}>Continue with Google</Text>
+        </TouchableOpacity>
+
+        {/* Continue with mobile number */}
+        <TouchableOpacity
+          style={[styles.button, styles.buttonMobile]}
+          onPress={handleMobile}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Continue with mobile number"
+        >
+          <Ionicons name="call-outline" size={18} color={Colors.surface} style={styles.buttonIcon} />
+          <Text style={[styles.buttonText, styles.buttonTextLight]}>Continue with mobile number</Text>
+        </TouchableOpacity>
+
+        {/* Continue with email */}
+        <TouchableOpacity
+          style={[styles.button, styles.buttonEmail]}
+          onPress={handleEmail}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Continue with email"
+        >
+          <Ionicons name="mail-outline" size={18} color={Colors.primary} style={styles.buttonIcon} />
+          <Text style={[styles.buttonText, styles.buttonTextTeal]}>Continue with email</Text>
+        </TouchableOpacity>
+
+      </View>
+
+      {/* ── Footer ─────────────────────────────────────────────────────────── */}
+      <Text style={styles.footer}>
+        {'By continuing you agree to our '}
+        <Text style={styles.footerLink} onPress={handleOpenTerms}>Terms</Text>
+        {' & '}
+        <Text style={styles.footerLink} onPress={handleOpenSafetyPledge}>Community Safety Pledge</Text>
+      </Text>
+
+    </ScrollView>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     backgroundColor: Colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.screenPadding,
+    paddingVertical: Spacing.xxxxxl,
   },
 
-  // Logo mark — teal rounded square, identical to SplashScreen
+  // Logo mark — 72×72 teal rounded square
   logoMark: {
     width: 72,
     height: 72,
@@ -78,35 +150,123 @@ const styles = StyleSheet.create({
     color: Colors.amber,
   },
 
-  // Tagline — all lowercase, ends with a period, no exceptions
+  // Tagline
   tagline: {
-    marginTop: 6,
+    marginTop: 12,
     ...Typography.bodyMedium,
     color: Colors.textSecondary,
   },
 
-  // Primary sign-in button — teal pill per DESIGN-SPEC.md §6.1
-  signInButton: {
-    marginTop: 40,
+  // Social proof row
+  socialProofRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 24,
+    gap: 10,
+  },
+  avatars: {
+    flexDirection: 'row',
+  },
+  avatar: {
+    width: 28,
+    height: 28,
+    borderRadius: Radius.full,
+    borderWidth: 2,
+    borderColor: Colors.background,
+  },
+  avatarTeal: {
+    backgroundColor: Colors.primary,
+    zIndex: 3,
+  },
+  avatarLavender: {
+    backgroundColor: Colors.lavender,
+    marginLeft: -8,
+    zIndex: 2,
+  },
+  avatarAmber: {
+    backgroundColor: Colors.amber,
+    marginLeft: -8,
+    zIndex: 1,
+  },
+  socialText: {
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
+  },
+
+  // Trust note
+  trustRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+  },
+  trustText: {
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
+  },
+
+  // Auth buttons
+  buttons: {
+    width: '100%',
+    gap: Spacing.sm,
+    marginTop: 32,
+  },
+  button: {
     width: '100%',
     height: Spacing.buttonHeight,
-    backgroundColor: Colors.primary,
     borderRadius: Radius.full,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  signInText: {
+  buttonIcon: {
+    marginRight: 10,
+  },
+  buttonText: {
     ...Typography.button,
-    color: Colors.surface,
   },
 
-  // Retry — secondary text link for users arriving via a storage error
-  retryButton: {
-    marginTop: 16,
-    paddingVertical: 8,
+  // Apple — black background, white text
+  buttonApple: {
+    backgroundColor: Colors.textPrimary,
   },
-  retryText: {
-    ...Typography.bodyMedium,
-    color: Colors.textSecondary,
+  // Google — white/surface background, subtle border, dark text
+  buttonGoogle: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+  },
+  // Mobile — primary teal, white text
+  buttonMobile: {
+    backgroundColor: Colors.primary,
+  },
+  // Email — teal tint background, teal text
+  buttonEmail: {
+    backgroundColor: Colors.primaryLight,
+  },
+
+  // Text colour variants
+  buttonTextLight: {
+    color: Colors.surface,
+  },
+  buttonTextDark: {
+    color: Colors.textPrimary,
+  },
+  buttonTextTeal: {
+    color: Colors.primary,
+  },
+
+  // Footer
+  footer: {
+    marginTop: 24,
+    ...Typography.micro,
+    color: Colors.textTertiary,
+    textAlign: 'center',
+    paddingHorizontal: Spacing.xl,
+  },
+  footerLink: {
+    ...Typography.micro,
+    color: Colors.textTertiary,
+    textDecorationLine: 'underline',
   },
 });

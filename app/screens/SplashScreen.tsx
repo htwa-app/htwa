@@ -6,6 +6,11 @@ import { Colors, FontFamily } from '../../constants/theme';
 
 const AUTH_TOKEN_KEY = 'auth_token';
 
+// ─── Brand constants ──────────────────────────────────────────────────────────
+const BRAND_NAME    = 'htwa';
+const BRAND_DOT     = '.';
+const BRAND_TAGLINE = 'heading that way anyway.';
+
 export default function SplashScreen() {
   const router = useRouter();
 
@@ -32,12 +37,12 @@ export default function SplashScreen() {
       {/* Logo mark — teal rounded square */}
       <View style={styles.logoMark}>
         <Text style={styles.logoText}>
-          htwa<Text style={styles.logoDot}>.</Text>
+          {BRAND_NAME}<Text style={styles.logoDot} testID="logo-dot">{BRAND_DOT}</Text>
         </Text>
       </View>
 
       {/* Tagline — all lowercase, ends with a period, no exceptions */}
-      <Text style={styles.tagline}>heading that way anyway.</Text>
+      <Text style={styles.tagline}>{BRAND_TAGLINE}</Text>
 
       {/* Loading indicator */}
       <ActivityIndicator style={styles.spinner} color={Colors.primary} size="small" />

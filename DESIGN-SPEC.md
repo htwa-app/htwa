@@ -171,6 +171,12 @@ Border radius: 999px
 Padding: 4px 12px
 ```
 
+**Women-only mode works both ways:**
+- A female driver toggling women-only on her ride → only female passengers can request to join
+- A female passenger filtering search → only women-only rides appear in results
+- Enforcement must happen at the database level (Supabase RLS / server-side check), not just the UI
+- The women-only badge appears on ride cards and driver profiles whenever this mode is active
+
 ### 6.8 Tab Bar
 ```
 Background: #FFFFFF

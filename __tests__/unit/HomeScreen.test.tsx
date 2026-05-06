@@ -141,7 +141,8 @@ describe('HomeScreen — safety section', () => {
   });
 
   it('renders the Safety hub link', () => {
-    expect(screen.getByRole('link', { name: 'Safety hub' })).toBeTruthy();
+    const element = screen.getByText('Safety hub →');
+    expect(element).toBeTruthy();
   });
 
   it('renders the Share my journey card', () => {

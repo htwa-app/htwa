@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "HTWA",
+    "name": "htwa",
     "slug": "htwa",
     "scheme": "htwa",
     "version": "1.0.0",
@@ -33,7 +33,8 @@
       "contactEmail": "hello@htwa-app.com"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-font"
     ]
   }
 }

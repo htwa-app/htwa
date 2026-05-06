@@ -164,34 +164,39 @@ This folder (`~/Documents/HTWA/`) is the **shared workspace** between Cowork and
 
 ---
 
-## 7. Current Status (as of 29 April 2026)
+## 7. Current Status (as of 2 May 2026)
 
 ### Completed
 - [x] Project concept defined and master plan written
 - [x] Legal model validated (cost-share carpool, not taxi)
 - [x] Tools stack decided (Claude Code + Claude Design replacing Cursor + Figma)
-- [x] Node.js installed
-- [x] Claude Code (built into Claude Desktop)
-- [x] Claude Code extension installed in VS Code
-- [x] VS Code installed
-- [x] Git installed and configured (Jordan Madden, hello@htwa-app.com)
-- [x] GitHub CLI authenticated as htwa-app
+- [x] Node.js, Git, VS Code, GitHub CLI — all installed and configured
 - [x] GitHub repo live at github.com/htwa-app/htwa
-- [x] Xcode command line tools verified
-- [x] Android SDK configured at ~/Library/Android/sdk
-- [x] All tools added to PATH in ~/.zshrc
-- [x] HTWA project folder moved to ~/Documents/HTWA
-- [x] Cowork connected to HTWA folder
-- [x] CLAUDE.md created (this file)
+- [x] Expo React Native app scaffolded (TypeScript, SDK 53, iOS + Android)
+- [x] CI workflow (GitHub Actions) — unit + integration + coverage gate
+- [x] CodeRabbit automated PR reviews wired up
+- [x] `constants/theme.ts` — all DESIGN-SPEC §1–5 tokens (Colors, Typography, FontFamily, FontWeights, Spacing, BorderRadius, Shadows) with 100 tests
+- [x] `components/Text.tsx` — all 12 DESIGN-SPEC §2 variants, useFonts, fallback
+- [x] `components/Button.tsx` — primary / secondary / disabled (§6.1, §6.2)
+- [x] `components/Card.tsx` — §6.4
+- [x] `components/Input.tsx` — focus state border, label, error (§6.3)
+- [x] `components/Badge.tsx` — verified + womenOnly variants (§6.5, §6.7)
+- [x] `components/Chip.tsx` — interactive + display-only (§6.6)
+- [x] `components/Avatar.tsx` — initials / image, primary / lavender, custom size (§6.9)
+- [x] `app/screens/SplashScreen.tsx` — confirmed correct on simulator
+- [x] `app/home.tsx` — HomeScreen with correct light-theme branding
+- [x] `app/login.tsx` — Login screen with 4 auth buttons (stub routes)
+- [x] 350 tests, 100% branch/statement/function/line coverage on all components
+- [x] PRs #3 and #4 merged to main; PRs #1 and #2 closed
 
 ### In Progress
-- [x] Connect Claude Code to GitHub (create repo, initialise, push)
+- [ ] PR #5 (`feat/login-screen`) — open, awaiting simulator screenshot approval before merge
 
 ### Next Up
-- [x] Purchase domain: htwa-app.com
-- [x] Scaffold the project (Expo + React Native, TypeScript, iOS + Android)
+- [ ] Simulator screenshot of Login screen (run `LANG=en_US.UTF-8 npx expo run:ios`)
+- [ ] Merge PR #5 after Jordan approves screenshot
 - [ ] Set up Stripe Connect account
-- [ ] Build app screens based on design mockups
+- [ ] Build remaining screens (Sign-in flows, Home with real navigation, Search results, Driver Profile, Live Trip)
 
 ---
 
@@ -234,6 +239,10 @@ This folder (`~/Documents/HTWA/`) is the **shared workspace** between Cowork and
 | May 2026 | `jest.spyOn(Platform, 'OS', 'get')` fails in jest-expo | `Platform.OS` is a plain value property, not a getter — spying on it with `'get'` access type throws at test time. Fix: `Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true, writable: true })` inside a `try/finally` that restores the original value. |
 | May 2026 | Never call `render()` inside `act()` in RTL | `@testing-library/react-native`'s `act()` unmounts the component when it exits, causing "Can't access .root on unmounted test renderer". Pattern: call `render()` outside `act`, use `waitFor()` for async assertions. |
 | May 2026 | AsyncStorage must be mocked globally in Jest | `@react-native-async-storage/async-storage` uses a native module that doesn't exist in Jest. Always add `'@react-native-async-storage/async-storage': require.resolve('@react-native-async-storage/async-storage/jest/async-storage-mock')` to `moduleNameMapper` in `jest.config.js`. |
+| May 2026 | `jest.doMock` + dynamic `import()` needs `--experimental-vm-modules` | Testing a conditional mock state (e.g. `useFonts` returning `[false, null]`) with `jest.doMock` + `await import(...)` fails with "dynamic import callback invoked without --experimental-vm-modules". Fix: declare a mutable `const mockFn = jest.fn()` (name must start with `mock`), use it in the `jest.mock` factory, and call `mockFn.mockReturnValue(...)` inside `beforeEach` to flip state between suites. |
+| May 2026 | Squash merge base PR before dependent PR — rebase required | When PR #4 was based on PR #3's branch, squash-merging #3 into main caused #4 to conflict (commits already upstream). Fix: `git fetch && git rebase origin/main` on the dependent branch — Git drops already-upstreamed commits, force-push, re-trigger CI, then merge. |
+| May 2026 | Spec values not in §1 palette → named local constants, not added to Colors | Some component specs (§6.1 disabled grey #C8C8C8, §6.4 card border 0.08 opacity, §6.5 badge 11px, §6.7 women-only text #2A1F4A) reference values absent from the brand palette. These must NOT be hardcoded anonymously or silently added to theme.ts. Declare them as named constants at the top of the component file with a comment citing the spec section. |
+| May 2026 | Separate `containerTestID` from `testID` on Input | The Input component has an outer View (layout) and an inner bordered View (the one whose borderColor changes on focus). If you put `testID` on the outer wrapper and pass the same prop through to TextInput, style assertions on the border view become impossible. Fix: give the bordered wrapper a dedicated `containerTestID` prop, let the standard `testID` flow to the `TextInput` via the rest-spread. Tests can then independently access both elements. |
 
 ---
 
