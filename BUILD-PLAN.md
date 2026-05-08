@@ -53,7 +53,7 @@
 ## PHASE 3 — AUTHENTICATION
 *Every user must be verified before using the app. Build auth before any other screens.*
 
-⬜ **Stage 13** — Backend chosen and set up: **Supabase** (PostgreSQL database + auth + realtime + storage). Create project at supabase.com, connect to HTWA repo, set environment variables
+✅ **Stage 13** — Backend chosen and set up: **Supabase** (PostgreSQL database + auth + realtime + storage). Create project at supabase.com, connect to HTWA repo, set environment variables
 
 ⬜ **Stage 14** — User database schema created in Supabase:
 - `users` table (id, email, phone, full_name, home_location, currency, created_at)
