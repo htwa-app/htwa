@@ -4,6 +4,24 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 9 May 2026 (Session 20 continued)
+
+### What Was Built / Changed
+
+- Stage 14 complete: database schema created in Supabase (users, verification, profiles tables + RLS policies), types/database.ts, createClient<Database>, 21 type tests
+- Stage 15 complete: Login screen fully spec-compliant per DESIGN-SPEC.md §9.1
+  - Tagline typography fixed: bodyMedium → bodyLarge
+  - Trust note text fixed: matches spec exactly
+  - All 4 auth buttons, social proof, tappable footer confirmed
+- PR #7 merged (Stages 13 + 14 + CodeRabbit fixes)
+- 471 tests passing, 100% coverage
+
+### Decisions Made
+
+- Login screen trust note uses spec wording exactly
+
+---
+
 ## 9 May 2026 (Session 20)
 
 ### What Was Built / Changed

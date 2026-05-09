@@ -51,7 +51,7 @@ export default function LoginScreen() {
           size={14}
           color={Colors.textSecondary}
         />
-        <Text style={styles.trustText}>Every account verified before use</Text>
+        <Text style={styles.trustText}>Every account checked against a college email</Text>
       </View>
 
       {/* ── Auth buttons ───────────────────────────────────────────────────── */}
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   // Tagline
   tagline: {
     marginTop: 12,
-    ...Typography.bodyMedium,
+    ...Typography.bodyLarge,
     color: Colors.textSecondary,
   },
 

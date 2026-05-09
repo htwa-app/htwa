@@ -64,7 +64,7 @@ describe('LoginScreen — layout', () => {
   });
 
   it('displays the trust note', () => {
-    expect(screen.getByText('Every account verified before use')).toBeTruthy();
+    expect(screen.getByText('Every account checked against a college email')).toBeTruthy();
   });
 
   it('displays the footer text', () => {
