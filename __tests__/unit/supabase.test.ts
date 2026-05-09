@@ -22,6 +22,21 @@ jest.mock('@supabase/supabase-js', () => ({
 
 // AsyncStorage is already mapped to a mock via jest.config.js moduleNameMapper.
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+type SupabaseCreateClientAuthOptions = {
+  auth: {
+    storage:            unknown;
+    autoRefreshToken:   boolean;
+    persistSession:     boolean;
+    detectSessionInUrl: boolean;
+  };
+};
+
+function getCreateClientOptions(mock: jest.Mock): SupabaseCreateClientAuthOptions {
+  return mock.mock.calls[0][2] as SupabaseCreateClientAuthOptions;
+}
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('lib/supabase', () => {
@@ -71,7 +86,7 @@ describe('lib/supabase', () => {
     require('../../lib/supabase');
 
     const AsyncStorage = require('@react-native-async-storage/async-storage');
-    const options = createClientMock.mock.calls[0][2] as any;
+    const options = getCreateClientOptions(createClientMock);
     expect(options.auth.storage).toBe(AsyncStorage);
   });
 
@@ -81,7 +96,7 @@ describe('lib/supabase', () => {
 
     require('../../lib/supabase');
 
-    const options = createClientMock.mock.calls[0][2] as any;
+    const options = getCreateClientOptions(createClientMock);
     expect(options.auth.detectSessionInUrl).toBe(false);
   });
 
@@ -91,7 +106,7 @@ describe('lib/supabase', () => {
 
     require('../../lib/supabase');
 
-    const options = createClientMock.mock.calls[0][2] as any;
+    const options = getCreateClientOptions(createClientMock);
     expect(options.auth.autoRefreshToken).toBe(true);
   });
 
@@ -101,18 +116,26 @@ describe('lib/supabase', () => {
 
     require('../../lib/supabase');
 
-    const options = createClientMock.mock.calls[0][2] as any;
+    const options = getCreateClientOptions(createClientMock);
     expect(options.auth.persistSession).toBe(true);
   });
 
-  it('falls back to empty string when env vars are missing', () => {
+  it('throws when both required env vars are missing', () => {
     delete process.env.EXPO_PUBLIC_SUPABASE_URL;
     delete process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-    require('../../lib/supabase');
+    expect(() => require('../../lib/supabase')).toThrow(
+      'Missing required environment variables: EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_ANON_KEY'
+    );
+  });
 
-    expect(createClientMock.mock.calls[0][0]).toBe('');
-    expect(createClientMock.mock.calls[0][1]).toBe('');
+  it('throws listing only the missing var when one is absent', () => {
+    process.env.EXPO_PUBLIC_SUPABASE_URL      = 'https://test.supabase.co';
+    delete process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+    expect(() => require('../../lib/supabase')).toThrow(
+      'Missing required environment variables: EXPO_PUBLIC_SUPABASE_ANON_KEY'
+    );
   });
 
   it('exports the supabase client returned by createClient', () => {
