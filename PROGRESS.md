@@ -4,9 +4,32 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 9 May 2026 (Session 20)
+
+### What Was Built / Changed
+
+- Stage 13 complete: Supabase project created and connected
+- lib/supabase.ts — Supabase singleton with AsyncStorage session persistence
+- .env.local — URL and anon key configured (gitignored)
+- .env.example — empty template committed to repo
+- __tests__/unit/supabase.test.ts — 8 tests, all green
+- 449/449 tests passing
+
+### Decisions Made
+
+- Using hosted Supabase (supabase.com) not local Docker instance
+- EXPO_PUBLIC_* env var prefix required for Expo to expose vars to the client
+
+### Next Steps
+
+- Stage 14: User database schema (users, verification, profiles tables)
+
+---
+
 ## 6 May 2026 (Session 19)
 
 ### What Was Built / Changed
+
 - CodeRabbit fixes merged via PR #5 (feat/login-screen)
 - Squash-merge rebase pattern documented in CLAUDE.md Lessons Learned
 - Stage 8 confirmed complete (constants/theme.ts, 259 lines, sosLight token added)
@@ -18,11 +41,13 @@ Entries are added at the top. Most recent session is always first.
 - iOS build error fixed: stale `ExpoModulesCore` umbrella header resolved by clean pod reinstall
 
 ### Decisions Made
+
 - Safety grid on Home screen is informational only — features are interactive in context (women-only on search, SOS on live trip, journey sharing on live trip)
 - Soft-reset to `origin/main` is correct pattern when branch carries squash-merge ancestors
 - Tab bar lives in `(tabs)` group, not root `_layout.tsx`
 
 ### Files Changed
+
 - `app/home.tsx` — full rebuild: Avatar, Button, Card, Chip, Ionicons, SAFETY_FEATURES data array
 - `app/(tabs)/_layout.tsx` — Tabs navigator, 4 tabs, theme tokens
 - `app/(tabs)/index.tsx`, `search.tsx`, `trips.tsx`, `profile.tsx` — home re-export + 3 stubs
@@ -35,14 +60,17 @@ Entries are added at the top. Most recent session is always first.
 - `constants/theme.ts` — sosLight token
 
 ### Test Results
+
 - 441 tests, 17 suites, 100% passing
 
 ### Next Steps
+
 - Open PR for feat/design-system → main
 - Phase 3: Authentication (Stages 13–20)
 
 
 ### What Was Built / Changed
+
 - CodeRabbit fixes from PR #5 (feat/login-screen) committed and merged — console.log removal, chip interactivity, Safety hub link, type assertions, footer tappable links, brand constants extracted to SplashScreen.tsx
 - Squash-merge rebase pattern documented in CLAUDE.md Lessons Learned
 - Stage 8 confirmed complete (constants/theme.ts — 259 lines, sosLight token added)
@@ -52,6 +80,7 @@ Entries are added at the top. Most recent session is always first.
 - 417 tests total including worktree; 354 canonical tests, 100% coverage
 
 ### Decisions Made
+
 - Soft-reset to origin/main is the correct pattern when a branch carries squash-merge ancestors — replaces straight rebase to avoid duplicate commit conflicts
 - `trusted` Badge variant intentionally not built — no §6 spec definition exists yet; only mentioned by name in a §9 screen mockup
 - Button and Input use RN `Text` with explicit `Typography` token spreads rather than `components/Text.tsx` — correct pattern; avoids a second `useFonts` call inside components already rendered inside a screen that loads fonts
@@ -67,6 +96,7 @@ Entries are added at the top. Most recent session is always first.
 - 442 tests total, 100% coverage
 
 ### Decisions Made
+
 - Soft-reset to origin/main is the correct pattern when a branch carries squash-merge ancestors — replaces straight rebase to avoid duplicate commit conflicts
 - `trusted` Badge variant intentionally not built — no §6 spec definition exists yet; only mentioned by name in a §9 screen mockup
 - Button and Input use RN `Text` with explicit `Typography` token spreads rather than `components/Text.tsx` — correct pattern; avoids a second `useFonts` call inside components already rendered inside a screen that loads fonts
@@ -74,6 +104,7 @@ Entries are added at the top. Most recent session is always first.
 - **Tabs navigator lives in `(tabs)` group, not root `_layout.tsx`** — tab bar is correctly hidden on Splash and Login screens; auth screens remain in the parent Stack
 
 ### Next Steps
+
 - Stage 12: Home screen rebuilt from scratch using DESIGN-SPEC.md
 
 ---
