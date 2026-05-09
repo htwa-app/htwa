@@ -55,14 +55,14 @@
 
 ✅ **Stage 13** — Backend chosen and set up: **Supabase** (PostgreSQL database + auth + realtime + storage). Create project at supabase.com, connect to HTWA repo, set environment variables
 
-⬜ **Stage 14** — User database schema created in Supabase:
+✅ **Stage 14** — User database schema created in Supabase:
 - `users` table (id, email, phone, full_name, home_location, currency, created_at)
 - `verification` table (user_id, id_verified, selfie_verified, verified_at)
 - `profiles` table (user_id, bio, university, travel_preferences, nominated_contact)
 
-⬜ **Stage 15** — Login screen built — "htwa" logo, tagline, Continue with Apple / Google / mobile / email buttons, social proof (verified students count), legal footer
+✅ **Stage 15** — Login screen built — "htwa" logo, tagline, Continue with Apple / Google / mobile / email buttons, social proof (verified students count), legal footer
 
-⬜ **Stage 16** — Sign up screen — name, email, phone number, university, home location (ROI or NI — sets currency to € or £)
+✅ **Stage 16** — Sign up screen — name, email, phone number, university, home location (ROI or NI — sets currency to € or £)
 
 ⬜ **Stage 17** — Email/phone verification — OTP code entry screen
 
