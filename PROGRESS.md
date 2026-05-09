@@ -4,35 +4,22 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
-## 6 May 2026 (Session 20)
+## 9 May 2026 (Session 20)
 
 ### What Was Built / Changed
-- **Stage 13 complete** — Supabase client singleton set up on branch `feat/auth`
-- Installed `@supabase/supabase-js` and `react-native-url-polyfill` (AsyncStorage was already present)
-- Created `lib/supabase.ts` — singleton with AsyncStorage persistence, `detectSessionInUrl: false`, `autoRefreshToken: true`, `persistSession: true`, `EXPO_PUBLIC_*` env vars
-- Created `.env.local` — Supabase URL filled from project ID (`adrwtjlphjrnrrqjkbfk`); **anon key placeholder must be replaced before first auth call**
-- Created `.env.example` — empty template for new contributors (whitelisted in .gitignore)
-- Created `__tests__/unit/supabase.test.ts` — 8 tests covering URL, anon key, AsyncStorage adapter, all auth options, fallback behaviour, and client export
-- `BUILD-PLAN.md` Stage 13 marked ✅
-- All 449 tests passing
+- Stage 13 complete: Supabase project created and connected
+- lib/supabase.ts — Supabase singleton with AsyncStorage session persistence
+- .env.local — URL and anon key configured (gitignored)
+- .env.example — empty template committed to repo
+- __tests__/unit/supabase.test.ts — 8 tests, all green
+- 449/449 tests passing
 
-### Files Created / Modified
-- `lib/supabase.ts` (created)
-- `.env.local` (created — gitignored)
-- `.env.example` (created)
-- `__tests__/unit/supabase.test.ts` (created)
-- `package.json` (modified — new deps)
-- `package-lock.json` (modified)
-- `BUILD-PLAN.md` (modified — Stage 13 ✅)
-- `PROGRESS.md` (this file)
-
-### Problems & Fixes
-- `jest.resetModules()` creates a fresh module registry — `createClient` ref captured at import time diverges from the re-required instance. Fix: re-acquire the mock ref with `require('@supabase/supabase-js').createClient` inside `beforeEach` after each `resetModules()`.
-- AsyncStorage mock exports the object directly (no `.default`) — `require(...).default` is `undefined`. Fix: use `require(...)` without `.default` in test assertion.
+### Decisions Made
+- Using hosted Supabase (supabase.com) not local Docker instance
+- EXPO_PUBLIC_* env var prefix required for Expo to expose vars to the client
 
 ### Next Steps
-- Replace `your-anon-key-here` in `.env.local` with real anon key from Supabase Dashboard → Project Settings → API
-- Stage 14 — User database schema in Supabase
+- Stage 14: User database schema (users, verification, profiles tables)
 
 ---
 
