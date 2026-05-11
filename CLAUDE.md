@@ -226,6 +226,7 @@ This folder (`~/Documents/HTWA/`) is the **shared workspace** between Cowork and
 | Apr 2026 | Mandatory ID + selfie verification before app use | All users must complete before accessing platform. Shows as green "Verified" tick on profile. |
 | Apr 2026 | Nominated contact receives live journey tracking | Selected by user in app settings. Receives real-time tracking link for every trip, similar to Uber's share journey feature. |
 | May 2026 | Women-only mode works both ways | A female driver can toggle women-only mode when offering a ride — only female passengers can request to join. A female passenger can filter search results to show only women-only rides. Both directions must be enforced at the database level, not just the UI. |
+| May 2026 | Tab bar renamed and restructured | 4 tabs: Search (main/home), History (past trips), Live Trip (active journey + safety sharing — shows "no active journey" message when idle), Profile (settings via cog icon inside screen). Tab bar always visible regardless of trip state. |
 
 ---
 
