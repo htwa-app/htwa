@@ -1,38 +1,17 @@
-import { View, Text, StyleSheet } from 'react-native';
-import { Colors, Typography, Spacing } from '../constants/theme';
+import { useEffect } from 'react';
+import { useRouter } from 'expo-router';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 // Stub — ID + selfie verification flow will be implemented in Stage 18.
-// TODO Stage 18: trigger Stripe Identity SDK
+// Auto-navigates to /(tabs) for development. Replace with real KYC flow in Stage 18.
+// TODO Stage 18: trigger Stripe Identity SDK instead of auto-redirecting
 
 export default function IdVerifyScreen() {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Verify your identity</Text>
-      <Text style={styles.body}>ID verification coming in Stage 18.</Text>
-    </View>
-  );
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace('/(tabs)');
+  }, [router]);
+
+  return null;
 }
-
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.screenPadding,
-  },
-  title: {
-    ...Typography.displayMedium,
-    color: Colors.textPrimary,
-    textAlign: 'center',
-  },
-  body: {
-    ...Typography.bodyMedium,
-    color: Colors.textSecondary,
-    marginTop: Spacing.md,
-    textAlign: 'center',
-  },
-});
