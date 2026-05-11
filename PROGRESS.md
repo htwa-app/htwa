@@ -30,6 +30,12 @@ Entries are added at the top. Most recent session is always first.
   - types/database.ts — "HTWA" → "htwa" in header comment
   - PROGRESS.md — already MD022 compliant, skipped
 - 497 tests, all passing
+- Stage 17 complete: OTP verification screen (app/verify.tsx)
+  - 6-digit OTP input with auto-advance, auto-submit, backspace-retreat
+  - 60 second resend cooldown
+  - TODO Stage 20 comments added throughout all auth stub screens
+  - app/id-verify.tsx stub created with TODO Stage 18 comment
+  - 15 new tests, 512 total, 100% passing
 
 ### Decisions Made
 
@@ -37,11 +43,11 @@ Entries are added at the top. Most recent session is always first.
 - EXPO_PUBLIC_* env var prefix required for Expo to expose vars to the client
 - Phone validation strips non-digits before checking length (≥9 digits)
 - currency is derived from homeLocation on pill press — ROI → EUR, NI → GBP
-- verify.tsx is a stub intentionally; full OTP flow is Stage 17
+- OTP auto-submit useEffect omits router from deps — intentional, useRouter() is stable in Expo Router
 
 ### Next Steps
 
-- Stage 17: OTP verification screen (email/phone code entry, replace verify.tsx stub)
+- Stage 18: ID and selfie verification (Stripe Identity SDK trigger)
 
 ---
 

@@ -64,7 +64,7 @@
 
 ✅ **Stage 16** — Sign up screen — name, email, phone number, university, home location (ROI or NI — sets currency to € or £)
 
-⬜ **Stage 17** — Email/phone verification — OTP code entry screen
+✅ **Stage 17** — Email/phone verification — OTP code entry screen
 
 ⬜ **Stage 18** — ID verification screen (mandatory — blocks app access until complete):
 - Upload government ID (passport/driving licence)
