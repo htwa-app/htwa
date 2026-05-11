@@ -14,7 +14,7 @@ export default function SignInGoogle() {
 
   useEffect(() => {
     // TODO Stage 20: implement real Google Sign-In flow via supabase.auth.signInWithOAuth({ provider: 'google' })
-    router.replace('/(tabs)');
+    router.replace('/signup');
   }, [router]);
 
   return null;
