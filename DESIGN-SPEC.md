@@ -184,7 +184,7 @@ Border top: 1px solid rgba(40,30,20,0.08)
 Active icon/label: #1F7A78
 Inactive icon/label: rgba(40,30,20,0.40)
 Height: 60px
-Tabs: Home, Search, Trips, Profile
+Tabs: Search, History, Live Trip, Profile
 ```
 
 ### 6.9 Avatar

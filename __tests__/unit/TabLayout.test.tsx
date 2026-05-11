@@ -103,19 +103,19 @@ describe('TabLayout — exported constants', () => {
       expect(TAB_SCREENS).toHaveLength(4);
     });
 
-    it('first tab is the index (Home) tab', () => {
+    it('first tab is the index (Search) tab', () => {
       expect(TAB_SCREENS[0].name).toBe('index');
-      expect(TAB_SCREENS[0].title).toBe('Home');
+      expect(TAB_SCREENS[0].title).toBe('Search');
     });
 
-    it('second tab is the search tab', () => {
-      expect(TAB_SCREENS[1].name).toBe('search');
-      expect(TAB_SCREENS[1].title).toBe('Search');
+    it('second tab is the history tab', () => {
+      expect(TAB_SCREENS[1].name).toBe('history');
+      expect(TAB_SCREENS[1].title).toBe('History');
     });
 
-    it('third tab is the trips tab', () => {
-      expect(TAB_SCREENS[2].name).toBe('trips');
-      expect(TAB_SCREENS[2].title).toBe('Trips');
+    it('third tab is the live-trip tab', () => {
+      expect(TAB_SCREENS[2].name).toBe('live-trip');
+      expect(TAB_SCREENS[2].title).toBe('Live Trip');
     });
 
     it('fourth tab is the profile tab', () => {
@@ -143,19 +143,19 @@ describe('TabLayout — exported constants', () => {
       });
     });
 
-    it('Home tab uses home / home-outline icons', () => {
-      expect(TAB_SCREENS[0].icon).toBe('home');
-      expect(TAB_SCREENS[0].outlineIcon).toBe('home-outline');
+    it('Search tab (index) uses search / search-outline icons', () => {
+      expect(TAB_SCREENS[0].icon).toBe('search');
+      expect(TAB_SCREENS[0].outlineIcon).toBe('search-outline');
     });
 
-    it('Search tab uses search / search-outline icons', () => {
-      expect(TAB_SCREENS[1].icon).toBe('search');
-      expect(TAB_SCREENS[1].outlineIcon).toBe('search-outline');
+    it('History tab uses time / time-outline icons', () => {
+      expect(TAB_SCREENS[1].icon).toBe('time');
+      expect(TAB_SCREENS[1].outlineIcon).toBe('time-outline');
     });
 
-    it('Trips tab uses car / car-outline icons', () => {
-      expect(TAB_SCREENS[2].icon).toBe('car');
-      expect(TAB_SCREENS[2].outlineIcon).toBe('car-outline');
+    it('Live Trip tab uses navigate / navigate-outline icons', () => {
+      expect(TAB_SCREENS[2].icon).toBe('navigate');
+      expect(TAB_SCREENS[2].outlineIcon).toBe('navigate-outline');
     });
 
     it('Profile tab uses person / person-outline icons', () => {
@@ -178,8 +178,8 @@ describe('TabLayout — rendered output', () => {
 
   it('renders all 4 tab screens', () => {
     expect(screen.getByTestId('tab-screen-index')).toBeTruthy();
-    expect(screen.getByTestId('tab-screen-search')).toBeTruthy();
-    expect(screen.getByTestId('tab-screen-trips')).toBeTruthy();
+    expect(screen.getByTestId('tab-screen-history')).toBeTruthy();
+    expect(screen.getByTestId('tab-screen-live-trip')).toBeTruthy();
     expect(screen.getByTestId('tab-screen-profile')).toBeTruthy();
   });
 
