@@ -9,8 +9,13 @@ import {
 import { useRouter } from 'expo-router';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
-import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
+import { Colors, FontFamily, Typography, Spacing, BorderRadius } from '../constants/theme';
 import type { HomeLocation, Currency } from '../types/database';
+
+// ─── Brand constants ──────────────────────────────────────────────────────────
+const BRAND_NAME    = 'htwa';
+const BRAND_DOT     = '.';
+const BRAND_TAGLINE = 'heading that way anyway.';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -55,9 +60,18 @@ export default function SignupScreen() {
       showsVerticalScrollIndicator={false}
     >
 
+      {/* ── Logo mark + tagline — centred block ────────────────────────────── */}
+      <View style={styles.logoBlock}>
+        <View style={styles.logoMark}>
+          <Text style={styles.logoText}>
+            {BRAND_NAME}<Text style={styles.logoDot} testID="logo-dot">{BRAND_DOT}</Text>
+          </Text>
+        </View>
+        <Text style={styles.tagline}>{BRAND_TAGLINE}</Text>
+      </View>
+
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <Text style={styles.title}>Create your account</Text>
-      <Text style={styles.subtitle}>Tell us a bit about yourself.</Text>
 
       {/* ── Form fields ────────────────────────────────────────────────────── */}
       <View style={styles.form}>
@@ -164,24 +178,52 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     backgroundColor: Colors.background,
     paddingHorizontal: Spacing.screenPadding,
-    paddingTop: Spacing.xxxxxl,
+    paddingTop: Spacing.xxxxxl + Spacing.xxxl, // 80px — extra breathing room
     paddingBottom: Spacing.xxxxxl,
   },
 
-  // Header
+  // Logo + tagline block — centred above the form
+  logoBlock: {
+    alignSelf: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.xxxl,
+  },
+
+  // Logo mark — 72×72 teal rounded square (matches login screen)
+  logoMark: {
+    width: 72,
+    height: 72,
+    borderRadius: 72 * 0.22, // 22% of size per DESIGN-SPEC
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoText: {
+    fontSize: 26,
+    fontFamily: FontFamily.bold,
+    color: Colors.surface,
+    letterSpacing: -1,
+  },
+  logoDot: {
+    color: Colors.amber,
+  },
+
+  // Tagline — all lowercase, period not question mark
+  tagline: {
+    marginTop: Spacing.md,
+    ...Typography.bodyMedium,
+    color: Colors.textSecondary,
+  },
+
+  // Title
   title: {
     ...Typography.displayMedium,
     color: Colors.textPrimary,
   },
-  subtitle: {
-    ...Typography.bodyMedium,
-    color: Colors.textSecondary,
-    marginTop: Spacing.xs,
-  },
 
   // Form
   form: {
-    marginTop: Spacing.xxl,
+    marginTop: Spacing.xl,
   },
   field: {
     marginBottom: Spacing.md,
@@ -200,34 +242,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.sm,
   },
+
+  // Inactive pill — primaryLight background, primary text, pill shape
   pill: {
     height: Spacing.buttonHeightSmall,
     paddingHorizontal: Spacing.xxl,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.surface,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
+    backgroundColor: Colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // Active pill — primary background, white text
   pillSelected: {
     backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
   },
   pillText: {
     ...Typography.buttonSmall,
-    color: Colors.textPrimary,
+    color: Colors.primary,
   },
   pillTextSelected: {
     color: Colors.surface,
   },
+
   locationHint: {
     ...Typography.bodySmall,
     color: Colors.textTertiary,
     marginTop: Spacing.xs,
   },
 
-  // Continue button
+  // Continue button — BorderRadius.full applied inside Button component
   continueButton: {
     marginTop: Spacing.xxxl,
     width: '100%',

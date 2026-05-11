@@ -32,6 +32,24 @@ describe('SignupScreen — smoke', () => {
   });
 });
 
+// ─── Brand rules ──────────────────────────────────────────────────────────────
+
+describe('SignupScreen — brand rules', () => {
+  beforeEach(() => render(<SignupScreen />));
+
+  it('renders the htwa. logo mark with amber dot', () => {
+    expect(screen.getByTestId('logo-dot')).toBeTruthy();
+  });
+
+  it('displays the tagline in all-lowercase ending with a period', () => {
+    expect(screen.getByText('heading that way anyway.')).toBeTruthy();
+  });
+
+  it('does NOT display the old subtitle text', () => {
+    expect(screen.queryByText('Tell us a bit about yourself.')).toBeNull();
+  });
+});
+
 // ─── Layout ───────────────────────────────────────────────────────────────────
 
 describe('SignupScreen — layout', () => {

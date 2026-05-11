@@ -4,6 +4,48 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 11 May 2026 (Session 21)
+
+### What Was Built / Changed
+
+- **Tab bar redesigned and restructured** — renamed and reorganised all 4 tabs:
+  - `index` (was Home) → Search — icon: search/search-outline
+  - `history` (was search.tsx) → History — icon: time/time-outline
+  - `live-trip` (was trips.tsx) → Live Trip — icon: navigate/navigate-outline
+  - `profile` → Profile — unchanged
+  - Deleted phantom `" 2.tsx"` worktree artefact files from `__tests__/unit/`
+  - `app/(tabs)/history.tsx` — "Your trip history will appear here" stub
+  - `app/(tabs)/live-trip.tsx` — "You don't have an active journey right now" stub
+  - `__tests__/unit/TabLayout.test.tsx` — updated all assertions for new names/icons
+- **CLAUDE.md + SCREENS.md updated** — tab bar structure locked in:
+  - Key Decisions Log: new row for tab bar restructure
+  - SCREENS.md: new Navigation Structure section with tab-to-file mapping, idle states, Settings-via-cog pattern
+- **Auth routing verified** — SplashScreen.tsx already had correct 3-branch routing (token → /(tabs), null → /login, error → /login). No change needed.
+- **`app/id-verify.tsx` fixed** — was a static stub that blocked the post-OTP flow. Replaced with transparent auto-redirect to `/(tabs)`. Dead `StyleSheet` block removed (orphaned from partial Edit).
+- **`app/signup.tsx` visual redesign** — full brand alignment:
+  - htwa. logo mark added (teal 72×72 rounded square, amber dot — matches login screen)
+  - Tagline "heading that way anyway." replaces "Tell us a bit about yourself."
+  - Top padding increased to 80px (Spacing.xxxxxl + Spacing.xxxl)
+  - ROI/NI pills: inactive → Colors.primaryLight bg + Colors.primary text; active → Colors.primary bg + white text; no border
+  - All spacing from theme constants — no hardcoded values
+  - `FontFamily` added to imports
+  - 3 brand rule tests added to `SignupScreen.test.tsx`
+- **New app icon** — `appstoreICON.PNG` (1024×1024) copied to `assets/icon.png` and `ios/HTWA/Images.xcassets/AppIcon.appiconset/App-Icon-1024x1024@1x.png`. DerivedData wiped + full clean rebuild required to show new icon in simulator.
+- **515 tests, all passing**
+
+### Decisions Made
+
+- Tab bar always visible regardless of trip state — Live Trip shows idle message when no journey is active
+- Settings accessed via cog icon inside Profile tab, not a separate tab
+- `ios/` is gitignored — icon must be updated in both `assets/icon.png` (committed) and the ios asset catalog path (disk only) until next `expo prebuild`
+
+### Next Steps
+
+- Stage 18: ID and selfie verification (Stripe Identity SDK trigger)
+- Stage 19: Onboarding screen — nominated contact setup
+
+---
+
 ## 9 May 2026 (Session 20)
 
 ### What Was Built / Changed
