@@ -13,6 +13,7 @@ export default function SignInEmail() {
   const router = useRouter();
 
   useEffect(() => {
+    // TODO Stage 20: implement real email/password flow via supabase.auth.signInWithPassword({ email, password })
     router.replace('/(tabs)');
   }, [router]);
 

@@ -13,6 +13,7 @@ export default function SignInMobile() {
   const router = useRouter();
 
   useEffect(() => {
+    // TODO Stage 20: implement real mobile OTP flow via supabase.auth.signInWithOtp({ phone })
     router.replace('/(tabs)');
   }, [router]);
 

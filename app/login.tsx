@@ -9,9 +9,13 @@ export default function LoginScreen() {
   const router = useRouter();
 
   // ── Handlers — stub routes, will be real screens in later sprints ──────────
+  // TODO Stage 20: call supabase.auth.signInWithOAuth({ provider: 'apple' })
   const handleApple  = () => router.push('/signin-apple');
+  // TODO Stage 20: call supabase.auth.signInWithOAuth({ provider: 'google' })
   const handleGoogle = () => router.push('/signin-google');
+  // TODO Stage 20: call supabase.auth.signInWithOtp({ phone })
   const handleMobile = () => router.push('/signin-mobile');
+  // TODO Stage 20: call supabase.auth.signInWithPassword({ email, password })
   const handleEmail  = () => router.push('/signin-email');
 
   const handleOpenTerms         = () => console.log('TODO: navigate to terms');

@@ -13,6 +13,7 @@ export default function SignInApple() {
   const router = useRouter();
 
   useEffect(() => {
+    // TODO Stage 20: implement real Apple Sign-In flow via supabase.auth.signInWithOAuth({ provider: 'apple' })
     router.replace('/(tabs)');
   }, [router]);
 

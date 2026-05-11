@@ -45,6 +45,7 @@ export default function SignupScreen() {
     );
   }, [fullName, email, phone, university, homeLocation]);
 
+  // TODO Stage 20: call supabase.auth.signUp({ email, password, phone }) then pass email to /verify
   const handleContinue = () => router.push('/verify');
 
   return (
