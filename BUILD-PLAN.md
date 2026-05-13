@@ -251,11 +251,11 @@
 ## PHASE 14 — WEBSITE & WAITING LIST
 *Launch the waiting list before the app is ready.*
 
-⬜ **Stage 74** — htwa-app.com landing page — hero, how it works, safety features, waiting list signup form
+✅ **Stage 74** — htwa-app.com landing page — hero, how it works, safety features, waiting list signup form
 
-⬜ **Stage 75** — Waiting list backend — email capture connected to Supabase or Mailchimp
+✅ **Stage 75** — Waiting list backend — email capture connected to Supabase or Mailchimp
 
-⬜ **Stage 76** — QR code links to waiting list signup page
+✅ **Stage 76** — QR code links to waiting list signup page
 
 ⬜ **Stage 77** — University flyer printed and distributed (design already done in Claude Design)
 
