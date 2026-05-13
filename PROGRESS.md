@@ -4,6 +4,58 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 13 May 2026 (Session 22)
+
+### What Was Built / Changed
+
+- **Stage 18 complete: Stripe Identity SDK integrated**
+  - `@stripe/stripe-react-native` installed via `npx expo install`
+  - `app.json` — Stripe plugin added with `merchantIdentifier: "merchant.com.htwa"`
+  - `.env.local` — `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY` added (test key)
+  - `.env.example` — empty placeholder added
+  - `app/_layout.tsx` — root wrapped in `<StripeProvider>` (key from env var)
+  - `app/id-verify.tsx` — full implementation: title, subtitle, "Start verification" button, `verifyIdentity()` using `presentIdentityVerificationSheet()`, success → `/profile-setup`, cancel → info message "Verification is required to use htwa", error → `Colors.sos` message
+  - `app/profile-setup.tsx` — stub created with TODO Stage 19
+  - `__tests__/unit/IdVerifyScreen.test.tsx` — 11 tests: smoke, layout (title, subtitle, button, no initial message), cancel (message shown, no navigation), error (message shown, no navigation), success (navigates to /profile-setup, called once)
+  - **540 tests, all passing**
+
+- **CodeRabbit fixes actioned (feat/auth)**
+  - `lib/supabase.ts` — `import { Database }` → `import type { Database }` (type-only import)
+  - `utils/validators.ts` — new file: `validateSignupForm()` using `validator.isEmail()` from `validator.js`; replaces naive `@`/`.` checks in signup screen
+  - `app/signup.tsx` — `AsyncStorage` persistence of `homeLocation` + `currency` before navigation (fire-and-forget); `CURRENCY_MAP: Record<HomeLocation, Currency>` replaces ternary; `validateSignupForm` used for `isValid` memo; `eslint-disable` comment removed; `router.push({ pathname: '/verify', params: { email } })` replaces bare `/verify` push
+  - `__tests__/unit/validators.test.ts` — 14 new tests covering all validation rules
+  - `__tests__/unit/SignupScreen.test.tsx` — navigation assertion updated to match `{ pathname, params }` shape
+  - `PROGRESS.md` / `SCREENS.md` — `HTWA` brand references corrected to `htwa` throughout; SCREENS.md screen/total counts corrected (24 screens, 34 total)
+  - `app/signin-apple/google/mobile/email.tsx` — header comments corrected (route `/signup`, Stage 20)
+
+- **Tab bar redesigned and restructured** (continued from Session 21)
+  - Search, History, Live Trip, Profile — new names, icons, and stubs
+  - `TabLayout.test.tsx` updated for new tab names and icons
+
+- **App icon** — `appstoreICON.PNG` deployed to `assets/icon.png`; DerivedData wipe required to show updated icon on simulator
+
+- **Auth flow corrected** — Login → Signup → Verify (OTP) → ID Verify — route chain confirmed and stubs updated accordingly
+
+### Decisions Made
+
+- `validator.js` used for email validation (replaces naive string checks) — handles `jane@universityie` (no TLD) correctly
+- `AsyncStorage` persistence is fire-and-forget (`void`) to avoid making `handleContinue` async
+- `Colors.sos` confirmed to exist in `constants/theme.ts` (`#FF3B30`) — used for error messages in id-verify screen
+- `presentIdentityVerificationSheet` called with empty `verificationSessionId` / `ephemeralKeySecret` until Stage 20 wires up the Supabase Edge Function
+
+### What Could Go Wrong on Simulator
+
+- Native rebuild required — `@stripe/stripe-react-native` is a native module; Expo Go will crash with "Native module not found". Use `npx expo run:ios`.
+- Stripe Identity sheet won't actually open until real `verificationSessionId` + `ephemeralKeySecret` are provided (Stage 20)
+- Apple Pay entitlement triggered by `merchantIdentifier`; provisioning profile may warn but won't block the identity flow
+
+### Next Steps
+
+- Stage 19: Profile setup screen (photo, display name, car details)
+- Stage 20: Auth state management — real Supabase auth, verification status check on launch
+
+---
+
 ## 11 May 2026 (Session 21)
 
 ### What Was Built / Changed

@@ -66,7 +66,7 @@
 
 ✅ **Stage 17** — Email/phone verification — OTP code entry screen
 
-⬜ **Stage 18** — ID verification screen (mandatory — blocks app access until complete):
+✅ **Stage 18** — ID verification screen (mandatory — blocks app access until complete):
 - Upload government ID (passport/driving licence)
 - Take selfie
 - Submission confirmation screen ("We're verifying your ID — usually takes a few minutes")
