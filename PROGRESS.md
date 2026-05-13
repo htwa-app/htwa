@@ -4,6 +4,35 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 13 May 2026 (Session 21)
+
+### What Was Built / Changed
+
+- Stage 18 complete: Stripe Identity SDK integrated (app/id-verify.tsx, StripeProvider in root layout, app/profile-setup.tsx stub)
+- Stage 19: not started
+- Stage 74 complete: htwa-app.com website live, tagline fixed (heading that way anyway.)
+- Stage 75 complete: waiting list connected to MailerLite, double opt-in disabled, signups working
+- Stage 76 complete: QR code already built into flyer
+- CodeRabbit fixes actioned: import type Database, validators.ts, currency persistence, email param passing, SCREENS.md/PROGRESS.md brand fixes, signin stub headers updated
+- Tab bar redesigned: Search, History, Live Trip, Profile
+- App icon created and deployed to simulator (1024×1024px PNG)
+- Auth flow corrected: Login → Signup → Verify → ID Verify
+- Git worktrees cleaned up
+- 540 tests passing
+
+### Decisions Made
+
+- Waiting list stays on MailerLite (not Supabase) — MailerLite handles email campaigns which Supabase cannot
+- Double opt-in disabled on MailerLite waiting list form — reduces friction for waiting list signups
+- Live keys will be handled securely via environment variables, never pasted in chat
+
+### Next Steps
+
+- Stage 19: Nominated contact setup screen
+- Stage 20: Full Supabase auth wired up end to end
+
+---
+
 ## 13 May 2026 (Session 22)
 
 ### What Was Built / Changed
