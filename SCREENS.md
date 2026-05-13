@@ -1,4 +1,4 @@
-# HTWA — Screen Inventory
+# htwa — Screen Inventory
 > Complete map of every screen, modal, and third-party flow in the app.
 > Claude Code must build everything marked **Screen** or **Modal**.
 > Everything marked **Third-party** is handled by an external SDK — integrate, don't rebuild.
@@ -114,7 +114,7 @@ Onboarding screens (Login, Sign Up, Verification) live in the parent Stack navig
 
 | # | Name | Type | Notes |
 |---|------|------|-------|
-| 30 | Safety Hub | Screen | Overview of HTWA's safety features — verified IDs, women-only mode, nominated contact, SOS. Referenced on Home screen. |
+| 30 | Safety Hub | Screen | Overview of htwa's safety features — verified IDs, women-only mode, nominated contact, SOS. Referenced on Home screen. |
 | 31 | Report a User | Modal | Triggered from any profile or live trip screen. Category selection + optional note. Submitted to moderation queue. |
 
 ---
@@ -133,10 +133,10 @@ Onboarding screens (Login, Sign Up, Verification) live in the parent Stack navig
 
 | Type | Count |
 |------|-------|
-| Screens to build | 26 |
+| Screens to build | 24 |
 | Modals to build | 6 |
 | Third-party flows (integrate, don't build) | 4 |
-| **Total** | **36** |
+| **Total** | **34** |
 
 ---
 

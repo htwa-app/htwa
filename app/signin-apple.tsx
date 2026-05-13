@@ -2,8 +2,8 @@
  * app/signin-apple.tsx
  *
  * Sign in with Apple stub.
- * Auto-navigates to /(tabs) on mount — simulates a successful auth for
- * development. Replace with real Apple Sign-In flow in Stage 16.
+ * Routes to /signup — new users enter the sign-up flow.
+ * Replace with real Apple Sign-In flow in Stage 20.
  */
 
 import { useEffect } from 'react';

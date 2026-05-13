@@ -2,8 +2,8 @@
  * app/signin-mobile.tsx
  *
  * Sign in with mobile number stub.
- * Auto-navigates to /(tabs) on mount — simulates a successful auth for
- * development. Replace with real mobile OTP flow in Stage 17.
+ * Routes to /signup — new users enter the sign-up flow.
+ * Replace with real mobile OTP flow in Stage 20.
  */
 
 import { useEffect } from 'react';

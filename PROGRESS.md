@@ -1,4 +1,4 @@
-# HTWA — Session Progress Log
+# htwa — Session Progress Log
 
 Entries are added at the top. Most recent session is always first.
 
@@ -69,7 +69,7 @@ Entries are added at the top. Most recent session is always first.
 - CodeRabbit fixes actioned on feat/auth:
   - lib/supabase.ts and supabase.test.ts — items 1 and 2 already fixed in PR #7, skipped
   - supabase/migrations/20260509000001_create_user_tables.sql — added missing INSERT RLS policies for users and verification tables; policies also executed live in Supabase SQL editor
-  - types/database.ts — "HTWA" → "htwa" in header comment
+  - types/database.ts — "htwa" → "htwa" in header comment
   - PROGRESS.md — already MD022 compliant, skipped
 - 497 tests, all passing
 - Stage 17 complete: OTP verification screen (app/verify.tsx)
@@ -184,7 +184,7 @@ Entries are added at the top. Most recent session is always first.
 
 | Finding | File | What Changed |
 |---------|------|--------------|
-| Brand name | `app.json` | `"name": "HTWA"` → `"name": "htwa"` |
+| Brand name | `app.json` | `"name": "htwa"` → `"name": "htwa"` |
 | Brand constants | `app/screens/SplashScreen.tsx` | Extracted `BRAND_NAME`, `BRAND_DOT`, `BRAND_TAGLINE` constants; replaced all inline string literals; added `testID="logo-dot"` to amber dot |
 | `as never` casts | `app/login.tsx` | Removed all 4 `as never` assertions on `router.push` calls; created proper stub screens |
 | Stub route screens | `app/signin-apple.tsx`, `app/signin-google.tsx`, `app/signin-mobile.tsx`, `app/signin-email.tsx` | Created 4 placeholder screens so Expo Router recognises the routes |
@@ -368,7 +368,7 @@ All values from `constants/theme.ts`. The 4 values absent from the §1 palette (
 ### What Was Built / Changed
 
 - **CodeRabbit PR review set up and actioned**:
-  - Added `.coderabbit.yaml` with HTWA-specific standards (TypeScript strictness, React Native performance, API security, GDPR)
+  - Added `.coderabbit.yaml` with htwa-specific standards (TypeScript strictness, React Native performance, API security, GDPR)
   - Opened test PR #1 (`test/coderabbit` branch) to verify CodeRabbit fires correctly
   - Opened full codebase review PR #2 (`main` → `review/base`) to audit all existing code
   - Actioned 19 of 21 findings from the review (2 skipped: one already correct, one rejected as incorrect)
@@ -400,7 +400,7 @@ All values from `constants/theme.ts`. The 4 values absent from the §1 palette (
 ### Decisions Made
 
 - `Colors.dark` added to `constants/theme.ts` as the canonical source for dark-mode colour tokens — `app/index.tsx` and any future dark screens should import from there, not hardcode hex values
-- HTWA full name confirmed as "Heading That Way Anyway" (reflected in CLAUDE.md)
+- htwa full name confirmed as "Heading That Way Anyway" (reflected in CLAUDE.md)
 - CodeRabbit will run automatically on all future PRs via `.coderabbit.yaml`
 
 ### Next Steps
@@ -558,7 +558,7 @@ All values from `constants/theme.ts`. The 4 values absent from the §1 palette (
 
 - **`constants/theme.ts`** — complete design token file; every colour, typography style, spacing value, border radius, and shadow from DESIGN-SPEC.md exported as named TypeScript constants with JSDoc; single source of truth for all future screens and components
 - **`website/index.html`** — full landing page for htwa-app.com:
-  - Sticky nav with HTWA logo and "Join the waitlist" CTA
+  - Sticky nav with htwa logo and "Join the waitlist" CTA
   - Hero: "Heading That Way Anyway?" headline, tagline, social proof avatar stack
   - Waitlist form: name, email, university dropdown (ROI + NI universities), ROI/NI region toggle — submits to Supabase REST API
   - "How it works" section — 3 steps (verify, find/offer, travel safely)
@@ -641,7 +641,7 @@ All values from `constants/theme.ts`. The 4 values absent from the §1 palette (
 
 - **Expo Router installed** — added `expo-router`, `react-native-screens`, `react-native-safe-area-context`, `expo-linking`, `expo-splash-screen`; entry point changed from `App.tsx` to `expo-router/entry`; deep-link scheme `htwa` added to `app.json`
 - **Home screen built** (`app/index.tsx`) — dark-themed, branded UI including:
-  - HTWA logo + tagline: *"Share the journey. Split the cost."*
+  - htwa logo + tagline: *"Share the journey. Split the cost."*
   - Destination search bar
   - "Find a ride" (green CTA) and "Offer a ride" (secondary CTA) buttons
   - Popular routes list: Dublin→Galway, Belfast→Dublin, Cork→Limerick with indicative prices
@@ -749,14 +749,14 @@ Confirmed: domain is **htwa-app.com**. Bundle ID `com.htwa.app` and deep-link sc
 - **Android SDK confirmed** — located at `~/Library/Android/sdk` with all required components (build-tools, emulator, platform-tools, platforms)
 - **Shell PATH updated** — `~/.zshrc` now exports `code`, `gh`, and Android tools (`adb`, `emulator`) so they work from any terminal window
 - **Expo React Native app scaffolded** — blank-typescript template, Expo SDK 53, supports iOS + Android
-- **app.json configured** — app name `HTWA`, slug `htwa`, bundle identifier `com.htwa.app` (iOS and Android), contact email `hello@htwa-app.com`
+- **app.json configured** — app name `htwa`, slug `htwa`, bundle identifier `com.htwa.app` (iOS and Android), contact email `hello@htwa-app.com`
 - **First real code commit pushed** — [github.com/htwa-app/htwa](https://github.com/htwa-app/htwa) now contains the full Expo scaffold
 
 ### Decisions Made
 
 | Decision | Rationale |
 |----------|-----------|
-| App code scaffolded directly into `~/Documents/HTWA` root | Keeps one repo for everything — docs, CLAUDE.md, and code together |
+| App code scaffolded directly into `~/Documents/htwa` root | Keeps one repo for everything — docs, CLAUDE.md, and code together |
 | `blank-typescript` Expo template | TypeScript from the start avoids a messy migration later |
 | Bundle ID `com.htwa.app` | Clean, matches the planned domain `htwa.app` |
 | `node_modules` not committed | Standard practice; `npm install` recreates it from `package-lock.json` |
@@ -769,7 +769,7 @@ Confirmed: domain is **htwa-app.com**. Bundle ID `com.htwa.app` and deep-link sc
 ### Suggested Next Steps
 
 1. **Purchase domains** — `htwa.ie`, `htwa.app`, `htwa.co.uk` (not yet bought)
-2. **Run the app locally** — `cd ~/Documents/HTWA && npm run ios` to confirm the scaffold boots in the iOS Simulator
+2. **Run the app locally** — `cd ~/Documents/htwa && npm run ios` to confirm the scaffold boots in the iOS Simulator
 3. **Set up Stripe Connect account** — needed before any payment flow can be built
 4. **Begin UI design in Claude Design** — home screen, ride search, and booking flow are the priority screens
 5. **Scaffold navigation** — add Expo Router or React Navigation so screens can be linked together

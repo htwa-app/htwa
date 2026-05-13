@@ -10,7 +10,10 @@ export default function IdVerifyScreen() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/(tabs)');
+    // TODO Stage 20: replace with real verification status check from Supabase
+    if (__DEV__) {
+      router.replace('/(tabs)');
+    }
   }, [router]);
 
   return null;

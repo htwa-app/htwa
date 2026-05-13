@@ -6,16 +6,28 @@ import {
   StyleSheet,
   ScrollView,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { Colors, FontFamily, Typography, Spacing, BorderRadius } from '../constants/theme';
+import { validateSignupForm } from '../utils/validators';
 import type { HomeLocation, Currency } from '../types/database';
 
 // ─── Brand constants ──────────────────────────────────────────────────────────
 const BRAND_NAME    = 'htwa';
 const BRAND_DOT     = '.';
 const BRAND_TAGLINE = 'heading that way anyway.';
+
+// ─── Location → currency mapping ──────────────────────────────────────────────
+const CURRENCY_MAP: Record<HomeLocation, Currency> = {
+  ROI: 'EUR',
+  NI:  'GBP',
+};
+
+// ─── AsyncStorage keys ────────────────────────────────────────────────────────
+const STORAGE_HOME_LOCATION = 'htwa:homeLocation';
+const STORAGE_CURRENCY      = 'htwa:currency';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -28,30 +40,28 @@ export default function SignupScreen() {
   const [phone,        setPhone]        = useState('');
   const [university,   setUniversity]   = useState('');
   const [homeLocation, setHomeLocation] = useState<HomeLocation | null>(null);
-  // currency is derived from homeLocation — stored so it can be read by later screens
-  const [currency, setCurrency]         = useState<Currency | null>(null); // eslint-disable-line @typescript-eslint/no-unused-vars
+  // currency is derived from homeLocation — persisted to AsyncStorage on continue
+  const [currency, setCurrency]         = useState<Currency | null>(null);
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
   const handleSelectLocation = (location: HomeLocation) => {
     setHomeLocation(location);
-    setCurrency(location === 'ROI' ? 'EUR' : 'GBP');
+    setCurrency(CURRENCY_MAP[location]);
   };
 
   // ── Validation ────────────────────────────────────────────────────────────────
-  const isValid = useMemo(() => {
-    const phoneDigits = phone.replace(/\D/g, '');
-    return (
-      fullName.trim().length > 0 &&
-      email.includes('@') &&
-      email.includes('.') &&
-      phoneDigits.length >= 9 &&
-      university.trim().length > 0 &&
-      homeLocation !== null
-    );
-  }, [fullName, email, phone, university, homeLocation]);
+  const isValid = useMemo(
+    () => validateSignupForm({ fullName, email, phone, university, homeLocation }),
+    [fullName, email, phone, university, homeLocation],
+  );
 
-  // TODO Stage 20: call supabase.auth.signUp({ email, password, phone }) then pass email to /verify
-  const handleContinue = () => router.push('/verify');
+  const handleContinue = () => {
+    // TODO Stage 20: move to auth context after Supabase session is established
+    void AsyncStorage.setItem(STORAGE_HOME_LOCATION, homeLocation ?? '');
+    void AsyncStorage.setItem(STORAGE_CURRENCY,      currency      ?? '');
+    // TODO Stage 20: call supabase.auth.signUp({ email, password, phone }) then pass email to /verify
+    router.push({ pathname: '/verify', params: { email } });
+  };
 
   return (
     <ScrollView

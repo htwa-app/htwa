@@ -188,10 +188,13 @@ describe('SignupScreen — location pills', () => {
 describe('SignupScreen — navigation', () => {
   beforeEach(() => render(<SignupScreen />));
 
-  it('Continue when valid calls router.push with /verify', () => {
+  it('Continue when valid calls router.push to /verify with email param', () => {
     fillAll('ROI');
     fireEvent.press(screen.getByRole('button', { name: 'Continue' }));
-    expect(mockPush).toHaveBeenCalledWith('/verify');
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/verify',
+      params: { email: 'jane@ucd.ie' },
+    });
   });
 
   it('Continue when valid calls router.push exactly once', () => {
