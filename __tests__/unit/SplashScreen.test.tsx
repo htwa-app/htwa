@@ -1,6 +1,15 @@
+/**
+ * __tests__/unit/SplashScreen.test.tsx
+ *
+ * Unit tests for app/screens/SplashScreen.tsx.
+ *
+ * Stage 20A update: SplashScreen now reads auth state via useAuth() instead
+ * of AsyncStorage. Tests mock the AuthContext module so the component can be
+ * tested in isolation without a real AuthProvider or Supabase client.
+ */
+
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import SplashScreen from '../../app/screens/SplashScreen';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -10,12 +19,22 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ replace: mockReplace }),
 }));
 
+const mockUseAuth = jest.fn();
+jest.mock('../../context/AuthContext', () => ({
+  useAuth: () => mockUseAuth(),
+}));
+
 // ─── Setup ────────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
   jest.clearAllMocks();
-  // Default: no token stored
-  (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+  // Default: still loading — no navigation should happen
+  mockUseAuth.mockReturnValue({
+    user:       null,
+    session:    null,
+    isLoading:  true,
+    isVerified: false,
+  });
 });
 
 // ─── Smoke ────────────────────────────────────────────────────────────────────
@@ -54,33 +73,54 @@ describe('SplashScreen — brand rules', () => {
 // ─── Auth routing ─────────────────────────────────────────────────────────────
 
 describe('SplashScreen — auth routing', () => {
-  it('navigates to /(tabs) when a valid auth token is stored', async () => {
-    (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce('valid-token-abc');
+  it('does not navigate while isLoading is true', () => {
+    mockUseAuth.mockReturnValue({
+      user: null, session: null, isLoading: true, isVerified: false,
+    });
     render(<SplashScreen />);
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/(tabs)'));
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('navigates to /login when isLoading is false and there is no session', async () => {
+    mockUseAuth.mockReturnValue({
+      user: null, session: null, isLoading: false, isVerified: false,
+    });
+    render(<SplashScreen />);
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/login'));
+    expect(mockReplace).not.toHaveBeenCalledWith('/(tabs)');
+    expect(mockReplace).not.toHaveBeenCalledWith('/id-verify');
+  });
+
+  it('navigates to /id-verify when session exists but isVerified is false', async () => {
+    mockUseAuth.mockReturnValue({
+      user:       { id: 'user-123' },
+      session:    { user: { id: 'user-123' } },
+      isLoading:  false,
+      isVerified: false,
+    });
+    render(<SplashScreen />);
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/id-verify'));
+    expect(mockReplace).not.toHaveBeenCalledWith('/(tabs)');
     expect(mockReplace).not.toHaveBeenCalledWith('/login');
   });
 
-  it('navigates to /login when no auth token is stored', async () => {
-    (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce(null);
+  it('navigates to /(tabs) when session exists and isVerified is true', async () => {
+    mockUseAuth.mockReturnValue({
+      user:       { id: 'user-456' },
+      session:    { user: { id: 'user-456' } },
+      isLoading:  false,
+      isVerified: true,
+    });
     render(<SplashScreen />);
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/login'));
-    expect(mockReplace).not.toHaveBeenCalledWith('/(tabs)');
-  });
-
-  it('navigates to /login when storage throws an error (safe default)', async () => {
-    (AsyncStorage.getItem as jest.Mock).mockRejectedValueOnce(new Error('Disk read failure'));
-    render(<SplashScreen />);
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/login'));
-    expect(mockReplace).not.toHaveBeenCalledWith('/(tabs)');
-  });
-
-  it('reads from the correct storage key (auth_token)', async () => {
-    render(<SplashScreen />);
-    await waitFor(() => expect(AsyncStorage.getItem).toHaveBeenCalledWith('auth_token'));
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/(tabs)'));
+    expect(mockReplace).not.toHaveBeenCalledWith('/login');
+    expect(mockReplace).not.toHaveBeenCalledWith('/id-verify');
   });
 
   it('only calls router.replace once per mount', async () => {
+    mockUseAuth.mockReturnValue({
+      user: null, session: null, isLoading: false, isVerified: false,
+    });
     render(<SplashScreen />);
     await waitFor(() => expect(mockReplace).toHaveBeenCalledTimes(1));
   });
