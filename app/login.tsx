@@ -8,14 +8,14 @@ import { Colors, FontFamily, Typography, Spacing, Radius } from '../constants/th
 export default function LoginScreen() {
   const router = useRouter();
 
-  // ── Handlers — stub routes, will be real screens in later sprints ──────────
-  // TODO Stage 20: call supabase.auth.signInWithOAuth({ provider: 'apple' })
+  // ── Handlers ─────────────────────────────────────────────────────────────
+  // TODO Phase 15: implement Apple Sign-In via supabase.auth.signInWithOAuth({ provider: 'apple' })
   const handleApple  = () => router.push('/signin-apple');
-  // TODO Stage 20: call supabase.auth.signInWithOAuth({ provider: 'google' })
+  // TODO Phase 15: implement Google Sign-In via supabase.auth.signInWithOAuth({ provider: 'google' })
   const handleGoogle = () => router.push('/signin-google');
-  // TODO Stage 20: call supabase.auth.signInWithOtp({ phone })
+  // TODO Phase 15: implement mobile OTP via supabase.auth.signInWithOtp({ phone })
   const handleMobile = () => router.push('/signin-mobile');
-  // TODO Stage 20: call supabase.auth.signInWithPassword({ email, password })
+  // Email routes to /signup (new users) — returning user sign-in: TODO Phase 15
   const handleEmail  = () => router.push('/signin-email');
 
   const handleOpenTerms         = () => console.log('TODO: navigate to terms');

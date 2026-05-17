@@ -1,9 +1,8 @@
 /**
  * app/signin-google.tsx
  *
- * Sign in with Google stub.
- * Routes to /signup — new users enter the sign-up flow.
- * Replace with real Google Sign-In flow in Stage 20.
+ * Google Sign-In stub — deferred to Phase 15 (requires Google Cloud OAuth setup).
+ * Routes to /signup in the meantime.
  */
 
 import { useEffect } from 'react';
@@ -13,7 +12,7 @@ export default function SignInGoogle() {
   const router = useRouter();
 
   useEffect(() => {
-    // TODO Stage 20: implement real Google Sign-In flow via supabase.auth.signInWithOAuth({ provider: 'google' })
+    // TODO Phase 15: implement Google Sign-In via supabase.auth.signInWithOAuth({ provider: 'google' })
     router.replace('/signup');
   }, [router]);
 

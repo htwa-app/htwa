@@ -22,10 +22,12 @@ import { supabase } from '../lib/supabase';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface AuthContextValue {
-  user:       User | null;
-  session:    Session | null;
-  isLoading:  boolean;
-  isVerified: boolean;
+  user:                User | null;
+  session:             Session | null;
+  isLoading:           boolean;
+  isVerified:          boolean;
+  /** Re-fetch verification status from public.verification. Call after writing a new verification row. */
+  refreshVerification: () => Promise<void>;
 }
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -91,8 +93,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /**
+   * Manually re-fetch verification status for the current user.
+   * Call this after writing a verification row (e.g. from id-verify.tsx)
+   * so the context updates without waiting for an auth state change event.
+   */
+  const refreshVerification = async (): Promise<void> => {
+    if (user) {
+      await fetchVerificationStatus(user.id);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, session, isLoading, isVerified }}>
+    <AuthContext.Provider value={{ user, session, isLoading, isVerified, refreshVerification }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,9 +1,8 @@
 /**
  * app/signin-email.tsx
  *
- * Sign in with email stub.
- * Routes to /signup — new users enter the sign-up flow.
- * Replace with real email/password flow in Stage 20.
+ * Email entry point — routes new users to /signup (email OTP sign-up flow).
+ * Returning user sign-in (signInWithPassword) is deferred to Phase 15.
  */
 
 import { useEffect } from 'react';
@@ -13,7 +12,8 @@ export default function SignInEmail() {
   const router = useRouter();
 
   useEffect(() => {
-    // TODO Stage 20: implement real email/password flow via supabase.auth.signInWithPassword({ email, password })
+    // New users: enter the email OTP sign-up flow.
+    // TODO Phase 15: add a "returning user" path via supabase.auth.signInWithPassword({ email, password })
     router.replace('/signup');
   }, [router]);
 

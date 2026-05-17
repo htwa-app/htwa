@@ -4,15 +4,15 @@
  * ID + selfie verification screen — Stage 18.
  * Launches the Stripe Identity verification sheet.
  *
- * Success  → /profile-setup
+ * Success  → writes verification row to Supabase, refreshes AuthContext, then /profile-setup
  * Cancel   → dismissible info message (no navigation; sheet closes)
  * Error    → dismissible error message in Colors.sos
  *
- * TODO Stage 20: obtain a real verificationSessionId + ephemeralKeySecret
- * from your Supabase Edge Function before calling presentIdentityVerificationSheet.
+ * TODO Phase 15: obtain a real verificationSessionId + ephemeralKeySecret
+ * from a Supabase Edge Function that calls the Stripe Identity API server-side.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -23,16 +23,26 @@ import { useRouter } from 'expo-router';
 import { useStripe } from '@stripe/stripe-react-native';
 import Button from '../components/Button';
 import { Colors, Typography, Spacing } from '../constants/theme';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function IdVerifyScreen() {
   const router  = useRouter();
   const { presentIdentityVerificationSheet } = useStripe();
+  const { user, isLoading: authLoading, refreshVerification } = useAuth();
 
-  const [message, setMessage]     = useState<string | null>(null);
-  const [isError, setIsError]     = useState(false);
-  const [loading, setLoading]     = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [isError, setIsError] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // ─── Safety guard — should not happen in normal flow ────────────────────────
+  useEffect(() => {
+    if (!authLoading && user === null) {
+      router.replace('/login');
+    }
+  }, [authLoading, user, router]);
 
   // ─── Handler ────────────────────────────────────────────────────────────────
 
@@ -41,7 +51,7 @@ export default function IdVerifyScreen() {
     setMessage(null);
 
     try {
-      // TODO Stage 20: fetch verificationSessionId + ephemeralKeySecret from
+      // TODO Phase 15: fetch verificationSessionId + ephemeralKeySecret from
       // a Supabase Edge Function that calls the Stripe Identity API server-side.
       const verificationSessionId = '';
       const ephemeralKeySecret    = '';
@@ -52,8 +62,18 @@ export default function IdVerifyScreen() {
       });
 
       if (!error) {
-        // Verification completed — proceed to profile setup.
-        router.push('/profile-setup');
+        // Write verified status to Supabase, then refresh the AuthContext so
+        // isVerified becomes true for subsequent SplashScreen routing.
+        if (user) {
+          await supabase.from('verification').upsert({
+            user_id:        user.id,
+            id_verified:    true,
+            selfie_verified: true,
+            verified_at:    new Date().toISOString(),
+          });
+          void refreshVerification();
+        }
+        router.replace('/profile-setup');
         return;
       }
 

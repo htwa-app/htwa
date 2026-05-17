@@ -5,7 +5,8 @@
  * Collects the name and phone number of a trusted contact who will receive
  * a live journey tracking link whenever the user travels.
  *
- * TODO Stage 20: save nominated contact to Supabase profiles table
+ * Stage 20C: saves nominated contact to Supabase profiles table.
+ * AsyncStorage is kept as a local cache for offline access.
  */
 
 import React, { useMemo, useState } from 'react';
@@ -28,6 +29,8 @@ import {
   BorderRadius,
   FontFamily,
 } from '../constants/theme';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 
 // ─── Brand constants ──────────────────────────────────────────────────────────
 
@@ -43,9 +46,12 @@ const STORAGE_CONTACT_PHONE = 'htwa:nominatedContact:phone';
 
 export default function ProfileSetupScreen() {
   const router = useRouter();
+  const { user } = useAuth();
 
   const [contactName,  setContactName]  = useState('');
   const [contactPhone, setContactPhone] = useState('');
+  const [saveError,    setSaveError]    = useState<string | null>(null);
+  const [isSaving,     setIsSaving]     = useState(false);
 
   const isValid = useMemo(
     () => contactName.trim().length > 0 && contactPhone.trim().length > 0,
@@ -54,15 +60,33 @@ export default function ProfileSetupScreen() {
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
 
-  const handleSave = () => {
-    // TODO Stage 20: save nominated contact to Supabase profiles table
-    void AsyncStorage.setItem(STORAGE_CONTACT_NAME,  contactName.trim());
-    void AsyncStorage.setItem(STORAGE_CONTACT_PHONE, contactPhone.trim());
-    router.replace('/(tabs)');
+  const handleSave = async () => {
+    if (!user) {
+      setSaveError('Not signed in. Please log in again.');
+      return;
+    }
+    setSaveError(null);
+    setIsSaving(true);
+    try {
+      const { error } = await supabase.from('profiles').upsert({
+        user_id:           user.id,
+        nominated_contact: { name: contactName.trim(), phone: contactPhone.trim() },
+      });
+      if (error) {
+        setSaveError(error.message);
+        return;
+      }
+      // AsyncStorage kept as local cache — Supabase is source of truth
+      void AsyncStorage.setItem(STORAGE_CONTACT_NAME,  contactName.trim());
+      void AsyncStorage.setItem(STORAGE_CONTACT_PHONE, contactPhone.trim());
+      router.replace('/(tabs)');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSkip = () => {
-    // TODO Stage 20: mark nominated contact as skipped in user profile
+    // No Supabase call needed — user can add a contact later from their profile
     router.replace('/(tabs)');
   };
 
@@ -130,9 +154,14 @@ export default function ProfileSetupScreen() {
       <Button
         title="Save and continue"
         onPress={handleSave}
-        disabled={!isValid}
+        disabled={!isValid || isSaving}
         style={styles.saveButton}
       />
+
+      {/* ── Save error ───────────────────────────────────────────────────────── */}
+      {saveError && (
+        <Text style={styles.errorText}>{saveError}</Text>
+      )}
 
       {/* ── Skip link ────────────────────────────────────────────────────────── */}
       <TouchableOpacity onPress={handleSkip} accessibilityRole="button">
@@ -231,5 +260,13 @@ const styles = StyleSheet.create({
   skipLink: {
     ...Typography.bodyMedium,
     color: Colors.primary,
+  },
+
+  // Inline error below Save button
+  errorText: {
+    ...Typography.bodySmall,
+    color: Colors.sos,
+    marginTop: Spacing.sm,
+    textAlign: 'center',
   },
 });

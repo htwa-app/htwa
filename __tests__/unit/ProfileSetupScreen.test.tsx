@@ -1,7 +1,7 @@
 /**
  * __tests__/unit/ProfileSetupScreen.test.tsx
  *
- * Unit tests for app/profile-setup.tsx (Stage 19).
+ * Unit tests for app/profile-setup.tsx (Stage 20C).
  */
 
 import React from 'react';
@@ -20,9 +20,25 @@ jest.mock('@expo/vector-icons', () => ({
   Ionicons: () => null,
 }));
 
+const mockUseAuth = jest.fn();
+jest.mock('../../context/AuthContext', () => ({
+  useAuth: () => mockUseAuth(),
+}));
+
+const mockUpsert = jest.fn();
+jest.mock('../../lib/supabase', () => ({
+  supabase: {
+    from: () => ({ upsert: (...args: unknown[]) => mockUpsert(...args) }),
+  },
+}));
+
 beforeEach(() => {
   jest.clearAllMocks();
   (AsyncStorage.setItem as jest.Mock).mockClear();
+  // Default: logged-in user
+  mockUseAuth.mockReturnValue({ user: { id: 'user-123' } });
+  // Default: upsert succeeds
+  mockUpsert.mockResolvedValue({ error: null });
 });
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -135,14 +151,44 @@ describe('ProfileSetupScreen — navigation', () => {
     expect(mockReplace).toHaveBeenCalledTimes(1);
   });
 
-  it('Save and continue navigates to /(tabs) when both fields are filled', () => {
+  it('Save and continue navigates to /(tabs) when both fields are filled', async () => {
     fillBoth();
     fireEvent.press(screen.getByRole('button', { name: 'Save and continue' }));
-    expect(mockReplace).toHaveBeenCalledWith('/(tabs)');
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/(tabs)'));
   });
 
   it('Save and continue does not navigate when button is disabled', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Save and continue' }));
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+});
+
+// ─── Supabase upsert ──────────────────────────────────────────────────────────
+
+describe('ProfileSetupScreen — Supabase upsert', () => {
+  beforeEach(() => render(<ProfileSetupScreen />));
+
+  it('calls supabase profiles upsert with correct data on save', async () => {
+    fillBoth();
+    fireEvent.press(screen.getByRole('button', { name: 'Save and continue' }));
+    await waitFor(() =>
+      expect(mockUpsert).toHaveBeenCalledWith({
+        user_id:           'user-123',
+        nominated_contact: { name: 'Mam', phone: '+353 087 1234567' },
+      }),
+    );
+  });
+
+  it('does not call supabase upsert when skip is pressed', () => {
+    fireEvent.press(screen.getByText("I'll add this later"));
+    expect(mockUpsert).not.toHaveBeenCalled();
+  });
+
+  it('shows an error message when upsert fails', async () => {
+    mockUpsert.mockResolvedValueOnce({ error: { message: 'Database error' } });
+    fillBoth();
+    fireEvent.press(screen.getByRole('button', { name: 'Save and continue' }));
+    await waitFor(() => expect(screen.getByText('Database error')).toBeTruthy());
     expect(mockReplace).not.toHaveBeenCalled();
   });
 });
