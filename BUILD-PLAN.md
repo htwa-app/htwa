@@ -72,7 +72,7 @@
 - Submission confirmation screen ("We're verifying your ID — usually takes a few minutes")
 - Verified badge applied to profile on approval
 
-⬜ **Stage 19** — Onboarding screen — nominated contact setup (name + phone number who receives live journey tracking)
+✅ **Stage 19** — Onboarding screen — nominated contact setup (name + phone number who receives live journey tracking)
 
 ⬜ **Stage 20** — Auth state management — app checks verification status on launch, redirects unverified users to verification flow
 

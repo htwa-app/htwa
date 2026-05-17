@@ -9,7 +9,10 @@ Entries are added at the top. Most recent session is always first.
 ### What Was Built / Changed
 
 - Stage 18 complete: Stripe Identity SDK integrated (app/id-verify.tsx, StripeProvider in root layout, app/profile-setup.tsx stub)
-- Stage 19: not started
+- Stage 19 complete: nominated contact setup screen (app/profile-setup.tsx)
+  - Name and phone inputs, info box, Save and continue + Skip link
+  - AsyncStorage persistence with TODO Stage 20 comments
+  - 23 new tests added
 - Stage 74 complete: htwa-app.com website live, tagline fixed (heading that way anyway.)
 - Stage 75 complete: waiting list connected to MailerLite, double opt-in disabled, signups working
 - Stage 76 complete: QR code already built into flyer
@@ -18,7 +21,8 @@ Entries are added at the top. Most recent session is always first.
 - App icon created and deployed to simulator (1024×1024px PNG)
 - Auth flow corrected: Login → Signup → Verify → ID Verify
 - Git worktrees cleaned up
-- 540 tests passing
+- jest.config.js: added .claude/ to testPathIgnorePatterns — worktree __tests__/ directories were silently inflating the count (540 was 500 real + 40 duplicates from the worktree; 500 is the correct canonical count)
+- 500 tests passing (all canonical)
 
 ### Decisions Made
 
