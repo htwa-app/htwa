@@ -104,6 +104,76 @@ export interface ProfileUpdate {
   women_only_mode?:      boolean;
 }
 
+// ─── rides ────────────────────────────────────────────────────────────────────
+
+export type RideStatus    = 'active' | 'full' | 'completed' | 'cancelled';
+export type BookingStatus = 'pending' | 'confirmed' | 'declined' | 'cancelled';
+
+export interface RideRow {
+  id:                 string;
+  driver_id:          string;
+  from_location:      string;
+  from_coords:        { lat: number; lng: number } | null;
+  to_location:        string;
+  to_coords:          { lat: number; lng: number } | null;
+  departure_datetime: string;           // timestamptz as ISO string
+  seats_total:        number;
+  seats_available:    number;
+  cost_per_seat:      number;
+  currency:           Currency;
+  distance_km:        number | null;
+  women_only:         boolean;
+  status:             RideStatus;
+  created_at:         string;
+}
+
+export interface RideInsert {
+  id?:                 string;
+  driver_id:           string;
+  from_location:       string;
+  from_coords?:        { lat: number; lng: number } | null;
+  to_location:         string;
+  to_coords?:          { lat: number; lng: number } | null;
+  departure_datetime:  string;
+  seats_total:         number;
+  seats_available:     number;
+  cost_per_seat:       number;
+  currency:            Currency;
+  distance_km?:        number | null;
+  women_only?:         boolean;
+  status?:             RideStatus;
+}
+
+export interface RideUpdate {
+  seats_available?: number;
+  status?:          RideStatus;
+  cost_per_seat?:   number;
+}
+
+// ─── bookings ─────────────────────────────────────────────────────────────────
+
+export interface BookingRow {
+  id:           string;
+  ride_id:      string;
+  passenger_id: string;
+  seats_booked: number;
+  status:       BookingStatus;
+  created_at:   string;
+}
+
+export interface BookingInsert {
+  id?:          string;
+  ride_id:      string;
+  passenger_id: string;
+  seats_booked?: number;
+  status?:      BookingStatus;
+}
+
+export interface BookingUpdate {
+  status?:      BookingStatus;
+  seats_booked?: number;
+}
+
 // ─── Database (Supabase client generic) ───────────────────────────────────────
 
 export interface Database {
@@ -123,6 +193,16 @@ export interface Database {
         Row:    ProfileRow;
         Insert: ProfileInsert;
         Update: ProfileUpdate;
+      };
+      rides: {
+        Row:    RideRow;
+        Insert: RideInsert;
+        Update: RideUpdate;
+      };
+      bookings: {
+        Row:    BookingRow;
+        Insert: BookingInsert;
+        Update: BookingUpdate;
       };
     };
   };
