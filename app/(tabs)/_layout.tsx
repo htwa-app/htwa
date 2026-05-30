@@ -28,21 +28,21 @@ export const TAB_BORDER_COLOR = 'rgba(40,30,20,0.08)';
 export const TAB_SCREENS = [
   {
     name:        'index',
-    title:       'Home',
-    icon:        'home'         as const,
-    outlineIcon: 'home-outline' as const,
-  },
-  {
-    name:        'search',
     title:       'Search',
     icon:        'search'         as const,
     outlineIcon: 'search-outline' as const,
   },
   {
-    name:        'trips',
-    title:       'Trips',
-    icon:        'car'         as const,
-    outlineIcon: 'car-outline' as const,
+    name:        'history',
+    title:       'History',
+    icon:        'time'         as const,
+    outlineIcon: 'time-outline' as const,
+  },
+  {
+    name:        'live-trip',
+    title:       'Live Trip',
+    icon:        'navigate'         as const,
+    outlineIcon: 'navigate-outline' as const,
   },
   {
     name:        'profile',

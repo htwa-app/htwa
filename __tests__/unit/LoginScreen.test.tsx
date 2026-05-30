@@ -64,7 +64,7 @@ describe('LoginScreen — layout', () => {
   });
 
   it('displays the trust note', () => {
-    expect(screen.getByText('Every account checked against a college email')).toBeTruthy();
+    expect(screen.getByText('Mandatory ID + selfie verification before app use')).toBeTruthy();
   });
 
   it('displays the footer text', () => {
@@ -101,24 +101,24 @@ describe('LoginScreen — navigation', () => {
     ).not.toThrow();
   });
 
-  it('Continue with Apple calls router.push with /signin-apple', () => {
+  it('Continue with Apple calls router.push with /signup', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Continue with Apple' }));
-    expect(mockPush).toHaveBeenCalledWith('/signin-apple');
+    expect(mockPush).toHaveBeenCalledWith('/signup');
   });
 
-  it('Continue with Google calls router.push with /signin-google', () => {
+  it('Continue with Google calls router.push with /signup', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Continue with Google' }));
-    expect(mockPush).toHaveBeenCalledWith('/signin-google');
+    expect(mockPush).toHaveBeenCalledWith('/signup');
   });
 
-  it('Continue with mobile number calls router.push with /signin-mobile', () => {
+  it('Continue with mobile number calls router.push with /signup', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Continue with mobile number' }));
-    expect(mockPush).toHaveBeenCalledWith('/signin-mobile');
+    expect(mockPush).toHaveBeenCalledWith('/signup');
   });
 
-  it('Continue with email calls router.push with /signin-email', () => {
+  it('Continue with email calls router.push with /signup', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Continue with email' }));
-    expect(mockPush).toHaveBeenCalledWith('/signin-email');
+    expect(mockPush).toHaveBeenCalledWith('/signup');
   });
 
   it('each button press calls router.push exactly once', () => {

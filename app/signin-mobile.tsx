@@ -1,9 +1,8 @@
 /**
  * app/signin-mobile.tsx
  *
- * Sign in with mobile number stub.
- * Auto-navigates to /(tabs) on mount — simulates a successful auth for
- * development. Replace with real mobile OTP flow in Stage 17.
+ * Mobile OTP sign-in stub — deferred to Phase 15.
+ * Routes to /signup in the meantime.
  */
 
 import { useEffect } from 'react';
@@ -13,7 +12,8 @@ export default function SignInMobile() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/(tabs)');
+    // TODO Phase 15: implement mobile OTP via supabase.auth.signInWithOtp({ phone })
+    router.replace('/signup');
   }, [router]);
 
   return null;

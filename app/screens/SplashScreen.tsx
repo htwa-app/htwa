@@ -1,10 +1,8 @@
 import { useEffect } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../../context/AuthContext';
 import { Colors, FontFamily } from '../../constants/theme';
-
-const AUTH_TOKEN_KEY = 'auth_token';
 
 // ─── Brand constants ──────────────────────────────────────────────────────────
 const BRAND_NAME    = 'htwa';
@@ -13,24 +11,23 @@ const BRAND_TAGLINE = 'heading that way anyway.';
 
 export default function SplashScreen() {
   const router = useRouter();
+  const { session, isLoading, isVerified } = useAuth();
 
   useEffect(() => {
-    async function checkAuth(): Promise<void> {
-      try {
-        const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
-        if (token !== null) {
-          router.replace('/(tabs)');
-        } else {
-          router.replace('/login');
-        }
-      } catch {
-        // If storage read fails, send to login — safe default
-        router.replace('/login');
-      }
-    }
+    // Stay on splash while the auth check is in flight
+    if (isLoading) return;
 
-    void checkAuth();
-  }, [router]);
+    if (!session) {
+      // No authenticated user — go to login
+      router.replace('/login');
+    } else if (!isVerified) {
+      // Logged in but ID verification not complete — go to id-verify
+      router.replace('/id-verify');
+    } else {
+      // Fully authenticated and verified — enter the app
+      router.replace('/(tabs)');
+    }
+  }, [isLoading, session, isVerified, router]);
 
   return (
     <View style={styles.container}>

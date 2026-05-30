@@ -36,8 +36,10 @@ alter table public.profiles enable row level security;
 -- RLS Policies: users can only read and update their own data
 create policy "Users can view own record" on public.users for select using (auth.uid() = id);
 create policy "Users can update own record" on public.users for update using (auth.uid() = id);
+create policy "Users can insert own record" on public.users for insert with check (auth.uid() = id);
 
 create policy "Users can view own verification" on public.verification for select using (auth.uid() = user_id);
+create policy "Users can insert own verification" on public.verification for insert with check (auth.uid() = user_id);
 
 create policy "Users can view own profile" on public.profiles for select using (auth.uid() = user_id);
 create policy "Users can update own profile" on public.profiles for update using (auth.uid() = user_id);

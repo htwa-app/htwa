@@ -55,26 +55,26 @@
 
 ✅ **Stage 13** — Backend chosen and set up: **Supabase** (PostgreSQL database + auth + realtime + storage). Create project at supabase.com, connect to HTWA repo, set environment variables
 
-⬜ **Stage 14** — User database schema created in Supabase:
+✅ **Stage 14** — User database schema created in Supabase:
 - `users` table (id, email, phone, full_name, home_location, currency, created_at)
 - `verification` table (user_id, id_verified, selfie_verified, verified_at)
 - `profiles` table (user_id, bio, university, travel_preferences, nominated_contact)
 
-⬜ **Stage 15** — Login screen built — "htwa" logo, tagline, Continue with Apple / Google / mobile / email buttons, social proof (verified students count), legal footer
+✅ **Stage 15** — Login screen built — "htwa" logo, tagline, Continue with Apple / Google / mobile / email buttons, social proof (verified students count), legal footer
 
-⬜ **Stage 16** — Sign up screen — name, email, phone number, university, home location (ROI or NI — sets currency to € or £)
+✅ **Stage 16** — Sign up screen — name, email, phone number, university, home location (ROI or NI — sets currency to € or £)
 
-⬜ **Stage 17** — Email/phone verification — OTP code entry screen
+✅ **Stage 17** — Email/phone verification — OTP code entry screen
 
-⬜ **Stage 18** — ID verification screen (mandatory — blocks app access until complete):
+✅ **Stage 18** — ID verification screen (mandatory — blocks app access until complete):
 - Upload government ID (passport/driving licence)
 - Take selfie
 - Submission confirmation screen ("We're verifying your ID — usually takes a few minutes")
 - Verified badge applied to profile on approval
 
-⬜ **Stage 19** — Onboarding screen — nominated contact setup (name + phone number who receives live journey tracking)
+✅ **Stage 19** — Onboarding screen — nominated contact setup (name + phone number who receives live journey tracking)
 
-⬜ **Stage 20** — Auth state management — app checks verification status on launch, redirects unverified users to verification flow
+✅ **Stage 20** — Auth state management — `AuthContext` (user, session, isLoading, isVerified, refreshVerification), `signInWithOtp` email OTP flow, OTP verification wired to Supabase, `id-verify` upserts verification row, `profile-setup` upserts profiles table, RLS UPDATE policy on verification, full end-to-end flow verified on simulator (30 May 2026)
 
 ---
 
@@ -251,11 +251,11 @@
 ## PHASE 14 — WEBSITE & WAITING LIST
 *Launch the waiting list before the app is ready.*
 
-⬜ **Stage 74** — htwa-app.com landing page — hero, how it works, safety features, waiting list signup form
+✅ **Stage 74** — htwa-app.com landing page — hero, how it works, safety features, waiting list signup form
 
-⬜ **Stage 75** — Waiting list backend — email capture connected to Supabase or Mailchimp
+✅ **Stage 75** — Waiting list backend — email capture connected to Supabase or Mailchimp
 
-⬜ **Stage 76** — QR code links to waiting list signup page
+✅ **Stage 76** — QR code links to waiting list signup page
 
 ⬜ **Stage 77** — University flyer printed and distributed (design already done in Claude Design)
 

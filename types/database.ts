@@ -1,7 +1,7 @@
 /**
  * types/database.ts
  *
- * TypeScript types for the HTWA Supabase schema.
+ * TypeScript types for the htwa Supabase schema.
  * Hand-written to match supabase/migrations/20260509000001_create_user_tables.sql.
  *
  * Structure mirrors what `supabase gen types typescript` would produce, so it
