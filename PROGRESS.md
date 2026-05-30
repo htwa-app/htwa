@@ -14,6 +14,7 @@ Entries are added at the top. Most recent session is always first.
   - Squash-merged via `gh pr merge 8 --squash --admin` (merge commit `d2f4902`)
   - `--admin` override used because the only blocker was a stale CodeRabbit `CHANGES_REQUESTED` (7 accumulated review rounds); CI was fully green and all substantive findings were verified already-fixed in current code (the id-verify KYC-bypass and the AuthContext getSession-hang were both confirmed resolved by reading the live files)
   - PR title updated to "Phase 3 complete: Authentication (Stages 13-20)"
+  - Payload (built in Session 23): full Supabase auth flow end to end (Auth context, signup OTP, verify, profile setup); Stripe React Native upgraded `0.50.3 → 0.65.1` (Xcode 26 bridging crash fix); 523 tests passing
 - **Doc/brand nits fixed before merge** (commit `5bf4cab`)
   - PROGRESS.md: no-op log entry `"htwa" → "htwa"` corrected to `"HTWA" → "htwa"`; two historical title-cased taglines `"Heading That Way Anyway?"` → `"heading that way anyway."`
   - CLAUDE.md: blank lines added around `### In Progress` / `### Next Up` headings (MD022)
@@ -46,7 +47,9 @@ Entries are added at the top. Most recent session is always first.
 
 ### Next Steps
 
-- Merge PR #9 (`gh pr merge 9 --squash`)
+- Merge PR #9 (`gh pr merge 9 --squash`) — CI green, ready to go
+- Phase 4: User Profiles (Stages 21–25)
+- Start a fresh Claude Code session with bypass mode active (restart required for `permissions.defaultMode` to take effect)
 - Set up Stripe Connect account
 - Build remaining screens: Search results, Ride Offer flow, Driver Profile, Live Trip
 - Phase 15 (later): real Stripe Identity via `@stripe/stripe-identity-react-native`; Apple/Google/mobile OAuth
