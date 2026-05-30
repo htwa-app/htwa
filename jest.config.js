@@ -5,6 +5,11 @@ module.exports = {
   moduleNameMapper: {
     '@react-native-async-storage/async-storage':
       require.resolve('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+    // expo-location is not yet installed (added via npx expo install in Phase 8).
+    // Map to an empty module so tests that mock it can still run.
+    '^expo-location$': '<rootDir>/__mocks__/expo-location.js',
+    // react-native-maps is not yet installed (Phase 8).
+    '^react-native-maps$': '<rootDir>/__mocks__/react-native-maps.js',
   },
   testMatch: [
     '**/__tests__/**/*.test.(ts|tsx)',
