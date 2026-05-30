@@ -34,8 +34,9 @@ import { useAuth } from '../../context/AuthContext';
 
 // ─── Spec-local constants ─────────────────────────────────────────────────────
 
-const TOGGLE_TRACK_ON  = '#1F7A78';
-const TOGGLE_TRACK_OFF = 'rgba(40,30,20,0.15)';
+/** §9.2 verified IDs card background — not in §1 palette */
+const VERIFIED_CARD_BG  = '#E8F8EE';
+const TOGGLE_TRACK_OFF  = 'rgba(40,30,20,0.15)'; // §9.2 switch — not in palette
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -159,7 +160,7 @@ export default function SearchScreen(): React.ReactElement {
             <Switch
               value={womenOnly}
               onValueChange={setWomenOnly}
-              trackColor={{ false: TOGGLE_TRACK_OFF, true: TOGGLE_TRACK_ON }}
+              trackColor={{ false: TOGGLE_TRACK_OFF, true: Colors.primary }}
               thumbColor={Platform.OS === 'android' ? Colors.surface : undefined}
               testID="women-only-filter"
               accessibilityRole="switch"
@@ -213,7 +214,7 @@ export default function SearchScreen(): React.ReactElement {
 const SAFETY_FEATURES = [
   { title: 'Share journey', desc: 'Nominated contact gets live updates', icon: 'share-outline', bg: Colors.primaryLight, iconColor: Colors.primary },
   { title: 'Women-only', desc: 'Verified female drivers and passengers', icon: 'shield-outline', bg: Colors.lavenderLight, iconColor: Colors.lavender },
-  { title: 'Verified IDs', desc: 'Every account identity-checked', icon: 'checkmark-shield-outline', bg: '#E8F8EE', iconColor: Colors.verified },
+  { title: 'Verified IDs', desc: 'Every account identity-checked', icon: 'checkmark-shield-outline', bg: VERIFIED_CARD_BG, iconColor: Colors.verified },
   { title: 'In-app SOS', desc: 'Silent alert to your contact', icon: 'alert-circle-outline', bg: Colors.sosLight, iconColor: Colors.sos },
 ];
 

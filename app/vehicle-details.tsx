@@ -14,7 +14,7 @@
  *
  * Spec-local constants:
  *   SEATS_MIN (2), SEATS_MAX (8) — minimum viable seats for a shared ride
- *   TOGGLE_TRACK_ON  — active toggle track colour (Colors.primary)
+ *   TOGGLE_TRACK_OFF — inactive toggle track colour (not in palette)
  *   TOGGLE_TRACK_OFF — inactive toggle track colour
  */
 
@@ -47,9 +47,7 @@ import { useAuth } from '../context/AuthContext';
 
 const SEATS_MIN = 2;
 const SEATS_MAX = 8;
-/** Active track — matches Colors.primary */
-const TOGGLE_TRACK_ON  = '#1F7A78';
-/** Inactive track — visible on both iOS and Android */
+/** Inactive track — not in §1 palette */
 const TOGGLE_TRACK_OFF = 'rgba(40,30,20,0.15)';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -275,7 +273,7 @@ export default function VehicleDetailsScreen(): React.ReactElement {
         <Switch
           value={vehicle.hasAC}
           onValueChange={(v) => setField('hasAC', v)}
-          trackColor={{ false: TOGGLE_TRACK_OFF, true: TOGGLE_TRACK_ON }}
+          trackColor={{ false: TOGGLE_TRACK_OFF, true: Colors.primary }}
           thumbColor={Platform.OS === 'android' ? Colors.surface : undefined}
           testID="ac-toggle"
           accessibilityRole="switch"
@@ -293,7 +291,7 @@ export default function VehicleDetailsScreen(): React.ReactElement {
         <Switch
           value={vehicle.dashcam}
           onValueChange={(v) => setField('dashcam', v)}
-          trackColor={{ false: TOGGLE_TRACK_OFF, true: TOGGLE_TRACK_ON }}
+          trackColor={{ false: TOGGLE_TRACK_OFF, true: Colors.primary }}
           thumbColor={Platform.OS === 'android' ? Colors.surface : undefined}
           testID="dashcam-toggle"
           accessibilityRole="switch"

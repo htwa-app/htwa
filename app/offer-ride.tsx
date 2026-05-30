@@ -46,8 +46,7 @@ import { useAuth } from '../context/AuthContext';
 
 const SEATS_MIN = 1;
 const SEATS_MAX = 7;
-const TOGGLE_TRACK_ON  = '#1F7A78';
-const TOGGLE_TRACK_OFF = 'rgba(40,30,20,0.15)';
+const TOGGLE_TRACK_OFF = 'rgba(40,30,20,0.15)'; // §9 switch inactive track — not in palette
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -253,7 +252,7 @@ export default function OfferRideScreen(): React.ReactElement {
         <Switch
           value={womenOnly}
           onValueChange={setWomenOnly}
-          trackColor={{ false: TOGGLE_TRACK_OFF, true: TOGGLE_TRACK_ON }}
+          trackColor={{ false: TOGGLE_TRACK_OFF, true: Colors.primary }}
           thumbColor={Platform.OS === 'android' ? Colors.surface : undefined}
           testID="women-only-toggle"
           accessibilityRole="switch"

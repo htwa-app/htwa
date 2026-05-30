@@ -11,9 +11,7 @@
  * Photo upload is deferred — placeholder shown instead.
  * Saves via supabase.from('profiles').upsert({ onConflict: 'user_id' }).
  *
- * Spec-local constants:
- *   PREF_CHIP_SELECTED_BG  — active chip background when toggled on (#1F7A78 = Colors.primary)
- *   PREF_CHIP_SELECTED_TXT — active chip text colour when toggled on (#FFFFFF = Colors.surface)
+ * Note: PREF_CHIP_SELECTED_BG/TXT use Colors.primary / Colors.surface directly.
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -41,10 +39,8 @@ import { useAuth } from '../context/AuthContext';
 
 // ─── Spec-local constants ─────────────────────────────────────────────────────
 
-/** Selected chip background — same as Colors.primary, declared here per spec rule */
-const PREF_CHIP_SELECTED_BG  = '#1F7A78';
-/** Selected chip text colour — same as Colors.surface */
-const PREF_CHIP_SELECTED_TXT = '#FFFFFF';
+const PREF_CHIP_SELECTED_BG  = Colors.primary;
+const PREF_CHIP_SELECTED_TXT = Colors.surface;
 /** Chip fixed height per DESIGN-SPEC §6.6 */
 const PREF_CHIP_HEIGHT = 28;
 
