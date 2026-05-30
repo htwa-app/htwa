@@ -176,28 +176,27 @@ This folder (`~/Documents/HTWA/`) is the **shared workspace** between Cowork and
 - [x] Expo React Native app scaffolded (TypeScript, SDK 53, iOS + Android)
 - [x] CI workflow (GitHub Actions) — unit + integration + coverage gate
 - [x] CodeRabbit automated PR reviews wired up
-- [x] `constants/theme.ts` — all DESIGN-SPEC §1–5 tokens (Colors, Typography, FontFamily, FontWeights, Spacing, BorderRadius, Shadows) with 100 tests
-- [x] `components/Text.tsx` — all 12 DESIGN-SPEC §2 variants, useFonts, fallback
-- [x] `components/Button.tsx` — primary / secondary / disabled (§6.1, §6.2)
-- [x] `components/Card.tsx` — §6.4
-- [x] `components/Input.tsx` — focus state border, label, error (§6.3)
-- [x] `components/Badge.tsx` — verified + womenOnly variants (§6.5, §6.7)
-- [x] `components/Chip.tsx` — interactive + display-only (§6.6)
-- [x] `components/Avatar.tsx` — initials / image, primary / lavender, custom size (§6.9)
-- [x] `app/screens/SplashScreen.tsx` — confirmed correct on simulator
-- [x] `app/home.tsx` — HomeScreen with correct light-theme branding
-- [x] `app/login.tsx` — Login screen with 4 auth buttons (stub routes)
-- [x] 350 tests, 100% branch/statement/function/line coverage on all components
-- [x] PRs #3 and #4 merged to main; PRs #1 and #2 closed
+- [x] `constants/theme.ts` — all DESIGN-SPEC §1–5 tokens with 100 tests
+- [x] `components/Text.tsx`, `Button.tsx`, `Card.tsx`, `Input.tsx`, `Badge.tsx`, `Chip.tsx`, `Avatar.tsx` — all built and tested
+- [x] `app/screens/SplashScreen.tsx` — routes via `useAuth()`: loading→stay, no session→/login, unverified→/id-verify, verified→/(tabs)
+- [x] `app/login.tsx` — Login screen with 4 auth buttons
+- [x] `app/signup.tsx` — `signInWithOtp` email OTP flow, form validation, error state
+- [x] `app/verify.tsx` — OTP entry, `verifyOtp`, inserts `public.users` + `public.verification`, resend
+- [x] `app/id-verify.tsx` — beta placeholder: upserts verification row, `refreshVerification()`, routes to /profile-setup; Stripe Identity deferred to Phase 15
+- [x] `app/profile-setup.tsx` — nominated contact, `supabase.from('profiles').upsert()`, AsyncStorage cache
+- [x] `context/AuthContext.tsx` — `AuthProvider`, `useAuth()`, `refreshVerification()`
+- [x] `supabase/migrations/` — users, verification, profiles tables; RLS policies including UPDATE on verification
+- [x] 523 tests, all passing
+- [x] Full end-to-end auth flow verified on iPhone 17 Pro simulator (iOS 26.4): Login → Sign Up → OTP → ID Verify → Profile Setup → Tabs
 
 ### In Progress
-- [ ] PR #5 (`feat/login-screen`) — open, awaiting simulator screenshot approval before merge
+- [ ] PR on `feat/auth` — Stage 20 changes ready to push/merge
 
 ### Next Up
-- [ ] Simulator screenshot of Login screen (run `LANG=en_US.UTF-8 npx expo run:ios`)
-- [ ] Merge PR #5 after Jordan approves screenshot
+- [ ] Commit Stage 20 changes and push/merge `feat/auth`
 - [ ] Set up Stripe Connect account
-- [ ] Build remaining screens (Sign-in flows, Home with real navigation, Search results, Driver Profile, Live Trip)
+- [ ] Build remaining screens: Search results, Ride Offer flow, Driver Profile, Live Trip
+- [ ] Phase 15 (later): real Stripe Identity, Apple/Google/mobile OAuth
 
 ---
 
@@ -250,6 +249,14 @@ This folder (`~/Documents/HTWA/`) is the **shared workspace** between Cowork and
 | May 2026 | Squash merge base PR before dependent PR — rebase required | When PR #4 was based on PR #3's branch, squash-merging #3 into main caused #4 to conflict (commits already upstream). Fix: `git fetch && git rebase origin/main` on the dependent branch — Git drops already-upstreamed commits, force-push, re-trigger CI, then merge. |
 | May 2026 | Spec values not in §1 palette → named local constants, not added to Colors | Some component specs (§6.1 disabled grey #C8C8C8, §6.4 card border 0.08 opacity, §6.5 badge 11px, §6.7 women-only text #2A1F4A) reference values absent from the brand palette. These must NOT be hardcoded anonymously or silently added to theme.ts. Declare them as named constants at the top of the component file with a comment citing the spec section. |
 | May 2026 | Separate `containerTestID` from `testID` on Input | The Input component has an outer View (layout) and an inner bordered View (the one whose borderColor changes on focus). If you put `testID` on the outer wrapper and pass the same prop through to TextInput, style assertions on the border view become impossible. Fix: give the bordered wrapper a dedicated `containerTestID` prop, let the standard `testID` flow to the `TextInput` via the rest-spread. Tests can then independently access both elements. |
+| May 2026 | `supabase.auth.signUp` sends a magic link by default, not a 6-digit OTP | `signUp` triggers the "Confirm signup" email template which sends a clickable link. For OTP code entry screens, use `supabase.auth.signInWithOtp({ email })` instead, and set the Supabase "Magic Link" email template to use `{{ .Token }}` (not `{{ .ConfirmationURL }}`). |
+| May 2026 | Supabase `upsert` without `onConflict` uses the primary key, not a unique column | Calling `supabase.from('verification').upsert({ user_id: id, ... })` without `{ onConflict: 'user_id' }` generates a new `id` UUID and tries to INSERT, hitting the unique constraint on `user_id`. Always specify `{ onConflict: 'column_name' }` when upserting on a non-PK unique column. |
+| May 2026 | RLS `UPDATE` policy required for `upsert` to work on existing rows | Supabase `upsert` = INSERT on first call, UPDATE on subsequent calls. If the table has RLS enabled and no `FOR UPDATE` policy, the update path is silently blocked ("new row violates row-level security policy"). Add a matching UPDATE policy whenever you use upsert. |
+| May 2026 | Hermes framework must be manually pre-extracted on Xcode 26 | After every clean `pod install`, the `[Hermes] Replace Hermes for the right configuration` build phase script fails to extract the `.tar.gz` artifacts in `ios/Pods/hermes-engine-artifacts/`. Fix: `cd ios/Pods/hermes-engine && mkdir -p destroot && tar -xzf ../hermes-engine-artifacts/hermes-ios-<version>-debug.tar.gz -C destroot --strip-components=1`. Must be repeated after every clean pod install until this Xcode 26 / RN 0.81.x incompatibility is resolved upstream. |
+| May 2026 | `expo run:ios` must be run from the project root | Running `npx expo run:ios` from any subdirectory (e.g. after `cd`ing into a Pods folder) causes `@expo/config` to treat that subdirectory as the project root, throwing `ConfigError: The expected package.json path does not exist`. Always `cd /path/to/project` before running Expo CLI commands. |
+| May 2026 | `@stripe/stripe-react-native` ≥ 0.56 moved Identity to a separate package | `presentIdentityVerificationSheet` was removed from the main `useStripe()` hook and moved to `@stripe/stripe-identity-react-native`. Upgrading from 0.50.x to 0.65.x will break any code using this API. For beta, replace with a direct Supabase verification upsert; wire up the real Identity package in Phase 15. |
+| May 2026 | `stripe-react-native@0.50.3` `STPPaymentStatus` enum crashes Xcode 26 | Xcode 26's stricter Swift/ObjC bridging rejects the `STPPaymentStatus` enum being declared as both `NSUInteger` (ObjC header) and `NSInteger` (Swift bridging header). Fix: upgrade `@stripe/stripe-react-native` to ≥ 0.65.1. |
+| May 2026 | iOS build fails when Pods are partially downloaded | Stripe pods ship large localisation bundles. If `pod install` is interrupted or has network issues, locale `.lproj` files and `PrivacyInfo.xcprivacy` may be missing, causing build failures. Fix: `rm -rf ios/Pods ios/Podfile.lock && LANG=en_US.UTF-8 pod install --repo-update` to force a full re-download. |
 
 ---
 

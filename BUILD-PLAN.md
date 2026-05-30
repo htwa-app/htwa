@@ -74,7 +74,7 @@
 
 ✅ **Stage 19** — Onboarding screen — nominated contact setup (name + phone number who receives live journey tracking)
 
-⬜ **Stage 20** — Auth state management — app checks verification status on launch, redirects unverified users to verification flow
+✅ **Stage 20** — Auth state management — `AuthContext` (user, session, isLoading, isVerified, refreshVerification), `signInWithOtp` email OTP flow, OTP verification wired to Supabase, `id-verify` upserts verification row, `profile-setup` upserts profiles table, RLS UPDATE policy on verification, full end-to-end flow verified on simulator (30 May 2026)
 
 ---
 

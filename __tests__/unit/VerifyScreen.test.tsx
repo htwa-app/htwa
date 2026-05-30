@@ -1,17 +1,40 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react-native';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
 import VerifyScreen from '../../app/verify';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-const mockPush = jest.fn();
+const mockPush    = jest.fn();
+const mockReplace = jest.fn();
 jest.mock('expo-router', () => ({
-  useRouter:            () => ({ push: mockPush }),
+  useRouter:            () => ({ push: mockPush, replace: mockReplace }),
   useLocalSearchParams: () => ({ email: 'test@ucd.ie' }),
+}));
+
+const mockVerifyOtp = jest.fn();
+const mockResend    = jest.fn();
+const mockInsert    = jest.fn();
+jest.mock('../../lib/supabase', () => ({
+  supabase: {
+    auth: {
+      verifyOtp: (...args: unknown[]) => mockVerifyOtp(...args),
+      resend:    (...args: unknown[]) => mockResend(...args),
+    },
+    from: () => ({
+      insert: (...args: unknown[]) => mockInsert(...args),
+      upsert: (...args: unknown[]) => mockInsert(...args), // verification row uses upsert
+    }),
+  },
 }));
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // Default: verifyOtp succeeds
+  mockVerifyOtp.mockResolvedValue({ data: { user: { id: 'user-123' } }, error: null });
+  // Default: inserts succeed
+  mockInsert.mockResolvedValue({ error: null });
+  // Default: resend succeeds
+  mockResend.mockResolvedValue({ error: null });
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -115,16 +138,58 @@ describe('VerifyScreen — navigation', () => {
     expect(mockPush).toHaveBeenCalledWith('/signup');
   });
 
-  it('auto-submits to /id-verify when the 6th digit is entered', () => {
+  it('auto-submits to /id-verify when the 6th digit is entered', async () => {
     fillDigits(6);
-    expect(mockPush).toHaveBeenCalledWith('/id-verify');
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/id-verify'));
   });
 
-  it('Verify button navigates to /id-verify when pressed with all 6 digits', () => {
+  it('Verify button navigates to /id-verify when pressed with all 6 digits', async () => {
     fillDigits(6);
-    jest.clearAllMocks(); // auto-submit may have already fired; test the button independently
+    // Wait for auto-submit to finish so isSubmittingRef resets to false
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/id-verify'));
+    jest.clearAllMocks();
     fireEvent.press(screen.getByRole('button', { name: 'Verify' }));
-    expect(mockPush).toHaveBeenCalledWith('/id-verify');
-    expect(mockPush).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/id-verify'));
+    expect(mockReplace).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ─── Verify errors ────────────────────────────────────────────────────────────
+
+describe('VerifyScreen — verify errors', () => {
+  beforeEach(() => render(<VerifyScreen />));
+
+  it('shows an error message when verifyOtp returns an error', async () => {
+    mockVerifyOtp.mockResolvedValueOnce({
+      data:  { user: null },
+      error: { message: 'Invalid OTP' },
+    });
+    fillDigits(6);
+    await waitFor(() => expect(screen.getByText('Invalid OTP')).toBeTruthy());
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+});
+
+// ─── DB inserts ───────────────────────────────────────────────────────────────
+
+describe('VerifyScreen — DB inserts', () => {
+  beforeEach(() => render(<VerifyScreen />));
+
+  it('inserts into public.users and public.verification on successful verify', async () => {
+    fillDigits(6);
+    await waitFor(() => expect(mockInsert).toHaveBeenCalledTimes(2));
+  });
+});
+
+// ─── Resend ───────────────────────────────────────────────────────────────────
+
+describe('VerifyScreen — resend supabase call', () => {
+  it('calls supabase.auth.resend with the correct email and type', () => {
+    render(<VerifyScreen />);
+    fireEvent.press(screen.getByRole('button', { name: 'Resend code' }));
+    expect(mockResend).toHaveBeenCalledWith({
+      email: 'test@ucd.ie',
+      type:  'signup',
+    });
   });
 });

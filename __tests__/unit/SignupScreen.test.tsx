@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react-native';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
 import SignupScreen from '../../app/signup';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -9,8 +9,19 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush }),
 }));
 
+const mockSignInWithOtp = jest.fn();
+jest.mock('../../lib/supabase', () => ({
+  supabase: {
+    auth: {
+      signInWithOtp: (...args: unknown[]) => mockSignInWithOtp(...args),
+    },
+  },
+}));
+
 beforeEach(() => {
   jest.clearAllMocks();
+  // Default: signInWithOtp succeeds with no error
+  mockSignInWithOtp.mockResolvedValue({ data: {}, error: null });
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -188,24 +199,45 @@ describe('SignupScreen — location pills', () => {
 describe('SignupScreen — navigation', () => {
   beforeEach(() => render(<SignupScreen />));
 
-  it('Continue when valid calls router.push to /verify with email param', () => {
+  it('Continue when valid calls router.push to /verify with email param', async () => {
     fillAll('ROI');
     fireEvent.press(screen.getByRole('button', { name: 'Continue' }));
-    expect(mockPush).toHaveBeenCalledWith({
-      pathname: '/verify',
-      params: { email: 'jane@ucd.ie' },
-    });
+    await waitFor(() =>
+      expect(mockPush).toHaveBeenCalledWith({
+        pathname: '/verify',
+        params: { email: 'jane@ucd.ie' },
+      }),
+    );
   });
 
-  it('Continue when valid calls router.push exactly once', () => {
+  it('Continue when valid calls router.push exactly once', async () => {
     fillAll('ROI');
     fireEvent.press(screen.getByRole('button', { name: 'Continue' }));
-    expect(mockPush).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(mockPush).toHaveBeenCalledTimes(1));
   });
 
   it('pressing Continue when disabled does not call router.push', () => {
     // button is disabled — onPress is suppressed by Button component
     fireEvent.press(screen.getByRole('button', { name: 'Continue' }));
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+});
+
+// ─── Signup errors ────────────────────────────────────────────────────────────
+
+describe('SignupScreen — signup errors', () => {
+  beforeEach(() => render(<SignupScreen />));
+
+  it('shows an error message when signInWithOtp returns an error', async () => {
+    mockSignInWithOtp.mockResolvedValueOnce({
+      data:  {},
+      error: { message: 'Email already registered' },
+    });
+    fillAll('ROI');
+    fireEvent.press(screen.getByRole('button', { name: 'Continue' }));
+    await waitFor(() =>
+      expect(screen.getByText('Email already registered')).toBeTruthy(),
+    );
     expect(mockPush).not.toHaveBeenCalled();
   });
 });

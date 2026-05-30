@@ -1,15 +1,15 @@
 /**
  * app/id-verify.tsx
  *
- * ID + selfie verification screen — Stage 18.
- * Launches the Stripe Identity verification sheet.
+ * ID + selfie verification screen.
  *
- * Success  → writes verification row to Supabase, refreshes AuthContext, then /profile-setup
- * Cancel   → dismissible info message (no navigation; sheet closes)
- * Error    → dismissible error message in Colors.sos
+ * Phase 15: wire real Stripe Identity verification via @stripe/stripe-identity-react-native.
+ * For beta: tapping "Start verification" writes the verification row directly and proceeds,
+ * so the rest of the onboarding flow (profile setup → tabs) is fully testable end-to-end.
  *
- * TODO Phase 15: obtain a real verificationSessionId + ephemeralKeySecret
- * from a Supabase Edge Function that calls the Stripe Identity API server-side.
+ * The @stripe/stripe-react-native@0.65+ package moved presentIdentityVerificationSheet
+ * to a separate @stripe/stripe-identity-react-native package. That integration is
+ * deferred to Phase 15 alongside the Supabase Edge Function for session creation.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -20,7 +20,6 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useStripe } from '@stripe/stripe-react-native';
 import Button from '../components/Button';
 import { Colors, Typography, Spacing } from '../constants/theme';
 import { supabase } from '../lib/supabase';
@@ -30,7 +29,6 @@ import { useAuth } from '../context/AuthContext';
 
 export default function IdVerifyScreen() {
   const router  = useRouter();
-  const { presentIdentityVerificationSheet } = useStripe();
   const { user, isLoading: authLoading, refreshVerification } = useAuth();
 
   const [message, setMessage] = useState<string | null>(null);
@@ -51,39 +49,33 @@ export default function IdVerifyScreen() {
     setMessage(null);
 
     try {
-      // TODO Phase 15: fetch verificationSessionId + ephemeralKeySecret from
-      // a Supabase Edge Function that calls the Stripe Identity API server-side.
-      const verificationSessionId = '';
-      const ephemeralKeySecret    = '';
+      // TODO Phase 15: replace this block with real Stripe Identity verification:
+      //   1. Call a Supabase Edge Function to obtain verificationSessionId + ephemeralKeySecret
+      //   2. Use @stripe/stripe-identity-react-native to present the verification sheet
+      //   3. Only write the row below after a successful Stripe result
 
-      const { error } = await presentIdentityVerificationSheet({
-        verificationSessionId,
-        ephemeralKeySecret,
-      });
+      // Beta placeholder — write verified status directly so onboarding can proceed
+      if (user) {
+        const { error: upsertError } = await supabase.from('verification').upsert({
+          user_id:         user.id,
+          id_verified:     true,
+          selfie_verified: true,
+          verified_at:     new Date().toISOString(),
+        }, { onConflict: 'user_id' });
 
-      if (!error) {
-        // Write verified status to Supabase, then refresh the AuthContext so
-        // isVerified becomes true for subsequent SplashScreen routing.
-        if (user) {
-          await supabase.from('verification').upsert({
-            user_id:        user.id,
-            id_verified:    true,
-            selfie_verified: true,
-            verified_at:    new Date().toISOString(),
-          });
-          void refreshVerification();
+        if (upsertError) {
+          setIsError(true);
+          setMessage(upsertError.message ?? 'Something went wrong. Please try again.');
+          return;
         }
-        router.replace('/profile-setup');
-        return;
+
+        void refreshVerification();
       }
 
-      if (error.code === 'Canceled') {
-        setIsError(false);
-        setMessage('Verification is required to use htwa.');
-      } else {
-        setIsError(true);
-        setMessage(error.message ?? 'Something went wrong. Please try again.');
-      }
+      router.replace('/profile-setup');
+    } catch (e: unknown) {
+      setIsError(true);
+      setMessage(e instanceof Error ? e.message : 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }

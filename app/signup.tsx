@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import { supabase } from '../lib/supabase';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { Colors, FontFamily, Typography, Spacing, BorderRadius } from '../constants/theme';
@@ -26,6 +27,8 @@ const CURRENCY_MAP: Record<HomeLocation, Currency> = {
 };
 
 // ─── AsyncStorage keys ────────────────────────────────────────────────────────
+const STORAGE_FULL_NAME     = 'htwa:fullName';
+const STORAGE_PHONE         = 'htwa:phone';
 const STORAGE_HOME_LOCATION = 'htwa:homeLocation';
 const STORAGE_CURRENCY      = 'htwa:currency';
 
@@ -43,6 +46,10 @@ export default function SignupScreen() {
   // currency is derived from homeLocation — persisted to AsyncStorage on continue
   const [currency, setCurrency]         = useState<Currency | null>(null);
 
+  // ── Async state ─────────────────────────────────────────────────────────────
+  const [signupError,  setSignupError]  = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   // ── Handlers ─────────────────────────────────────────────────────────────────
   const handleSelectLocation = (location: HomeLocation) => {
     setHomeLocation(location);
@@ -55,12 +62,29 @@ export default function SignupScreen() {
     [fullName, email, phone, university, homeLocation],
   );
 
-  const handleContinue = () => {
-    // TODO Stage 20: move to auth context after Supabase session is established
-    void AsyncStorage.setItem(STORAGE_HOME_LOCATION, homeLocation ?? '');
-    void AsyncStorage.setItem(STORAGE_CURRENCY,      currency      ?? '');
-    // TODO Stage 20: call supabase.auth.signUp({ email, password, phone }) then pass email to /verify
-    router.push({ pathname: '/verify', params: { email } });
+  const handleContinue = async () => {
+    setSignupError(null);
+    setIsSubmitting(true);
+    try {
+      // signInWithOtp sends a 6-digit code (not a magic link) when the
+      // Supabase "Magic Link" email template uses {{ .Token }}.
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { data: { full_name: fullName, phone } },
+      });
+      if (error) {
+        setSignupError(error.message);
+        return;
+      }
+      // Persist user data for the verify step
+      void AsyncStorage.setItem(STORAGE_FULL_NAME,     fullName);
+      void AsyncStorage.setItem(STORAGE_PHONE,         phone);
+      void AsyncStorage.setItem(STORAGE_HOME_LOCATION, homeLocation ?? '');
+      void AsyncStorage.setItem(STORAGE_CURRENCY,      currency      ?? '');
+      router.push({ pathname: '/verify', params: { email } });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -172,10 +196,15 @@ export default function SignupScreen() {
       {/* ── Continue button ────────────────────────────────────────────────── */}
       <Button
         title="Continue"
-        disabled={!isValid}
+        disabled={!isValid || isSubmitting}
         onPress={handleContinue}
         style={styles.continueButton}
       />
+
+      {/* ── Signup error ───────────────────────────────────────────────────── */}
+      {signupError && (
+        <Text style={styles.errorText}>{signupError}</Text>
+      )}
 
     </ScrollView>
   );
@@ -284,5 +313,13 @@ const styles = StyleSheet.create({
   continueButton: {
     marginTop: Spacing.xxxl,
     width: '100%',
+  },
+
+  // Inline error below the Continue button
+  errorText: {
+    ...Typography.bodySmall,
+    color: Colors.sos,
+    marginTop: Spacing.sm,
+    textAlign: 'center',
   },
 });

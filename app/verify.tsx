@@ -7,9 +7,11 @@ import {
   StyleSheet,
   ScrollView,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Button } from '../components/Button';
 import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
+import { supabase } from '../lib/supabase';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -26,20 +28,67 @@ export default function VerifyScreen() {
   const [digits,       setDigits]       = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const [cooldown,     setCooldown]     = useState(0);
+  const [verifyError,  setVerifyError]  = useState<string | null>(null);
 
   // ── Refs ────────────────────────────────────────────────────────────────────
-  const inputRefs   = useRef<(TextInput | null)[]>(Array(OTP_LENGTH).fill(null));
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const inputRefs      = useRef<(TextInput | null)[]>(Array(OTP_LENGTH).fill(null));
+  const intervalRef    = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isSubmittingRef = useRef(false);
 
   const isComplete = digits.every(d => d.length === 1);
+
+  // ── Verify OTP, insert DB rows, then navigate ─────────────────────────────
+  const verifyCode = async () => {
+    if (isSubmittingRef.current || !isComplete) return;
+    isSubmittingRef.current = true;
+    setVerifyError(null);
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token: digits.join(''),
+        type:  'email',
+      });
+      if (error || !data.user) {
+        setVerifyError(error?.message ?? 'Verification failed');
+        return;
+      }
+      // Read user data saved by the signup screen
+      const [fullName, phone, homeLocation, currency] = await Promise.all([
+        AsyncStorage.getItem('htwa:fullName'),
+        AsyncStorage.getItem('htwa:phone'),
+        AsyncStorage.getItem('htwa:homeLocation'),
+        AsyncStorage.getItem('htwa:currency'),
+      ]);
+      // Create the user profile row
+      await supabase.from('users').insert({
+        id:            data.user.id,
+        email,
+        phone:         phone         ?? '',
+        full_name:     fullName      ?? '',
+        home_location: homeLocation  ?? '',
+        currency:      currency      ?? '',
+      });
+      // Create the verification row (starts unverified — completed by id-verify screen).
+      // Use upsert so re-verification after a failed attempt doesn't duplicate the row.
+      await supabase.from('verification').upsert({
+        user_id:         data.user.id,
+        id_verified:     false,
+        selfie_verified: false,
+      }, { onConflict: 'user_id' });
+      router.replace('/id-verify');
+    } catch {
+      setVerifyError('Something went wrong. Please try again.');
+    } finally {
+      isSubmittingRef.current = false;
+    }
+  };
 
   // ── Auto-submit when all 6 digits are entered ───────────────────────────────
   useEffect(() => {
     if (isComplete) {
-      // TODO Stage 20: call supabase.auth.verifyOtp({ email, token: digits.join(''), type: 'email' })
-      router.push('/id-verify');
+      void verifyCode();
     }
-    // router is intentionally omitted — useRouter() returns a stable ref in Expo Router
+    // verifyCode is defined at component scope and captures stable refs
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isComplete]);
 
@@ -53,6 +102,7 @@ export default function VerifyScreen() {
   // ── Handlers ─────────────────────────────────────────────────────────────────
 
   const handleDigitChange = (index: number, value: string) => {
+    setVerifyError(null); // clear any previous error when the user retypes
     const digit = value.replace(/\D/g, '').slice(-1);
     const next  = [...digits];
     next[index] = digit;
@@ -70,12 +120,9 @@ export default function VerifyScreen() {
     }
   };
 
-  // TODO Stage 20: call supabase.auth.verifyOtp({ email, token: digits.join(''), type: 'email' })
-  const handleVerify = () => router.push('/id-verify');
-
-  // TODO Stage 20: call supabase.auth.resend({ email, type: 'signup' })
   const handleResend = () => {
     if (cooldown > 0) return;
+    // Start cooldown immediately for responsive UI
     setCooldown(RESEND_COOLDOWN_SECONDS);
     intervalRef.current = setInterval(() => {
       setCooldown(prev => {
@@ -86,6 +133,8 @@ export default function VerifyScreen() {
         return prev - 1;
       });
     }, 1000);
+    // Fire resend; ignore result — cooldown prevents spam
+    void supabase.auth.resend({ email, type: 'signup' });
   };
 
   const formatCooldown = (s: number) =>
@@ -137,9 +186,14 @@ export default function VerifyScreen() {
       <Button
         title="Verify"
         disabled={!isComplete}
-        onPress={handleVerify}
+        onPress={verifyCode}
         style={styles.verifyButton}
       />
+
+      {/* ── Verify error ────────────────────────────────────────────────────── */}
+      {verifyError && (
+        <Text style={styles.errorText}>{verifyError}</Text>
+      )}
 
       {/* ── Resend ──────────────────────────────────────────────────────────── */}
       <TouchableOpacity
@@ -233,6 +287,14 @@ const styles = StyleSheet.create({
   },
   resendTextCooldown: {
     color: Colors.textTertiary,
+  },
+
+  // Inline error below the Verify button
+  errorText: {
+    ...Typography.bodySmall,
+    color: Colors.sos,
+    marginBottom: Spacing.lg,
+    textAlign: 'center',
   },
 
   // Wrong email link

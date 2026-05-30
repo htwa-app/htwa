@@ -4,6 +4,64 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 30 May 2026 (Session 23)
+
+### What Was Built / Changed
+
+**Stage 20 complete — full Supabase auth wired end-to-end and verified on simulator**
+
+**Stage 20A — Auth Context & Session Management**
+- `context/AuthContext.tsx` — new file: `AuthProvider` + `useAuth()` hook exposing `user`, `session`, `isLoading`, `isVerified`, `refreshVerification()`
+- `app/_layout.tsx` — wrapped `<Stack>` in `<AuthProvider>` inside existing `<StripeProvider>`
+- `app/screens/SplashScreen.tsx` — replaced AsyncStorage `checkAuth` with `useAuth()` routing: loading→stay, no session→`/login`, session+!isVerified→`/id-verify`, session+isVerified→`/(tabs)`
+- `__tests__/unit/AuthContext.test.tsx` — 15 new tests (loading, no session, verified, unverified, partial, subscribe/unsubscribe)
+- `__tests__/unit/SplashScreen.test.tsx` — updated to mock `useAuth` instead of AsyncStorage
+
+**Stage 20B — Sign Up & OTP**
+- `app/signup.tsx` — replaced `signUp` with `signInWithOtp` (sends 6-digit code, not magic link); async `handleContinue`; `signupError` + `isSubmitting` state; saves fullName/phone to AsyncStorage
+- `app/verify.tsx` — wired `supabase.auth.verifyOtp`; inserts into `public.users` + `public.verification` (upsert with `onConflict: 'user_id'`); resend wired to `supabase.auth.resend`; `verifyError` state; `isSubmittingRef` guard
+- `__tests__/unit/SignupScreen.test.tsx` — supabase mock, async navigation tests, error test
+- `__tests__/unit/VerifyScreen.test.tsx` — supabase mock, async navigation, error, DB insert, resend tests
+
+**Stage 20C — Profile Persistence & Auth Cleanup**
+- `context/AuthContext.tsx` — added `refreshVerification()` to re-fetch verification status without waiting for auth state change event
+- `app/id-verify.tsx` — removed `presentIdentityVerificationSheet` (moved to `@stripe/stripe-identity-react-native` in v0.65+, deferred to Phase 15); beta flow: upsert with `onConflict: 'user_id'` → `refreshVerification()` → `/profile-setup`; null-user guard redirects to `/login`
+- `app/profile-setup.tsx` — async `handleSave`: `supabase.from('profiles').upsert(...)`; AsyncStorage kept as local cache; `saveError` + `isSaving` state
+- `app/login.tsx`, `signin-email/apple/google/mobile.tsx` — all `TODO Stage 20` comments updated to `TODO Phase 15`
+- `supabase/migrations/20260530000001_verification_rls_update.sql` — new migration: `CREATE POLICY "Users can update own verification"` (required for upsert UPDATE operations)
+- `__tests__/unit/ProfileSetupScreen.test.tsx` — supabase upsert mock, async navigation, error test, skip no-call test
+- `__tests__/unit/IdVerifyScreen.test.tsx` — full rewrite: useAuth mock, supabase upsert mock, null-user guard test, upsert assertion
+
+**Stripe upgrade**
+- `@stripe/stripe-react-native` upgraded `0.50.3` → `0.65.1` to fix `STPPaymentStatus` enum bridging error on Xcode 26
+
+**Final test count: 523 (all passing)**
+
+### Decisions Made
+
+- `signInWithOtp` replaces `signUp` for email auth — sends a 6-digit code when the Supabase "Magic Link" email template uses `{{ .Token }}`; magic link was the default and doesn't work with the OTP entry screen
+- Stripe Identity (`presentIdentityVerificationSheet`) deferred to Phase 15 — moved to separate `@stripe/stripe-identity-react-native` package in Stripe RN v0.56+. Beta flow: tapping "Start verification" writes the verification row directly, allowing end-to-end onboarding testing without real Stripe Identity
+- `upsert` with `{ onConflict: 'user_id' }` required on all `verification` table writes — without `onConflict`, Supabase generates a new `id` UUID and tries to INSERT, hitting the unique constraint on `user_id`
+- RLS UPDATE policy missing on `verification` table — `upsert` = INSERT on first call, UPDATE on subsequent calls; the original migration only had INSERT + SELECT policies; fix: new migration + SQL run in dashboard
+- All `TODO Stage 20` comments resolved: email auth live, OAuth (Apple/Google/mobile) deferred to Phase 15
+
+### iOS Build Issues Encountered & Fixed (Xcode 26 + React Native 0.81.5)
+
+1. **`LANG` not set** → CocoaPods 1.16.2 + Ruby 4.0 crash. Fix: prefix with `LANG=en_US.UTF-8`. Permanent: add `export LANG=en_US.UTF-8` to `~/.zshrc`
+2. **Hermes framework not extracted** → `hermes-engine` pod downloads `.tar.gz` artifacts but the build phase script doesn't extract them reliably. Fix: manually run `tar -xzf hermes-ios-0.81.5-debug.tar.gz -C destroot --strip-components=1` from `ios/Pods/hermes-engine/` before each build. Must be re-done after every clean pod install
+3. **`STPPaymentStatus` enum redeclared** → Xcode 26 strict Swift/ObjC bridging rejects type mismatch in `@stripe/stripe-react-native@0.50.3`. Fix: upgrade to `0.65.1`
+4. **Missing Stripe locale/privacy files** → Incomplete pod install (network issue). Fix: delete Pods + Podfile.lock, run `LANG=en_US.UTF-8 pod install --repo-update`
+5. **Wrong working directory** → Running `npx expo run:ios` from inside `ios/Pods/hermes-engine/` causes Expo to treat that as the project root. Always `cd /Users/jordanmadden/Documents/HTWA` first
+
+### Next Steps
+
+- Commit all Stage 20 changes on `feat/auth` and open/update PR #5
+- Update Supabase "Magic Link" email template to use `{{ .Token }}` (if not already done)
+- Build remaining screens: Search results, Ride Offer flow, Driver Profile, Live Trip screen
+- Phase 15 (later): real Stripe Identity via `@stripe/stripe-identity-react-native` + Supabase Edge Function; Apple/Google/mobile OAuth
+
+---
+
 ## 13 May 2026 (Session 21)
 
 ### What Was Built / Changed

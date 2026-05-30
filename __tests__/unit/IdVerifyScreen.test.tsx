@@ -1,7 +1,10 @@
 /**
  * __tests__/unit/IdVerifyScreen.test.tsx
  *
- * Unit tests for app/id-verify.tsx (Stage 20C).
+ * Unit tests for app/id-verify.tsx (Stage 20C / beta placeholder).
+ *
+ * Stripe Identity is deferred to Phase 15. The screen now writes the
+ * verification row directly on button press (beta flow).
  */
 
 import React from 'react';
@@ -14,14 +17,6 @@ const mockPush    = jest.fn();
 const mockReplace = jest.fn();
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: mockReplace }),
-}));
-
-const mockPresentIdentityVerificationSheet = jest.fn();
-jest.mock('@stripe/stripe-react-native', () => ({
-  useStripe: () => ({
-    presentIdentityVerificationSheet: mockPresentIdentityVerificationSheet,
-  }),
-  StripeProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 const mockRefreshVerification = jest.fn();
@@ -39,8 +34,6 @@ jest.mock('../../lib/supabase', () => ({
 
 beforeEach(() => {
   jest.clearAllMocks();
-  // Default: successful verification (no error)
-  mockPresentIdentityVerificationSheet.mockResolvedValue({ error: undefined });
   // Default: logged-in user
   mockUseAuth.mockReturnValue({
     user:                { id: 'user-123' },
@@ -102,90 +95,18 @@ describe('IdVerifyScreen — auth guard', () => {
   });
 });
 
-// ─── Cancel ───────────────────────────────────────────────────────────────────
-
-describe('IdVerifyScreen — cancel', () => {
-  it('shows the cancel info message when user cancels verification', async () => {
-    mockPresentIdentityVerificationSheet.mockResolvedValue({
-      error: { code: 'Canceled', message: 'User canceled' },
-    });
-
-    render(<IdVerifyScreen />);
-    fireEvent.press(screen.getByRole('button', { name: 'Start verification' }));
-
-    await waitFor(() => {
-      expect(screen.getByTestId('id-verify-message')).toBeTruthy();
-    });
-
-    expect(screen.getByText('Verification is required to use htwa.')).toBeTruthy();
-  });
-
-  it('does not navigate when user cancels', async () => {
-    mockPresentIdentityVerificationSheet.mockResolvedValue({
-      error: { code: 'Canceled', message: 'User canceled' },
-    });
-
-    render(<IdVerifyScreen />);
-    fireEvent.press(screen.getByRole('button', { name: 'Start verification' }));
-
-    await waitFor(() => {
-      expect(screen.getByTestId('id-verify-message')).toBeTruthy();
-    });
-
-    expect(mockReplace).not.toHaveBeenCalledWith('/profile-setup');
-  });
-});
-
-// ─── Error ────────────────────────────────────────────────────────────────────
-
-describe('IdVerifyScreen — error', () => {
-  it('shows the error message when verification fails', async () => {
-    mockPresentIdentityVerificationSheet.mockResolvedValue({
-      error: { code: 'Failed', message: 'Network error' },
-    });
-
-    render(<IdVerifyScreen />);
-    fireEvent.press(screen.getByRole('button', { name: 'Start verification' }));
-
-    await waitFor(() => {
-      expect(screen.getByTestId('id-verify-message')).toBeTruthy();
-    });
-
-    expect(screen.getByText('Network error')).toBeTruthy();
-  });
-
-  it('does not navigate when verification errors', async () => {
-    mockPresentIdentityVerificationSheet.mockResolvedValue({
-      error: { code: 'Failed', message: 'Network error' },
-    });
-
-    render(<IdVerifyScreen />);
-    fireEvent.press(screen.getByRole('button', { name: 'Start verification' }));
-
-    await waitFor(() => {
-      expect(screen.getByTestId('id-verify-message')).toBeTruthy();
-    });
-
-    expect(mockReplace).not.toHaveBeenCalledWith('/profile-setup');
-  });
-});
-
 // ─── Success ──────────────────────────────────────────────────────────────────
 
 describe('IdVerifyScreen — success', () => {
   it('navigates to /profile-setup on successful verification', async () => {
     render(<IdVerifyScreen />);
     fireEvent.press(screen.getByRole('button', { name: 'Start verification' }));
-
-    await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/profile-setup');
-    });
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/profile-setup'));
   });
 
-  it('upserts verification status to Supabase on successful verification', async () => {
+  it('upserts verification status to Supabase on press', async () => {
     render(<IdVerifyScreen />);
     fireEvent.press(screen.getByRole('button', { name: 'Start verification' }));
-
     await waitFor(() => expect(mockUpsert).toHaveBeenCalledTimes(1));
     expect(mockUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -193,15 +114,38 @@ describe('IdVerifyScreen — success', () => {
         id_verified:     true,
         selfie_verified: true,
       }),
+      { onConflict: 'user_id' },
     );
   });
 
-  it('calls presentIdentityVerificationSheet exactly once per press', async () => {
+  it('calls refreshVerification after upsert', async () => {
     render(<IdVerifyScreen />);
     fireEvent.press(screen.getByRole('button', { name: 'Start verification' }));
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/profile-setup'));
+    expect(mockRefreshVerification).toHaveBeenCalled();
+  });
+});
 
-    await waitFor(() => {
-      expect(mockPresentIdentityVerificationSheet).toHaveBeenCalledTimes(1);
-    });
+// ─── Error ────────────────────────────────────────────────────────────────────
+
+describe('IdVerifyScreen — error', () => {
+  it('shows an error message when upsert fails', async () => {
+    mockUpsert.mockResolvedValueOnce({ error: { message: 'Database error' } });
+    render(<IdVerifyScreen />);
+    fireEvent.press(screen.getByRole('button', { name: 'Start verification' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('id-verify-message')).toBeTruthy(),
+    );
+    expect(screen.getByText('Database error')).toBeTruthy();
+  });
+
+  it('does not navigate when upsert fails', async () => {
+    mockUpsert.mockResolvedValueOnce({ error: { message: 'Database error' } });
+    render(<IdVerifyScreen />);
+    fireEvent.press(screen.getByRole('button', { name: 'Start verification' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('id-verify-message')).toBeTruthy(),
+    );
+    expect(mockReplace).not.toHaveBeenCalledWith('/profile-setup');
   });
 });
