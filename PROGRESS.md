@@ -212,7 +212,7 @@ Entries are added at the top. Most recent session is always first.
 - CodeRabbit fixes actioned on feat/auth:
   - lib/supabase.ts and supabase.test.ts — items 1 and 2 already fixed in PR #7, skipped
   - supabase/migrations/20260509000001_create_user_tables.sql — added missing INSERT RLS policies for users and verification tables; policies also executed live in Supabase SQL editor
-  - types/database.ts — "htwa" → "htwa" in header comment
+  - types/database.ts — "HTWA" → "htwa" in header comment
   - PROGRESS.md — already MD022 compliant, skipped
 - 497 tests, all passing
 - Stage 17 complete: OTP verification screen (app/verify.tsx)
@@ -670,7 +670,7 @@ All values from `constants/theme.ts`. The 4 values absent from the §1 palette (
   - **Logo mark** — teal rounded-square app icon, white Poppins 700, amber dot on the full stop; used in nav, hero, and footer
   - **Three-column desktop hero** (full viewport height, vertically centred):
     - Left: hand-coded SVG map of the island of Ireland — faint teal fill, 8 animated dashed route lines (Belfast→Dublin, Dublin→Cork, Galway→Dublin, Derry→Galway, Cork→Limerick, Limerick→Athlone, Athlone→Dublin, Kilkenny→Dublin) with amber arrowheads and staggered CSS flow animation; lavender city dots; city name labels
-    - Centre: logo mark (large), "Heading That Way Anyway?" tagline, subtext, MailerLite embedded form (`p3xCkw`) with full CSS overrides (teal pill submit button, rounded inputs, transparent background), three trust badges (ID Verified green, Women-only lavender, Always cheaper amber)
+    - Centre: logo mark (large), "heading that way anyway." tagline, subtext, MailerLite embedded form (`p3xCkw`) with full CSS overrides (teal pill submit button, rounded inputs, transparent background), three trust badges (ID Verified green, Women-only lavender, Always cheaper amber)
     - Right: phone frame mockup in pure HTML/CSS — profile screen with avatar, verified badge, 4.95 star rating, stats, "this semester" teal savings card, two journey cards, one review
   - **Mobile-first layout** — below 900px: map and phone hidden entirely; single-column form (heading + subtext + form + badges), full width
   - **Three feature cards** below hero: Share my journey (teal), Women-only journeys (lavender), ID verified (green)
@@ -702,7 +702,7 @@ All values from `constants/theme.ts`. The 4 values absent from the §1 palette (
 - **`constants/theme.ts`** — complete design token file; every colour, typography style, spacing value, border radius, and shadow from DESIGN-SPEC.md exported as named TypeScript constants with JSDoc; single source of truth for all future screens and components
 - **`website/index.html`** — full landing page for htwa-app.com:
   - Sticky nav with htwa logo and "Join the waitlist" CTA
-  - Hero: "Heading That Way Anyway?" headline, tagline, social proof avatar stack
+  - Hero: "heading that way anyway." headline, tagline, social proof avatar stack
   - Waitlist form: name, email, university dropdown (ROI + NI universities), ROI/NI region toggle — submits to Supabase REST API
   - "How it works" section — 3 steps (verify, find/offer, travel safely)
   - Safety features grid — Share my journey (teal), Women-only mode (lavender), Verified IDs (green), Silent SOS (red)

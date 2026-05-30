@@ -190,9 +190,11 @@ This folder (`~/Documents/HTWA/`) is the **shared workspace** between Cowork and
 - [x] Full end-to-end auth flow verified on iPhone 17 Pro simulator (iOS 26.4): Login → Sign Up → OTP → ID Verify → Profile Setup → Tabs
 
 ### In Progress
+
 - [ ] PR on `feat/auth` — Stage 20 changes ready to push/merge
 
 ### Next Up
+
 - [ ] Commit Stage 20 changes and push/merge `feat/auth`
 - [ ] Set up Stripe Connect account
 - [ ] Build remaining screens: Search results, Ride Offer flow, Driver Profile, Live Trip
