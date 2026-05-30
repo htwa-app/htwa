@@ -4,6 +4,64 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 30 May 2026 (Session 25)
+
+### What Was Built / Changed
+
+**1Password credential management set up end-to-end, and the standing rules relaxed to allow credential use.**
+
+- **Standing rule change (CLAUDE.md)** — new **rule #5: "Project service credentials — OK to use freely."** Claude may now read/use stored project credentials (1Password + `.env.local`) to operate Supabase, Stripe, GitHub, MailerLite without asking each time. PROGRESS.md requirement renumbered to #6. **Deliberately NOT relaxed:** payments (rule 1 — every transaction still needs explicit approval), personal email (rule 2), personal social (rule 3), credential-sharing with third parties (rule 4). Jordan was offered all four relaxations and chose only the credential-use one.
+- **1Password CLI + desktop app installed** — `brew install 1password-cli` (`op` v2.34.0) and `brew install --cask 1password` (v8.12.21). Jordan signed into the desktop app and enabled **Settings → Developer → Integrate with 1Password CLI** (Touch ID bridge). Account: `hello@htwa-app.com` on **`my.1password.eu`** (EU server — this was the cause of the earlier desktop sign-in failures, which kept defaulting to `.com`).
+- **`HTWA` vault created** (empty for now); the three sensitive keys live in the **Personal** vault as API Credential items, value stored in each item's **`password`** field:
+  - `htwa supabase API key` → Supabase `sb_secret_…` project secret key (new-format service_role replacement)
+  - `htwa stripe API key` → Stripe `sk_test_…` secret key
+  - `htwa mailerlite API key` → MailerLite API token (JWT, ~988 chars)
+- **`.secrets.env` created** (gitignored) — maps env-var names to `op://` references (pointers only, no real secrets). Workflow: `op run --env-file=.secrets.env -- <command>` injects `SUPABASE_SECRET_KEY`, `STRIPE_SECRET_KEY`, `MAILERLITE_API_KEY` for that process only; nothing written to disk.
+- **`.gitignore`** — added `.secrets.env`.
+- **CLAUDE.md** — added "Secrets & Credentials (1Password)" subsection documenting the full workflow + the no-print/`wc -c`-to-verify rule; marked 1Password CLI ✅ in tool stack; added decisions-log row.
+- **All three keys live-validated** (read-only, values never printed): Stripe `GET /v1/account` → 200; MailerLite `GET /api/subscribers` → 200; Supabase `GET {project}/rest/v1/` with `sb_secret` key → 200.
+
+**Zero-friction upgrade (Jordan didn't want a Touch ID prompt on every access):**
+
+- **Service Account created** — `htwa-claude-ci`, **read-only scoped to the HTWA vault only**. Plan supports it (token 816 chars). Token saved to `~/.config/op/htwa-sa.token` (perms `600`); the temp JSON was deleted, value never printed.
+- **3 keys moved Personal → HTWA vault** (so the HTWA-scoped token can read them); `.secrets.env` references updated `Personal` → `HTWA`. Item IDs changed on move; references are by name so still resolve.
+- **`~/.zshenv`** now exports `OP_SERVICE_ACCOUNT_TOKEN` from the token file → every `op` command runs **silently, no biometric**. Verified end-to-end in a fresh shell: `op run` resolved the Stripe key and hit `GET /v1/account` → 200 with **no prompt**.
+- Writes to 1Password (item create/edit/move) still need the desktop-app integration (Touch ID) — the read-only token can't write; `unset OP_SERVICE_ACCOUNT_TOKEN` in a shell to fall back to the app.
+
+### Decisions Made
+
+- Claude may use stored project credentials without per-action approval; payments/email/social guardrails untouched.
+- **Zero-friction credential access via a read-only HTWA-scoped Service Account token** auto-loaded from `~/.zshenv`. Trade-off accepted by Jordan: combined with `bypassPermissions`, this is unattended no-confirmation **read** access to the 3 keys. Revoke by deleting the service account + removing the `~/.zshenv` line.
+- Keys migrated from Personal → **HTWA** vault (least-privilege scoping for the token).
+- Sensitive keys live in 1Password and are referenced via `op://`, never in `.env.local` or git. Public `EXPO_PUBLIC_*` keys stay in `.env.local`.
+- Env var renamed `SUPABASE_SERVICE_ROLE_KEY` → `SUPABASE_SECRET_KEY` to match the actual `sb_secret_` key format.
+
+### Problems Encountered
+
+- **1Password desktop sign-in repeatedly failed** ("Unable to sign in") despite correct Secret Key + password — root cause: the account is on the **EU** server (`my.1password.eu`) but the app defaulted to `.com`. The `op` CLI app-integration picked up the correct region automatically once the desktop app was signed in.
+- **Master password was visible in plaintext** in a screenshot Jordan shared — flagged to him; Claude did not store/repeat it. Advised re-hiding before future screenshots.
+- **Hard limits restated honestly:** Claude cannot perform sign-ins (needs Jordan's master password / Touch ID), cannot use Claude-in-Chrome for the native 1Password app, and is barred from checking the verification email (rule #2).
+- **Keys initially in the wrong field** — saved in each item's `password` field, not `credential` (which was empty). References point at `password` accordingly.
+
+### Files Changed
+
+- `CLAUDE.md` — standing rule #5, Secrets & Credentials section (incl. service-account workflow + caveats), tool-stack + decisions-log updates
+- `.gitignore` — added `.secrets.env`
+- `.secrets.env` — created (gitignored; op:// references, now pointing at HTWA vault)
+- `~/.zshenv` (machine-global, not repo) — exports `OP_SERVICE_ACCOUNT_TOKEN` from the token file
+- `~/.config/op/htwa-sa.token` (machine-global, not repo, perms 600) — service-account token
+- Installed (not repo files): `1password-cli` v2.34.0, `1password` desktop app v8.12.21
+- 1Password account (Jordan's): created `HTWA` vault; 3 keys now in HTWA; service account `htwa-claude-ci` (read-only, HTWA)
+
+### Next Steps
+
+- Commit the CLAUDE.md / .gitignore changes (currently uncommitted on `main` — branch first per repo convention).
+- Use the new credentials to do real work: Supabase migrations via CLI, Stripe Connect setup, MailerLite automation.
+- Optionally migrate the three keys from Personal → HTWA vault and update the `op://` references.
+- Resume Phase 4: User Profiles (Stages 21–25).
+
+---
+
 ## 30 May 2026 (Session 24)
 
 ### What Was Built / Changed

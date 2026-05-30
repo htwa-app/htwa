@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx expo *)",
+      "Bash(LANG=en_US.UTF-8 xcodebuild -workspace ios/HTWA.xcworkspace -configuration Debug -scheme HTWA -destination id=27AF5930-2F2D-4F4F-9E6D-38ABC8DBC033)",
+      "Bash(rm -rf Pods Podfile.lock)",
+      "Bash(pod install *)",
+      "Bash(gh pr *)",
+      "Bash(gh api *)",
+      "Bash(awk 'BEGIN{p=\"\"} /^#{1,6} /{ if\\(prev!=\"\" \\) print \"MISSING-BLANK-BEFORE: line \" NR \": \" $0 } { prevprev=prev; prev=$0 } END{}' CLAUDE.md)",
+      "Bash(awk 'NR>1{ if\\(prevIsHeading && $0!=\"\" \\) print \"MISSING-BLANK-AFTER: line \" \\(NR-1\\) \": \" prev } { if\\($0 ~ /^#{1,6} /\\) prevIsHeading=1; else prevIsHeading=0; prev=$0 }' CLAUDE.md)",
+      "Bash(npm test *)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(echo \"=== exit: $? ===\")",
+      "Bash(git checkout *)",
+      "Bash(git pull *)",
+      "Bash(git fetch *)",
+      "Read(//Users/jordanmadden/.claude/**)",
+      "Bash(echo '{ *)"
+    ]
+  }
+}

@@ -80,6 +80,8 @@ export interface ProfileRow {
   university:           string | null;
   travel_preferences:   Record<string, unknown> | null;  // jsonb
   nominated_contact:    Record<string, unknown> | null;  // jsonb
+  vehicle_details:      Record<string, unknown> | null;  // jsonb — Stage 23
+  women_only_mode:      boolean;                         // Stage 25
 }
 
 export interface ProfileInsert {
@@ -89,6 +91,8 @@ export interface ProfileInsert {
   university?:           string | null;
   travel_preferences?:   Record<string, unknown> | null;
   nominated_contact?:    Record<string, unknown> | null;
+  vehicle_details?:      Record<string, unknown> | null;
+  women_only_mode?:      boolean;
 }
 
 export interface ProfileUpdate {
@@ -96,6 +100,8 @@ export interface ProfileUpdate {
   university?:           string | null;
   travel_preferences?:   Record<string, unknown> | null;
   nominated_contact?:    Record<string, unknown> | null;
+  vehicle_details?:      Record<string, unknown> | null;
+  women_only_mode?:      boolean;
 }
 
 // ─── Database (Supabase client generic) ───────────────────────────────────────

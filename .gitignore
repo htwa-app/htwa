@@ -35,6 +35,8 @@ yarn-error.*
 .env.*
 .env*.local
 !.env.example
+# 1Password op-run reference file (pointers only, but keep it local)
+.secrets.env
 
 # typescript
 *.tsbuildinfo
