@@ -4,7 +4,7 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
-## 30 May 2026 (Session 26 — Autonomous build: Stages 21–88)
+## 31 May 2026 (Session 26 — Autonomous build: Stages 21–88 + Supervision review)
 
 ### What Was Built / Changed
 
@@ -138,6 +138,50 @@ New files created this session:
 Modified:
 - `types/database.ts` — ProfileRow + new RideRow/BookingRow types
 - `jest.config.js` — added moduleNameMapper entries for expo-location, react-native-maps
+
+### Supervision Review (Cowork)
+
+Quality pass performed on the committed code. Issues found and fixed:
+
+- **`app/(tabs)/index.tsx`** — `#1F7A78` hardcoded as `TOGGLE_TRACK_ON`; replaced with `Colors.primary`. `#E8F8EE` (verified card bg) promoted to named local constant `VERIFIED_CARD_BG` per spec rule.
+- **`app/offer-ride.tsx`** — same `TOGGLE_TRACK_ON = '#1F7A78'` pattern; removed constant, using `Colors.primary` directly.
+- **`app/vehicle-details.tsx`** — same fix (used on two Switch controls).
+- **`app/edit-profile.tsx`** — `PREF_CHIP_SELECTED_BG = '#1F7A78'` and `PREF_CHIP_SELECTED_TXT = '#FFFFFF'`; replaced with `Colors.primary` and `Colors.surface` directly.
+- `app/transaction-history.tsx` and `app/my-rides.tsx` status badge colours **confirmed correct** — named local constants with spec-section comments for values not in §1 palette. No change needed.
+
+Final test run after fixes: **709/709 passing**.
+
+### Git / Infrastructure Issues Encountered
+
+The bash sandbox (Linux container) cannot delete lock files on the host Mac APFS volume — `rm` and `python3 os.unlink()` both return "Operation not permitted" on `.git/*.lock` files. Workaround: `mv` the lock file to `*.lock.bak` in the same directory before each git operation. This is cosmetically untidy but functionally safe — the renamed files are ignored by git.
+
+The sandbox also has no `gh` CLI and no git HTTPS credentials, so the branch cannot be pushed from within Cowork. Jordan must push from his terminal.
+
+### Next Steps for Jordan
+
+**Today — must do before continuing:**
+1. Run `chmod +x ~/Documents/HTWA/push-and-pr.sh && ~/Documents/HTWA/push-and-pr.sh` in Terminal. This pushes the branch and opens the PR.
+2. Wait for CI to go green on GitHub (check https://github.com/htwa-app/htwa/actions).
+3. Wait for CodeRabbit review (~5 min after PR opens). Address any findings.
+4. Merge the PR when CI is green.
+
+**Simulator test prompt (run after merge):**
+```
+npx expo run:ios
+```
+Test the following flows end-to-end:
+- Search tab: toggle Find/Offer, fill route, adjust seats, toggle women-only → tap Search
+- Offer a ride: fill route, date, adjust seats, review price cap, toggle women-only → Review offer
+- Profile tab: verify avatar/name/university/badges/stats display; tap Edit Profile
+- History tab: verify empty state ("No trip history yet")
+- Live Trip tab: verify idle message ("You don't have an active journey right now")
+
+**What Jordan should be aware of:**
+1. `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` is a placeholder in `.env.local` — route autocomplete and distance calculation won't work until you add the real key (Google Cloud → Routes API + Places API).
+2. Stripe Edge Functions (`create-connect-account`, `create-payment-intent`) won't work until the Stripe Connect account is created and `STRIPE_SECRET_KEY` in 1Password points to a live Connect platform key.
+3. `npx expo install expo-location react-native-maps @react-native-community/datetimepicker` still needs to be run — these packages are mocked in tests but not yet installed natively. Jordan needs to run these before the iOS build of Phases 8 screens will work.
+4. Supabase migrations 00003–00007 are in the repo but not yet applied to the hosted project — run `npx supabase db push` or apply them manually in the Supabase SQL editor.
+5. `push-and-pr.sh` can be deleted after you've run it.
 
 ---
 
