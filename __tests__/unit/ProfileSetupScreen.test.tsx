@@ -172,10 +172,13 @@ describe('ProfileSetupScreen — Supabase upsert', () => {
     fillBoth();
     fireEvent.press(screen.getByRole('button', { name: 'Save and continue' }));
     await waitFor(() =>
-      expect(mockUpsert).toHaveBeenCalledWith({
-        user_id:           'user-123',
-        nominated_contact: { name: 'Mam', phone: '+353 087 1234567' },
-      }),
+      expect(mockUpsert).toHaveBeenCalledWith(
+        {
+          user_id:           'user-123',
+          nominated_contact: { name: 'Mam', phone: '+353 087 1234567' },
+        },
+        { onConflict: 'user_id' },
+      ),
     );
   });
 

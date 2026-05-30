@@ -71,15 +71,19 @@ export default function ProfileSetupScreen() {
       const { error } = await supabase.from('profiles').upsert({
         user_id:           user.id,
         nominated_contact: { name: contactName.trim(), phone: contactPhone.trim() },
-      });
+      }, { onConflict: 'user_id' });
       if (error) {
         setSaveError(error.message);
         return;
       }
       // AsyncStorage kept as local cache — Supabase is source of truth
-      void AsyncStorage.setItem(STORAGE_CONTACT_NAME,  contactName.trim());
-      void AsyncStorage.setItem(STORAGE_CONTACT_PHONE, contactPhone.trim());
+      await Promise.all([
+        AsyncStorage.setItem(STORAGE_CONTACT_NAME,  contactName.trim()),
+        AsyncStorage.setItem(STORAGE_CONTACT_PHONE, contactPhone.trim()),
+      ]);
       router.replace('/(tabs)');
+    } catch (e: unknown) {
+      setSaveError(e instanceof Error ? e.message : 'Unable to save. Please try again.');
     } finally {
       setIsSaving(false);
     }

@@ -37,7 +37,7 @@ export function validateSignupForm({
   const phoneDigits = phone.replace(/\D/g, '');
   return (
     fullName.trim().length > 0 &&
-    validator.isEmail(email) &&
+    validator.isEmail(email.trim()) &&
     phoneDigits.length >= 9 &&
     university.trim().length > 0 &&
     homeLocation !== null

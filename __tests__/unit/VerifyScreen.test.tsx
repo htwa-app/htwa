@@ -113,18 +113,18 @@ describe('VerifyScreen — resend cooldown', () => {
     jest.useRealTimers();
   });
 
-  it('shows countdown text immediately after Resend is pressed', () => {
+  it('shows countdown text after Resend resolves successfully', async () => {
     jest.useFakeTimers();
     render(<VerifyScreen />);
     fireEvent.press(screen.getByRole('button', { name: 'Resend code' }));
-    expect(screen.getByText('Resend in 1:00')).toBeTruthy();
+    await waitFor(() => expect(screen.getByText('Resend in 1:00')).toBeTruthy());
   });
 
-  it('Resend button is disabled during the cooldown', () => {
+  it('Resend button is disabled during the cooldown', async () => {
     jest.useFakeTimers();
     render(<VerifyScreen />);
     fireEvent.press(screen.getByRole('button', { name: 'Resend code' }));
-    expect(screen.getByRole('button', { name: 'Resend in 1:00' })).toBeDisabled();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Resend in 1:00' })).toBeDisabled());
   });
 });
 

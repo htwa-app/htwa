@@ -45,6 +45,13 @@ export default function IdVerifyScreen() {
   // ─── Handler ────────────────────────────────────────────────────────────────
 
   const verifyIdentity = async () => {
+    // Guard: this should never happen (useEffect redirects to /login), but be safe
+    if (!user) {
+      setIsError(true);
+      setMessage('Not signed in. Please log in again.');
+      return;
+    }
+
     setLoading(true);
     setMessage(null);
 
@@ -55,23 +62,20 @@ export default function IdVerifyScreen() {
       //   3. Only write the row below after a successful Stripe result
 
       // Beta placeholder — write verified status directly so onboarding can proceed
-      if (user) {
-        const { error: upsertError } = await supabase.from('verification').upsert({
-          user_id:         user.id,
-          id_verified:     true,
-          selfie_verified: true,
-          verified_at:     new Date().toISOString(),
-        }, { onConflict: 'user_id' });
+      const { error: upsertError } = await supabase.from('verification').upsert({
+        user_id:         user.id,
+        id_verified:     true,
+        selfie_verified: true,
+        verified_at:     new Date().toISOString(),
+      }, { onConflict: 'user_id' });
 
-        if (upsertError) {
-          setIsError(true);
-          setMessage(upsertError.message ?? 'Something went wrong. Please try again.');
-          return;
-        }
-
-        void refreshVerification();
+      if (upsertError) {
+        setIsError(true);
+        setMessage(upsertError.message ?? 'Something went wrong. Please try again.');
+        return;
       }
 
+      void refreshVerification();
       router.replace('/profile-setup');
     } catch (e: unknown) {
       setIsError(true);

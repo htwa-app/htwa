@@ -60,7 +60,7 @@ export default function VerifyScreen() {
         AsyncStorage.getItem('htwa:currency'),
       ]);
       // Create the user profile row
-      await supabase.from('users').insert({
+      const { error: usersError } = await supabase.from('users').insert({
         id:            data.user.id,
         email,
         phone:         phone         ?? '',
@@ -68,13 +68,21 @@ export default function VerifyScreen() {
         home_location: homeLocation  ?? '',
         currency:      currency      ?? '',
       });
+      if (usersError) {
+        setVerifyError(usersError.message ?? 'Failed to create account. Please try again.');
+        return;
+      }
       // Create the verification row (starts unverified — completed by id-verify screen).
       // Use upsert so re-verification after a failed attempt doesn't duplicate the row.
-      await supabase.from('verification').upsert({
+      const { error: verificationError } = await supabase.from('verification').upsert({
         user_id:         data.user.id,
         id_verified:     false,
         selfie_verified: false,
       }, { onConflict: 'user_id' });
+      if (verificationError) {
+        setVerifyError(verificationError.message ?? 'Failed to create account. Please try again.');
+        return;
+      }
       router.replace('/id-verify');
     } catch {
       setVerifyError('Something went wrong. Please try again.');
@@ -120,9 +128,15 @@ export default function VerifyScreen() {
     }
   };
 
-  const handleResend = () => {
+  const handleResend = async () => {
     if (cooldown > 0) return;
-    // Start cooldown immediately for responsive UI
+    setVerifyError(null);
+    const { error: resendError } = await supabase.auth.resend({ email, type: 'signup' });
+    if (resendError) {
+      setVerifyError(resendError.message ?? 'Unable to resend code. Please try again.');
+      return;
+    }
+    // Only start the countdown after a confirmed successful resend
     setCooldown(RESEND_COOLDOWN_SECONDS);
     intervalRef.current = setInterval(() => {
       setCooldown(prev => {
@@ -133,8 +147,6 @@ export default function VerifyScreen() {
         return prev - 1;
       });
     }, 1000);
-    // Fire resend; ignore result — cooldown prevents spam
-    void supabase.auth.resend({ email, type: 'signup' });
   };
 
   const formatCooldown = (s: number) =>

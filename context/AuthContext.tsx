@@ -62,17 +62,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // ── 1. Restore existing session on mount ─────────────────────────────────
-    void supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
-      setUser(s?.user ?? null);
+    void supabase.auth.getSession()
+      .then(({ data: { session: s } }) => {
+        setSession(s);
+        setUser(s?.user ?? null);
 
-      if (s?.user) {
-        // Fetch verification status, then mark loading complete
-        void fetchVerificationStatus(s.user.id).finally(() => setIsLoading(false));
-      } else {
+        if (s?.user) {
+          // Fetch verification status, then mark loading complete
+          void fetchVerificationStatus(s.user.id).finally(() => setIsLoading(false));
+        } else {
+          setIsLoading(false);
+        }
+      })
+      .catch(() => {
+        // Network/auth failure on startup — treat as logged-out state
+        setSession(null);
+        setUser(null);
         setIsLoading(false);
-      }
-    });
+      });
 
     // ── 2. Keep session in sync with Supabase auth events ────────────────────
     const { data: { subscription } } = supabase.auth.onAuthStateChange(

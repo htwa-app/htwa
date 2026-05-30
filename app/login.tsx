@@ -9,14 +9,16 @@ export default function LoginScreen() {
   const router = useRouter();
 
   // ── Handlers ─────────────────────────────────────────────────────────────
+  // All four buttons route to /signup until Phase 15 provider flows are built.
+  // Intermediate signin-* screens are no longer needed — removing the extra hop.
   // TODO Phase 15: implement Apple Sign-In via supabase.auth.signInWithOAuth({ provider: 'apple' })
-  const handleApple  = () => router.push('/signin-apple');
+  const handleApple  = () => router.push('/signup');
   // TODO Phase 15: implement Google Sign-In via supabase.auth.signInWithOAuth({ provider: 'google' })
-  const handleGoogle = () => router.push('/signin-google');
+  const handleGoogle = () => router.push('/signup');
   // TODO Phase 15: implement mobile OTP via supabase.auth.signInWithOtp({ phone })
-  const handleMobile = () => router.push('/signin-mobile');
-  // Email routes to /signup (new users) — returning user sign-in: TODO Phase 15
-  const handleEmail  = () => router.push('/signin-email');
+  const handleMobile = () => router.push('/signup');
+  // Email → /signup (new users). Returning user sign-in: TODO Phase 15
+  const handleEmail  = () => router.push('/signup');
 
   const handleOpenTerms         = () => console.log('TODO: navigate to terms');
   const handleOpenSafetyPledge  = () => console.log('TODO: navigate to safety pledge');
@@ -55,7 +57,7 @@ export default function LoginScreen() {
           size={14}
           color={Colors.textSecondary}
         />
-        <Text style={styles.trustText}>Every account checked against a college email</Text>
+        <Text style={styles.trustText}>Mandatory ID + selfie verification before app use</Text>
       </View>
 
       {/* ── Auth buttons ───────────────────────────────────────────────────── */}

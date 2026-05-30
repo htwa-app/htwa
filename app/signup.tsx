@@ -76,12 +76,17 @@ export default function SignupScreen() {
         setSignupError(error.message);
         return;
       }
-      // Persist user data for the verify step
-      void AsyncStorage.setItem(STORAGE_FULL_NAME,     fullName);
-      void AsyncStorage.setItem(STORAGE_PHONE,         phone);
-      void AsyncStorage.setItem(STORAGE_HOME_LOCATION, homeLocation ?? '');
-      void AsyncStorage.setItem(STORAGE_CURRENCY,      currency      ?? '');
+      // Persist user data for the verify step — await so values are guaranteed
+      // to be readable by app/verify.tsx before the OTP entry screen mounts.
+      await Promise.all([
+        AsyncStorage.setItem(STORAGE_FULL_NAME,     fullName),
+        AsyncStorage.setItem(STORAGE_PHONE,         phone),
+        AsyncStorage.setItem(STORAGE_HOME_LOCATION, homeLocation ?? ''),
+        AsyncStorage.setItem(STORAGE_CURRENCY,      currency      ?? ''),
+      ]);
       router.push({ pathname: '/verify', params: { email } });
+    } catch (e: unknown) {
+      setSignupError(e instanceof Error ? e.message : 'Unable to continue. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
