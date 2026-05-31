@@ -53,3 +53,7 @@ supabase/.temp/
 
 # Google Play service account key (never commit)
 google-service-account.json
+
+# iCloud Drive conflict copies (Documents is synced) — never commit
+*\ 2.*
+*\ 3.*

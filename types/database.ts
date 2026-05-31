@@ -229,8 +229,13 @@ export type Database = {
         Relationships: [];
       };
     };
-    Views:          { [_ in never]: never };
-    Functions:      { [_ in never]: never };
+    Views: { [_ in never]: never };
+    Functions: {
+      book_ride: {
+        Args: { p_ride_id: string; p_passenger_id: string; p_seats: number };
+        Returns: undefined;
+      };
+    };
     Enums:          { [_ in never]: never };
     CompositeTypes: { [_ in never]: never };
   };

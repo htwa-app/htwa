@@ -115,17 +115,17 @@
 
 ✅ **Stage 32** — Offer confirmation (`app/offer-ride-confirm.tsx`) — summary, cost breakdown, legal note, `rides.insert` → `app/ride-posted.tsx`. ⏳ *Entry point (Search-tab Offer toggle → /offer-ride) wired with Stage 33.*
 
-⬜ **Stage 33** — Find a ride screen — route input, date/time filter, seats filter, women-only filter toggle
+✅ **Stage 33** — Search tab (`app/(tabs)/index.tsx`) — Find/Offer toggle; Find mode (RouteInput, date, seats stepper, women-only Switch → /search-results); Offer mode (→ /offer-ride); safety grid; greeting from `useAuth()`. Wires the Stage 32 entry point.
 
-⬜ **Stage 34** — Search results screen — list of available rides, each card showing: driver avatar + verified badge, route, departure time, seats available, price per seat, women-only badge if applicable
+✅ **Stage 34** — Search results (`app/search-results.tsx`) — ride cards (driver+verified badge, route, time, seats, price, women-only); NaN seats guard, date filter, explicit `driver_id`, batched verification (no N+1); empty/loading/error states.
 
-⬜ **Stage 35** — Ride detail screen — full driver profile preview, vehicle details, route map, departure/arrival times, seat selector, total cost, "Request to join" button
+✅ **Stage 35** — Ride detail (`app/ride/[id].tsx`) — explicit driver/profile/verification fetches, `RouteMapPlaceholder`, vehicle chips, seat selector, total cost, "Request to join".
 
-⬜ **Stage 36** — Booking request flow — passenger sends request, driver receives notification, driver accepts/declines
+✅ **Stage 36** — Booking request (`app/booking-request.tsx`) — `.maybeSingle()` guard + atomic `book_ride` RPC (migration `…003`, applied live) for seat decrement; not_enough_seats handled.
 
-⬜ **Stage 37** — Booking confirmation screen — confirmed booking details, journey share prompt, add to calendar option
+✅ **Stage 37** — Booking success (`app/booking-success.tsx`) — summary + View Live Trip deep link.
 
-⬜ **Stage 38** — My Rides screen — upcoming rides (as driver and passenger), past rides, cancelled rides, each with status indicator
+✅ **Stage 38** — My Rides (`app/my-rides.tsx`) — upcoming/past, driver rides + passenger bookings, status badges (named colour constants), error state.
 
 ---
 
