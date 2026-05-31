@@ -111,9 +111,9 @@
 
 ✅ **Stage 30** — Ride database schema (`20260531000002_create_ride_tables.sql`, applied to live DB): `rides` + `bookings` with CHECK constraints, full RLS, `users.gender` column, and **DB-level women-only booking enforcement** (booking INSERT allowed only if ride is open or passenger gender = 'female'). `types/database.ts` extended with Ride/Booking/Gender types. Also added Maps-deferred stubs `components/RouteInput.tsx` (§9.2, text inputs + swap) and `components/RouteMapPlaceholder.tsx` for the ride flows.
 
-⬜ **Stage 31** — Offer a ride screen — from/to (using route input component), date picker, time picker, seats available, price per seat (auto-calculated, editable within cap), women-only toggle, vehicle auto-populated from profile
+✅ **Stage 31** — Offer a ride screen (`app/offer-ride.tsx`) — RouteInput, date/time, seats stepper, **auto-calculated price** (within cap, editable), women-only toggle, home-rate loaded from profile. ⏸️ *Distance is a manual field for now (Maps Routes API will auto-fill it).*
 
-⬜ **Stage 32** — Offer a ride confirmation screen — summary of journey details, cost breakdown, legal note ("You may only charge up to the cost of the journey"), submit button
+✅ **Stage 32** — Offer confirmation (`app/offer-ride-confirm.tsx`) — summary, cost breakdown, legal note, `rides.insert` → `app/ride-posted.tsx`. ⏳ *Entry point (Search-tab Offer toggle → /offer-ride) wired with Stage 33.*
 
 ⬜ **Stage 33** — Find a ride screen — route input, date/time filter, seats filter, women-only filter toggle
 
