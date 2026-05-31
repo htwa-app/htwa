@@ -33,6 +33,7 @@ Entries are added at the top. Most recent session is always first.
 
 ### Open decisions / blockers
 - **Google Maps key** (Jordan, payment) — blocks Stages 26–27 and the *distance* input the Offer-a-Ride price calc needs. Interim plan: a manual "distance (km)" field on Offer-a-Ride, auto-filled by Routes API later.
+- **Stage 39 — Stripe Connect platform account must be created manually by Jordan at dashboard.stripe.com.** The Phase 7 Edge Functions (`create-connect-account`, `create-payment-intent`) are written but must be deployed (`supabase functions deploy`) and need the live Connect platform key; the 10% platform fee is wired (`application_fee_amount`).
 - **Phase 4 simulator verification** still pending (Jordan) — code/type/test-verified but not device-run.
 
 ### Next

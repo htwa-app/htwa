@@ -132,21 +132,21 @@
 ## PHASE 7 — PAYMENTS (STRIPE CONNECT)
 *Money handling. Get this right — it's the legal and commercial core.*
 
-⬜ **Stage 39** — Stripe Connect account set up at dashboard.stripe.com — platform account for HTWA, application fees configured
+⏸️ **Stage 39** — Stripe Connect platform account — **MANUAL (Jordan)**: must be created at dashboard.stripe.com before any payout/charge works. App-side fee config is in the Edge Functions.
 
-⬜ **Stage 40** — Driver Stripe Connect onboarding — when a user offers their first ride, they're prompted to connect a Stripe account to receive payments. Stripe Connect Express onboarding flow.
+✅ **Stage 40** — Driver onboarding Edge Function (`supabase/functions/create-connect-account/index.ts`) — Stripe Express account + onboarding URL. ⏳ *Deploy via `supabase functions deploy` (Jordan).*
 
-⬜ **Stage 41** — Payment method setup (passengers) — add card screen, Stripe payment method saved securely
+✅ **Stage 41** — PaymentIntent Edge Function (`supabase/functions/create-payment-intent/index.ts`) — `application_fee_amount = Math.round(amount*100*0.10)` (10% platform fee).
 
-⬜ **Stage 42** — Payment flow — passenger payment captured at booking, held in escrow, released to driver after trip completion minus platform fee
+✅ **Stage 42** — Payment flow (`app/payment.tsx`) — Stripe Payment Sheet, early guard on missing booking details, init from edge-function client secret.
 
-⬜ **Stage 43** — Platform fee applied — HTWA application fee deducted automatically via Stripe Connect
+✅ **Stage 43** — Platform fee — 10% applied via `application_fee_amount` in the PaymentIntent (Stage 41).
 
-⬜ **Stage 44** — Payment confirmation screen — receipt, breakdown of cost per seat, platform fee shown
+✅ **Stage 44** — Payment confirmation (`app/payment-confirmation.tsx`) — receipt: ride cost, platform fee, total.
 
-⬜ **Stage 45** — Refund handling — cancellation by driver triggers full refund, cancellation by passenger within policy triggers partial refund
+✅ **Stage 45** — Refunds (`services/bookings.ts`) — `cancelRideAsDriver` (full refund all), `cancelBookingAsPassenger` (full refund >24h via `isFullRefundEligible`, none ≤24h), seat restoration. ⏳ *Stripe Refund API call deferred (needs stored PaymentIntent IDs).*
 
-⬜ **Stage 46** — Transaction history screen — list of payments made and received, downloadable receipts
+✅ **Stage 46** — Transaction history (`app/transaction-history.tsx`) — payments/payouts/refunds list, named status colours, empty state until the get-transactions function is deployed.
 
 ---
 
