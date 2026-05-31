@@ -1,4 +1,5 @@
-# HTWA Privacy Policy
+
+# htwa Privacy Policy
 
 **Last updated:** 29 April 2026  
 **Effective date:** To be confirmed on launch
@@ -7,7 +8,7 @@
 
 ## 1. Who We Are
 
-HTWA ("we", "us", "our") operates the HTWA mobile application and website at htwa-app.com. HTWA is a cost-sharing rideshare platform connecting Irish university students for shared journeys across Ireland and Northern Ireland.
+htwa ("we", "us", "our") operates the htwa mobile application and website at htwa-app.com. htwa is a cost-sharing rideshare platform connecting Irish university students for shared journeys across Ireland and Northern Ireland.
 
 For the purposes of data protection law:
 - In the Republic of Ireland: we are a data controller under the **General Data Protection Regulation (GDPR)** and the **Data Protection Acts 1988–2018**
@@ -166,7 +167,7 @@ We use industry-standard security measures including:
 
 ## 11. Children
 
-HTWA is not intended for users under 18. We do not knowingly collect data from minors. If you believe a minor has registered, contact us at hello@htwa-app.com and we will delete the account immediately.
+htwa is not intended for users under 18. We do not knowingly collect data from minors. If you believe a minor has registered, contact us at hello@htwa-app.com and we will delete the account immediately.
 
 ---
 

@@ -1,23 +1,24 @@
-# HTWA Terms of Service
+
+# htwa Terms of Service
 
 **Last updated:** 29 April 2026  
 **Effective date:** To be confirmed on launch
 
 ---
 
-## 1. About HTWA
+## 1. About htwa
 
-HTWA is a cost-sharing rideshare platform for Ireland and Northern Ireland. It connects drivers and passengers who are travelling the same route and wish to share the cost of the journey.
+htwa is a cost-sharing rideshare platform for Ireland and Northern Ireland. It connects drivers and passengers who are travelling the same route and wish to share the cost of the journey.
 
-**HTWA is not a taxi service, private hire service, or transport operator.** We are a technology platform that facilitates cost-sharing between private individuals. Drivers on HTWA are private individuals sharing the cost of their own journey — they are not professional drivers and must never profit from a trip.
+**htwa is not a taxi service, private hire service, or transport operator.** We are a technology platform that facilitates cost-sharing between private individuals. Drivers on htwa are private individuals sharing the cost of their own journey — they are not professional drivers and must never profit from a trip.
 
-By using HTWA, you agree to these Terms of Service. If you do not agree, do not use the platform.
+By using htwa, you agree to these Terms of Service. If you do not agree, do not use the platform.
 
 ---
 
 ## 2. Eligibility
 
-To use HTWA you must:
+To use htwa you must:
 - Be 18 years of age or older
 - Hold a valid email address associated with an Irish or Northern Irish university or college, OR be verified as a resident of the Republic of Ireland or Northern Ireland
 - Complete mandatory ID and selfie verification before accessing the platform
@@ -40,11 +41,11 @@ This is the most important section. Please read it carefully.
 
 The applicable rate is determined by the driver's home jurisdiction regardless of where the journey crosses borders.
 
-**3.2 Drivers may never profit from a journey.** The platform enforces a hard cap on the price per seat. The total amount collected from all passengers may not exceed the calculated cost of the journey. HTWA will not process payments that exceed this cap.
+**3.2 Drivers may never profit from a journey.** The platform enforces a hard cap on the price per seat. The total amount collected from all passengers may not exceed the calculated cost of the journey. htwa will not process payments that exceed this cap.
 
-**3.3 This cost-sharing model is what makes HTWA legal.** Charging passengers more than the cost of the journey, or operating as a for-profit transport service, would require licensing under the Small Public Service Vehicles (SPSV) Regulations (ROI) or equivalent NI licensing law. Drivers who attempt to circumvent this will be permanently banned.
+**3.3 This cost-sharing model is what makes htwa legal.** Charging passengers more than the cost of the journey, or operating as a for-profit transport service, would require licensing under the Small Public Service Vehicles (SPSV) Regulations (ROI) or equivalent NI licensing law. Drivers who attempt to circumvent this will be permanently banned.
 
-**3.4 HTWA takes a small platform fee** from each transaction to cover operating costs. This fee is deducted from the driver's payout and is displayed clearly before any booking is confirmed.
+**3.4 htwa takes a small platform fee** from each transaction to cover operating costs. This fee is deducted from the driver's payout and is displayed clearly before any booking is confirmed.
 
 ---
 
@@ -62,14 +63,14 @@ The applicable rate is determined by the driver's home jurisdiction regardless o
 - Ensure your insurance covers carpooling/cost-sharing arrangements (check with your insurer — most standard policies cover social, domestic and pleasure use which includes cost-sharing)
 - Arrive on time at the agreed pickup location
 - Drive safely and in accordance with Irish/UK road traffic law
-- Not accept cash payments outside the HTWA platform
-- Not charge more than the HTWA-calculated cost cap
+- Not accept cash payments outside the htwa platform
+- Not charge more than the htwa-calculated cost cap
 - Not carry more passengers than your vehicle's legal capacity
 
 ### Passengers
 - Be at the agreed pickup location on time
 - Treat the driver's vehicle with respect
-- Pay through the HTWA platform — not in cash
+- Pay through the htwa platform — not in cash
 - Not request stops or detours not agreed in advance
 
 ---
@@ -86,11 +87,11 @@ Your verified status is displayed as a green "Verified" tick on your profile. Us
 
 ## 6. Payments
 
-All payments are processed through Stripe. By using HTWA you agree to Stripe's terms of service (stripe.com/legal).
+All payments are processed through Stripe. By using htwa you agree to Stripe's terms of service (stripe.com/legal).
 
 - Passenger payment is captured at the time of booking
 - Payment is released to the driver after the journey is marked complete
-- HTWA's platform fee is deducted automatically before the driver's payout
+- htwa's platform fee is deducted automatically before the driver's payout
 - Receipts are available in the app
 
 **Cancellations:**
@@ -103,13 +104,21 @@ All payments are processed through Stripe. By using HTWA you agree to Stripe's t
 
 ## 7. Safety Features
 
-HTWA provides safety features including live journey tracking, nominated contact alerts, and Silent SOS. These features are provided as tools to support your safety — they do not make HTWA responsible for your safety during a journey.
+htwa provides safety features including live journey tracking, nominated contact alerts, and Silent SOS. These features are provided as tools to support your safety — they do not make htwa responsible for your safety during a journey.
 
 By using the platform you acknowledge that:
-- HTWA facilitates connections between private individuals
-- HTWA does not employ drivers or control how journeys are conducted
+- htwa facilitates connections between private individuals
+- htwa does not employ drivers or control how journeys are conducted
 - You travel at your own risk and are responsible for your own safety decisions
 - You should use the safety features provided and inform your nominated contact of your plans
+
+### 7.1 Women-only journeys
+
+htwa offers a women-only mode. A female driver may designate a journey as women-only, and a female passenger may filter for women-only journeys. To protect the integrity of this feature:
+
+- Only members who have recorded their gender as female may offer or join a women-only journey. This is enforced at the platform level, not merely in the app's display.
+- Misrepresenting your gender to access a women-only journey is a serious breach of these Terms and will result in immediate removal from htwa and, where appropriate, referral to An Garda Síochána (ROI) or the Police Service of Northern Ireland (NI).
+- Women-only journeys are a safety-support feature and, like all htwa features, do not transfer responsibility for your safety to htwa.
 
 ---
 
@@ -120,7 +129,7 @@ After each journey, both driver and passenger are invited to rate each other. Re
 - Not defamatory, abusive, or discriminatory
 - Not posted by fake or duplicate accounts
 
-HTWA reserves the right to remove reviews that violate these standards.
+htwa reserves the right to remove reviews that violate these standards.
 
 ---
 
@@ -141,13 +150,13 @@ The following will result in immediate account suspension and possible permanent
 
 ## 10. Liability
 
-**10.1** HTWA is a platform, not a transport operator. We are not liable for:
+**10.1** htwa is a platform, not a transport operator. We are not liable for:
 - The conduct of drivers or passengers
 - Accidents, injuries or losses that occur during a journey
 - Cancellations or no-shows by either party
 - The roadworthiness of any vehicle used
 
-**10.2** HTWA's total liability to you for any claim shall not exceed the value of the transaction giving rise to that claim.
+**10.2** htwa's total liability to you for any claim shall not exceed the value of the transaction giving rise to that claim.
 
 **10.3** Nothing in these terms limits liability for death, personal injury caused by negligence, fraud, or any other liability that cannot be excluded by law.
 
@@ -155,9 +164,9 @@ The following will result in immediate account suspension and possible permanent
 
 ## 11. Insurance
 
-Drivers are responsible for ensuring their motor insurance policy covers cost-sharing journeys. Most standard private motor insurance policies in Ireland and the UK cover social, domestic and pleasure use, which includes cost-sharing where no profit is made. However, you should confirm this with your insurer before driving on HTWA.
+Drivers are responsible for ensuring their motor insurance policy covers cost-sharing journeys. Most standard private motor insurance policies in Ireland and the UK cover social, domestic and pleasure use, which includes cost-sharing where no profit is made. However, you should confirm this with your insurer before driving on htwa.
 
-HTWA does not provide insurance to drivers or passengers.
+htwa does not provide insurance to drivers or passengers.
 
 ---
 
