@@ -220,6 +220,7 @@ export default function OfferRideScreen(): React.ReactElement {
             onPress={decrementSeats}
             disabled={seats <= SEATS_MIN}
             accessibilityRole="button"
+            accessibilityLabel="Decrease seats"
             testID="seats-decrement"
           >
             <Ionicons name="remove" size={18} color={seats <= SEATS_MIN ? Colors.textTertiary : Colors.primary} />
@@ -230,6 +231,7 @@ export default function OfferRideScreen(): React.ReactElement {
             onPress={incrementSeats}
             disabled={seats >= SEATS_MAX}
             accessibilityRole="button"
+            accessibilityLabel="Increase seats"
             testID="seats-increment"
           >
             <Ionicons name="add" size={18} color={seats >= SEATS_MAX ? Colors.textTertiary : Colors.primary} />

@@ -69,7 +69,7 @@ export default function RateTripScreen(): React.ReactElement {
 
   return (
     <View style={styles.screen} testID="rate-trip-screen">
-      <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" testID="back-button">
+      <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back" testID="back-button">
         <Ionicons name="chevron-back" size={24} color={Colors.textPrimary} />
       </TouchableOpacity>
       <Text style={styles.title}>Rate your trip</Text>

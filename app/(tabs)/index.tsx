@@ -141,6 +141,7 @@ export default function SearchScreen(): React.ReactElement {
                 onPress={() => setSeats((s) => Math.max(1, s - 1))}
                 testID="search-seats-dec"
                 accessibilityRole="button"
+                accessibilityLabel="Decrease seats"
               >
                 <Ionicons name="remove" size={16} color={Colors.primary} />
               </TouchableOpacity>
@@ -149,6 +150,7 @@ export default function SearchScreen(): React.ReactElement {
                 onPress={() => setSeats((s) => Math.min(7, s + 1))}
                 testID="search-seats-inc"
                 accessibilityRole="button"
+                accessibilityLabel="Increase seats"
               >
                 <Ionicons name="add" size={16} color={Colors.primary} />
               </TouchableOpacity>

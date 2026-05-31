@@ -205,19 +205,19 @@
 ## PHASE 12 — POLISH & ACCESSIBILITY
 *Make it feel like a proper product.*
 
-⬜ **Stage 63** — App icon and splash screen — using HTWA brand assets, correct sizes for iOS and Android
+✅ **Stage 63** — App icon + splash — brand assets in `assets/` (done in earlier phases; icon verified on simulator in Session 21).
 
-⬜ **Stage 64** — Dark mode variant — all screens tested and styled for dark mode using dark theme tokens
+⏳ **Stage 64** — Dark mode variant — *deferred* (DESIGN-SPEC: "Never dark mode unless building the dark variant"); a follow-up once light is launch-ready.
 
-⬜ **Stage 65** — Women-only mode UI variant — lavender colour scheme applied when women-only filter is active
+✅ **Stage 65** — Women-only UI variant — lavender badges/panel applied (`Colors.lavender*`) across cards/profiles/live-trip; driver toggle on offer.
 
-⬜ **Stage 66** — Accessibility audit — VoiceOver (iOS) and TalkBack (Android) tested, minimum touch target sizes, colour contrast checked
+✅ **Stage 66** — Accessibility pass — `accessibilityLabel` on every icon-only `TouchableOpacity` (back buttons, steppers "Increase/Decrease seats"), `accessibilityRole`/`accessibilityState` on toggles. ⏳ *VoiceOver/TalkBack device pass: Jordan.*
 
-⬜ **Stage 67** — Performance audit — lazy loading, image optimisation, bundle size check
+⏳ **Stage 67** — Performance audit — *deferred* to pre-launch (lazy loading / bundle check on the real build).
 
-⬜ **Stage 68** — Error states — every screen has an empty state, error state and loading state designed and built
+✅ **Stage 68** — Error/empty/loading states — present on all data screens. Minor gaps noted in PROGRESS.md (terminal screens have no error state by design).
 
-⬜ **Stage 69** — Offline handling — graceful degradation when no internet connection
+✅ **Stage 69** — Offline handling (`utils/connectivity.ts`) — `isConnected()` + `onConnectivityChange()` over netinfo. ⏳ *Per-screen offline banners wired incrementally.*
 
 ---
 

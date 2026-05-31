@@ -123,7 +123,7 @@ export default function MyRidesScreen(): React.ReactElement {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.scrollContent} testID="my-rides-screen">
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" testID="back-button" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back" testID="back-button" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Ionicons name="chevron-back" size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.screenTitle}>My rides</Text>
