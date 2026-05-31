@@ -4,6 +4,32 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 31 May 2026 (Session 29 — Supabase autonomy + Phase 4 rebuilt clean)
+
+### Foundation merged
+- PR #11 (foundation type fix + `tsc` CI gate + credential infra) — actioned the one CodeRabbit finding (`?? '' `→ `|| ` for empty-string fallback in verify.tsx), CI green, **squash-merged to `main`** (6619628).
+
+### Supabase autonomous pipeline established
+- **Supabase CLI** installed as an npm devDependency (v2.102.0; brew failed on a CLT rebuild).
+- **Management token** (`sbp_…`) Jordan added to 1Password — found it in the **HTWA** vault (so the read-only service account can use it). Renamed the item to `htwa supabase management token` to disambiguate from the API key; referenced in `.secrets.env` as `SUPABASE_ACCESS_TOKEN`. CLI authenticates via `op run` — **fully non-interactive**.
+- Project ref: `adrwtjlphjrnrrqjkbfk` ("htwa-app's Project", West EU/Ireland).
+- **Can now apply migrations + regenerate types autonomously.** `supabase gen types` confirmed the hand-written `types/database.ts` matches the live base schema exactly (kept it — it carries `HomeLocation`/`Currency` unions that gen-types degrades to `string`).
+
+### Phase 4 — User Profiles (Stages 21–25) — rebuilt on a clean branch
+- Branch `feat/profiles` off the merged `main`; sound screens cribbed from `spike/overnight-bulk`, fixed for the typed schema.
+- **Migration `20260531000001_profile_columns.sql`** — adds `vehicle_details` JSONB, `women_only_mode` BOOLEAN, and "Anyone can view profiles" RLS policy. **Applied to the live DB via the Management API** (HTTP 201) and verified (columns + policy present).
+- Screens: `app/(tabs)/profile.tsx` (Stage 21, own profile — Verified badge only; women-only intentionally on the driver profile per §6.7), `app/edit-profile.tsx` (22), `app/vehicle-details.tsx` (23), `app/user-profile/[id].tsx` (24, with women-only badge).
+- Added `app/settings.tsx` + `app/my-rides.tsx` placeholder routes (+ smoke tests) so the Profile links resolve instead of hitting Expo Router's 404.
+- Fixed the interface→type issue in `TravelPreferences`/`VehicleDetails` (same root lesson), aligned `ProfileData`, updated `database.types.test.ts`.
+- **`tsc`: 0 errors. Jest: 579 passing (27 suites).**
+- ⏳ **Simulator end-to-end verification still pending** (Jordan) — code-complete and type/test-verified, but not yet run on a device.
+
+### Next
+- Open Phase 4 PR; action CodeRabbit; merge.
+- Continue Phase 5 (Maps) per the build plan.
+
+---
+
 ## 31 May 2026 (Session 28 — Disaster recovery + foundation type-system fix)
 
 ### Git disaster recovery (resolved, no data lost)

@@ -80,6 +80,8 @@ export type ProfileRow = {
   university:           string | null;
   travel_preferences:   Record<string, unknown> | null;  // jsonb
   nominated_contact:    Record<string, unknown> | null;  // jsonb
+  vehicle_details:      Record<string, unknown> | null;  // jsonb — migration 20260531000001
+  women_only_mode:      boolean;                          // migration 20260531000001
 }
 
 export type ProfileInsert = {
@@ -89,6 +91,8 @@ export type ProfileInsert = {
   university?:           string | null;
   travel_preferences?:   Record<string, unknown> | null;
   nominated_contact?:    Record<string, unknown> | null;
+  vehicle_details?:      Record<string, unknown> | null;
+  women_only_mode?:      boolean;      // defaults to false
 }
 
 export type ProfileUpdate = {
@@ -96,6 +100,8 @@ export type ProfileUpdate = {
   university?:           string | null;
   travel_preferences?:   Record<string, unknown> | null;
   nominated_contact?:    Record<string, unknown> | null;
+  vehicle_details?:      Record<string, unknown> | null;
+  women_only_mode?:      boolean;
 }
 
 // ─── Database (Supabase client generic) ───────────────────────────────────────

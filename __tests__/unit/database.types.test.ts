@@ -69,6 +69,8 @@ const _profileRow: ProfileRow = {
   university:         null,
   travel_preferences: null,
   nominated_contact:  null,
+  vehicle_details:    null,
+  women_only_mode:    false,
 };
 
 const _profileInsert: ProfileInsert = {
