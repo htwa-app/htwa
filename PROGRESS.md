@@ -4,6 +4,42 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 31 May 2026 (Session 27 — Supervisory review & honest reconciliation)
+
+> This session took over after discovering **two autonomous Claude sessions were
+> running on the same repo/branch at once** and colliding. The other session (PID
+> 30028) built the bulk below (Session 26 entry) overnight and then exited. Jordan
+> directed this session to take over as sole builder. This entry is the **honest
+> reality check** on that bulk work — read it before trusting the Session 26 claims.
+
+### Headline: "Stages 21–88" is NOT done. It is *scaffolded with mocked tests.*
+
+- **709 unit tests pass — but every one mocks Supabase**, and Jest strips types via Babel. They prove component wiring, not correctness.
+- **`tsc --noEmit` reports 77 type errors.** Root cause: migrations 004–007 added `rides`, `bookings`, `messages`, `reviews` tables, but `types/database.ts` was **never regenerated**, so `supabase.from('rides')` etc. resolve to `never`. Pervasive across live-trip, booking, chat, offer-ride, ride, rate-trip screens. The app may run under Babel but the type layer is broken and a real CI typecheck would fail.
+- **Over-claimed stages:** Payments (39–46) and App Store (82–88) cannot be "complete" — they require a Stripe Connect account, an Apple Developer account (+€99 payment), a real Google Maps key, and real device builds. The other session *did* flag these as placeholders (Stripe, Maps key, eas.json) to its credit, but the BUILD-PLAN should treat 39–88 as **scaffolded, unverified**, not done.
+- **No security leak:** `ACCOUNTS.md` (committed) contains zero real secret values — it's a planning/tracker doc.
+
+### What this session actually changed
+
+- **Untracked committed junk** (commit `f56d569`): 42 generated `coverage/` report files (incl. `' 2.tsx'` worktree-artifact duplicates), `supabase/.temp/`, `.claude/launch.json`; added them to `.gitignore`.
+- **Removed stale `.git/HEAD.lock`** (0 bytes, from 00:03 when the other session crashed out mid-commit) — verified no live git process first.
+- **Stage 21 own-profile (`app/(tabs)/profile.tsx`)**: removed the `women_only_mode` dependency from the own-profile screen — per DESIGN-SPEC §6.7 the women-only badge belongs on the *driver profile* (other-user view), not the personal "My Profile". Keeps the own profile working even before migration 003 is applied. (The badge correctly remains on `app/user-profile/[id].tsx`.)
+- **Fixed two broken test suites** (ProfileScreen, EditProfileScreen) — the supabase mock referenced jest.fns directly in the `jest.mock` factory (breaks the chain); rewrote to the proven lazy inner-arrow pattern. (The other session independently applied the same fix before exiting.)
+
+### Blockers requiring Jordan
+
+1. **Supabase access token** (Jordan agreed to add an `sbp_…` Management token / DB connection string to 1Password). Unblocks: applying migrations 003–007 to the live DB **and** regenerating `types/database.ts` via `supabase gen types` — which fixes the bulk of the 77 type errors at the source.
+2. **Branch is local-only, never pushed, no PR.** It has become an unreviewable everything-branch (8 direct commits, Stages 21–88), contradicting the per-phase-PR rule. Needs a strategy decision (split vs. one big honest PR).
+
+### Recommended next-session plan
+
+1. Add Supabase token → apply migrations 003–007 → `supabase gen types typescript` to regenerate `types/database.ts`.
+2. Add a `tsc --noEmit` step to CI so type errors can never pass again.
+3. Re-mark BUILD-PLAN honestly: only verified stages = ✅; reset 39–88 to scaffolded.
+4. Fix remaining type errors, then verify phase-by-phase on the simulator, opening focused PRs (original mission discipline).
+
+---
+
 ## 31 May 2026 (Session 26 — Autonomous build: Stages 21–88 + Supervision review)
 
 ### What Was Built / Changed
