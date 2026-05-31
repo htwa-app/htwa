@@ -185,16 +185,9 @@
 ## PHASE 10 — NOTIFICATIONS
 *Keep users informed at every stage.*
 
-⬜ **Stage 58** — Push notifications set up — Expo Notifications + APNs (iOS) + FCM (Android) configured
+✅ **Stage 58** — Push notifications (`services/notifications.ts` + expo-notifications) — `registerForPushNotifications` (permission + Expo token), app.json plugin + iOS `aps-environment` entitlement. ⏳ *APNs key (Apple acct) + FCM `google-services.json` (Play acct) are EAS-credential/manual steps; native delivery needs the device build.*
 
-⬜ **Stage 59** — Notification triggers wired up:
-- Booking request received (driver)
-- Booking accepted/declined (passenger)
-- Trip starting soon (both)
-- Trip completed (both)
-- New review received
-- Journey share alert (nominated contact)
-- Auto check-in arrival
+✅ **Stage 59** — Notification triggers (`buildNotification` + `notify*` helpers): booking request, booking accepted, booking declined, trip starting soon, trip completed, new review. ⏳ *Journey-share alert + auto-check-in arrival fold in once the contact-SMS channel exists (currently `sendTrackingLinkToContact` stub).*
 
 ---
 
