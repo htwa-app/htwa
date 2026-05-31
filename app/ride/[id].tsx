@@ -120,7 +120,7 @@ export default function RideDetailScreen(): React.ReactElement {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.scrollContent} testID="ride-detail-screen">
-      <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" testID="back-button">
+      <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back" testID="back-button">
         <Ionicons name="chevron-back" size={24} color={Colors.textPrimary} />
       </TouchableOpacity>
 
@@ -145,7 +145,7 @@ export default function RideDetailScreen(): React.ReactElement {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Route</Text>
         <View style={styles.routeRow}>
-          <Ionicons name="location" size={14} color="#34C759" />
+          <Ionicons name="location" size={14} color={Colors.primary} />
           <Text style={styles.routeText} testID="ride-from">{ride.from_location}</Text>
         </View>
         <View style={styles.routeRow}>
@@ -177,11 +177,11 @@ export default function RideDetailScreen(): React.ReactElement {
           <View style={styles.seatRow}>
             <Text style={styles.seatLabel}>Seats needed</Text>
             <View style={styles.stepper}>
-              <TouchableOpacity onPress={() => setSeatsWant((s) => Math.max(1, s - 1))} testID="seats-dec" accessibilityRole="button">
+              <TouchableOpacity onPress={() => setSeatsWant((s) => Math.max(1, s - 1))} testID="seats-dec" accessibilityRole="button" accessibilityLabel="Decrease seats">
                 <Ionicons name="remove-circle-outline" size={28} color={Colors.primary} />
               </TouchableOpacity>
               <Text style={styles.seatCount} testID="seats-wanted">{seatsWant}</Text>
-              <TouchableOpacity onPress={() => setSeatsWant((s) => Math.min(ride.seats_available, s + 1))} testID="seats-inc" accessibilityRole="button">
+              <TouchableOpacity onPress={() => setSeatsWant((s) => Math.min(ride.seats_available, s + 1))} testID="seats-inc" accessibilityRole="button" accessibilityLabel="Increase seats">
                 <Ionicons name="add-circle-outline" size={28} color={Colors.primary} />
               </TouchableOpacity>
             </View>

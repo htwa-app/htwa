@@ -36,6 +36,13 @@ Entries are added at the top. Most recent session is always first.
 - **Stage 39 — Stripe Connect platform account must be created manually by Jordan at dashboard.stripe.com.** The Phase 7 Edge Functions (`create-connect-account`, `create-payment-intent`) are written but must be deployed (`supabase functions deploy`) and need the live Connect platform key; the 10% platform fee is wired (`application_fee_amount`).
 - **Phase 4 simulator verification** still pending (Jordan) — code/type/test-verified but not device-run.
 
+### Phase 12 — remaining error/empty/loading state gaps (minor, by design)
+- Terminal/result screens have **no error state** (none needed — they don't fetch): `ride-posted`, `booking-success`, `payment-confirmation`, `settings`/`my-rides` stubs.
+- `offer-ride`, `payment`, `rate-trip` have error + loading but **no empty state** (forms, not lists — N/A).
+- `live-trip` idle is the "empty" state; no separate error UI (logs query errors).
+- Offline banners (`utils/connectivity.ts` exists) are **not yet wired per-screen** — follow-up.
+- Deferred polish: **dark mode** (Stage 64), **performance/bundle audit** (Stage 67), VoiceOver/TalkBack device pass (Stage 66).
+
 ### Next
 - Phase 6 ride-flow screens (Stages 31–38): offer-ride (+manual distance stub), confirm, ride-posted, find, search-results, ride detail (RouteMapPlaceholder), booking request/success, my-rides — cribbed from the spike, fixed for the typed schema, per-phase PRs.
 - Then Phases 7+ (payments needs Stripe Connect account = Jordan; later phases flagged as their dependencies arise).

@@ -82,7 +82,7 @@ export default function BookingRequestScreen(): React.ReactElement {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.scrollContent} testID="booking-request-screen">
-      <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} testID="back-button" accessibilityRole="button">
+      <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} accessibilityLabel="Go back" testID="back-button" accessibilityRole="button">
         <Ionicons name="chevron-back" size={24} color={Colors.textPrimary} />
       </TouchableOpacity>
       <Text style={styles.title}>Confirm booking</Text>
