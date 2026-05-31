@@ -24,9 +24,20 @@ Entries are added at the top. Most recent session is always first.
 - **`tsc`: 0 errors. Jest: 579 passing (27 suites).**
 - ⏳ **Simulator end-to-end verification still pending** (Jordan) — code-complete and type/test-verified, but not yet run on a device.
 
+### Merged this session (per-phase PRs, each tsc-0 + CI-green + CodeRabbit-clean)
+- **PR #11** Foundation: Database type fix + `tsc` CI gate + credential infra.
+- **PR #12** Phase 4 — User Profiles (Stages 21–25) + live migration `…001`.
+- **PR #13** Phase 5 (partial) — cost calculator + currency (Stages 28–29). Maps 26–27 deferred (need Google Cloud billing + key = Jordan).
+- **PR #14** Phase 6 foundation — ride/booking schema + types + DB-level women-only enforcement (Stage 30, migration `…002` applied live) + Maps-deferred stubs `RouteInput`/`RouteMapPlaceholder`.
+- Repo state: `main` at 34a26f6, tsc 0 errors, 629 tests.
+
+### Open decisions / blockers
+- **Google Maps key** (Jordan, payment) — blocks Stages 26–27 and the *distance* input the Offer-a-Ride price calc needs. Interim plan: a manual "distance (km)" field on Offer-a-Ride, auto-filled by Routes API later.
+- **Phase 4 simulator verification** still pending (Jordan) — code/type/test-verified but not device-run.
+
 ### Next
-- Open Phase 4 PR; action CodeRabbit; merge.
-- Continue Phase 5 (Maps) per the build plan.
+- Phase 6 ride-flow screens (Stages 31–38): offer-ride (+manual distance stub), confirm, ride-posted, find, search-results, ride detail (RouteMapPlaceholder), booking request/success, my-rides — cribbed from the spike, fixed for the typed schema, per-phase PRs.
+- Then Phases 7+ (payments needs Stripe Connect account = Jordan; later phases flagged as their dependencies arise).
 
 ---
 
