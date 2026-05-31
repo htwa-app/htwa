@@ -4,6 +4,28 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 31 May 2026 — Build complete: Stages 21–88
+
+All phases rebuilt cleanly and **merged to `main` across 14 per-phase PRs (#11–#24)**, each tsc-0, CI-green, CodeRabbit-clean. **`tsc --noEmit`: 0 errors. Jest: 759 tests passing.** 7 Supabase migrations applied to the live DB via the Management API; `types/database.ts` covers users/verification/profiles/rides/bookings/messages/reviews + the `book_ride` RPC.
+
+**What's genuinely done:** Phases 4–13 (profiles, cost/currency, ride schema, offer/find/book flows, payments scaffold, live-trip/safety/chat, reviews, notifications, savings/CO₂, polish/a11y, legal docs) + Phase 14–16 docs (beta guide, store listings, eas.json, build scripts, launch checklist).
+
+**Deliberately deferred (need an external input, flagged at each stage):** real Google Maps (26–27, stubbed with `RouteInput`/`RouteMapPlaceholder` + manual distance); live Stripe charges (need the Connect account); dark mode (64); performance audit (67); profile review rollup (56–57); device/simulator verification.
+
+### Manual steps remaining for Jordan
+
+1. **Google Maps API key** → `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` in `.env.local` (enable Routes API + Places API). Unblocks Stages 26–27 and real route distance.
+2. **Create the Stripe Connect platform account** at dashboard.stripe.com (Stage 39).
+3. **Supabase migrations are already applied to the live DB** (done during the build via the Management API). If you ever recreate the project, re-apply with `op run --env-file=.secrets.env -- npx supabase db push` (link first) or the Management API.
+4. **Deploy the Edge Functions:** `op run --env-file=.secrets.env -- npx supabase functions deploy` (create-connect-account, create-payment-intent) — needs the Stripe Connect key.
+5. **Install the remaining native packages** before the iOS/Android build: `npx expo install react-native-maps @react-native-community/datetimepicker` (expo-location, expo-notifications, and netinfo are already installed).
+6. **Run `op run --env-file=.secrets.env -- npx expo run:ios`** and test the full flow on the simulator.
+7. **Create an Apple Developer account** (developer.apple.com, €99/year) → fill `ascAppId`/`appleTeamId` in `eas.json`.
+8. **Create a Google Play Developer account** (play.google.com/console, €25) → add `google-service-account.json` (gitignored).
+9. **Print and distribute the university flyers** (Stage 77).
+
+---
+
 ## 31 May 2026 (Session 29 — Supabase autonomy + Phase 4 rebuilt clean)
 
 ### Foundation merged

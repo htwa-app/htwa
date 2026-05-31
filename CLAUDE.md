@@ -188,7 +188,15 @@ This folder (`~/Documents/HTWA/`) is the **shared workspace** between Cowork and
 
 ---
 
-## 7. Current Status (as of 30 May 2026)
+## 7. Current Status (as of 31 May 2026 — BUILD COMPLETE, Stages 21–88)
+
+**The full app is built and merged to `main`** across 14 per-phase PRs (#11–#24), each tsc-0, CI-green, CodeRabbit-clean. **`tsc --noEmit`: 0 errors. Jest: 759 tests.** Phases 4–13 (profiles → legal) are implemented; Phases 14–16 are delivered as docs/config (beta guide, store listings, `eas.json`, build scripts). 7 migrations applied to the live Supabase DB; `types/database.ts` is the typed source of truth (regenerable via `supabase gen types` with the Management token in 1Password).
+
+**Remaining work is external/manual (flagged at each stage + listed at the top of PROGRESS.md):** Google Maps key, Stripe Connect account + Edge Function deploy, `react-native-maps`/`datetimepicker` native installs, Apple/Google developer accounts, and simulator/device verification. Deferred polish: dark mode (64), perf audit (67), profile review rollup (56–57).
+
+See **BUILD-PLAN.md** for per-stage status and **PROGRESS.md** (top entry) for the manual-steps checklist.
+
+<details><summary>Earlier milestone detail (through Phase 3)</summary>
 
 ### Completed
 - [x] Project concept defined and master plan written
@@ -214,16 +222,7 @@ This folder (`~/Documents/HTWA/`) is the **shared workspace** between Cowork and
 - [x] PR #8 merged — Phase 3 Authentication (Stages 13–20) squash-merged to `main` (commit d2f4902); `feat/auth` auto-deleted
 - [x] `main` coverage gate fixed — functions threshold lowered 70→60 (untested stub screens); CI green again
 
-### In Progress
-
-- [ ] PR #9 (`chore/bypass-permissions`) — `bypassPermissions` config in `.claude/settings.json`; CI green, pending squash-merge
-
-### Next Up
-
-- [ ] Merge PR #9
-- [ ] Set up Stripe Connect account
-- [ ] Build remaining screens: Search results, Ride Offer flow, Driver Profile, Live Trip
-- [ ] Phase 15 (later): real Stripe Identity, Apple/Google/mobile OAuth
+</details>
 
 ---
 
