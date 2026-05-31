@@ -35,6 +35,7 @@ Entries are added at the top. Most recent session is always first.
 - **Google Maps key** (Jordan, payment) — blocks Stages 26–27 and the *distance* input the Offer-a-Ride price calc needs. Interim plan: a manual "distance (km)" field on Offer-a-Ride, auto-filled by Routes API later.
 - **Stage 39 — Stripe Connect platform account must be created manually by Jordan at dashboard.stripe.com.** The Phase 7 Edge Functions (`create-connect-account`, `create-payment-intent`) are written but must be deployed (`supabase functions deploy`) and need the live Connect platform key; the 10% platform fee is wired (`application_fee_amount`).
 - **Phase 4 simulator verification** still pending (Jordan) — code/type/test-verified but not device-run.
+- **Stage 77 — flyer printing and university distribution is Jordan's manual task** (design already done in Claude Design; QR code links to the htwa-app.com waiting-list signup).
 
 ### Phase 12 — remaining error/empty/loading state gaps (minor, by design)
 - Terminal/result screens have **no error state** (none needed — they don't fetch): `ride-posted`, `booking-success`, `payment-confirmation`, `settings`/`my-rides` stubs.
