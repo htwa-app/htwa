@@ -153,19 +153,19 @@
 ## PHASE 8 — LIVE TRIP & SAFETY FEATURES
 *The features that differentiate HTWA. Safety is the brand.*
 
-⬜ **Stage 47** — Real-time location tracking — driver's location shared during active journey using device GPS + Supabase realtime
+✅ **Stage 47** — Location tracking (`services/location.ts`) — `startTracking`/`stopTracking`/`getCurrentLocation` via expo-location + Supabase Realtime channel `trip:{id}`. Manual mock `__mocks__/expo-location.js`. ⏳ *Native build needs the package linked (`expo run:ios`).*
 
-⬜ **Stage 48** — Live trip screen — map with animated route, live driver position, ETA, "Shared with X trusted contacts" panel
+✅ **Stage 48** — Live trip screen (`app/(tabs)/live-trip.tsx`) — idle vs active, `RouteMapPlaceholder`-style map stub, LIVE badge, bottom sheet, lavender sharing panel; `fetchActiveTrip` checks `.error` (logs non-PGRST116) and uses explicit fetches.
 
-⬜ **Stage 49** — Journey sharing — when trip starts, nominated contact automatically receives a tracking link (SMS + push notification) with live map view. Link works without app install.
+✅ **Stage 49** — Journey sharing (`utils/tracking.ts`) — `generateTrackingUrl`, `sendTrackingLinkToContact` stub; copyable "Open tracking link".
 
-⬜ **Stage 50** — Auto check-in — push notification sent to nominated contact when trip completes ("Jordan has arrived safely at Galway, NUIG")
+⏳ **Stage 50** — Auto check-in — deferred to Phase 10 (push notifications).
 
-⬜ **Stage 51** — Silent SOS — one-tap button on live trip screen. Silently alerts nominated contact with live location and driver details. No sound, no indication to driver.
+✅ **Stage 51** — Silent SOS — one-tap button on live trip (`Colors.sos` bg, `Colors.surface` text), no driver-visible indication. (Contact alert wired in Phase 10.)
 
-⬜ **Stage 52** — Women-only mode — filter logic for search, badge display on profiles and ride cards, driver setting on offer screen
+✅ **Stage 52** — Women-only mode — DB-level booking enforcement (migration `…002`), filter on search, badges on cards/profiles, driver toggle on offer screen.
 
-⬜ **Stage 53** — In-app messaging — driver/passenger chat within a booking, basic text messages only, no external contact details shared
+✅ **Stage 53** — In-app messaging (`app/chat/[booking_id].tsx`) — Realtime chat per booking, messages table (migration `…004`, applied live), `handleSend` checks error / clears on success / `finally`.
 
 ---
 
