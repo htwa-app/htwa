@@ -22,8 +22,6 @@ import {
   TextInputProps,
   StyleProp,
   ViewStyle,
-  NativeSyntheticEvent,
-  TextInputFocusEventData,
 } from 'react-native';
 import { Colors, FontFamily, Typography, Spacing, BorderRadius } from '../constants/theme';
 
@@ -59,12 +57,14 @@ export function Input({
 }: InputProps): React.ReactElement {
   const [isFocused, setIsFocused] = useState(false);
 
-  const handleFocus = (e: NativeSyntheticEvent<TextInputFocusEventData>) => {
+  // Derive the handler types from TextInputProps so they track RN's exact
+  // onFocus/onBlur event signature across versions (RN 0.81 narrowed it).
+  const handleFocus: NonNullable<TextInputProps['onFocus']> = (e) => {
     setIsFocused(true);
     onFocus?.(e);
   };
 
-  const handleBlur = (e: NativeSyntheticEvent<TextInputFocusEventData>) => {
+  const handleBlur: NonNullable<TextInputProps['onBlur']> = (e) => {
     setIsFocused(false);
     onBlur?.(e);
   };

@@ -43,7 +43,7 @@ export function Badge({ variant, style, testID }: BadgeProps): React.ReactElemen
   if (variant === 'verified') {
     return (
       <View style={[styles.verifiedContainer, style]} testID={testID}>
-        <Text style={styles.verifiedTick} accessibilityHidden>✓</Text>
+        <Text style={styles.verifiedTick} aria-hidden={true}>✓</Text>
         <Text style={styles.verifiedLabel}>Verified</Text>
       </View>
     );
