@@ -193,6 +193,28 @@ export type BookingUpdate = {
   status?:       BookingStatus;
 }
 
+// ─── messages ─────────────────────────────────────────────────────────────────
+
+export type MessageRow = {
+  id:         string;        // uuid
+  booking_id: string;        // uuid → public.bookings.id
+  sender_id:  string;        // uuid → public.users.id
+  content:    string;
+  created_at: string | null;
+}
+
+export type MessageInsert = {
+  id?:         string;
+  booking_id:  string;
+  sender_id:   string;
+  content:     string;
+  created_at?: string | null;
+}
+
+export type MessageUpdate = {
+  content?: string;
+}
+
 // ─── Database (Supabase client generic) ───────────────────────────────────────
 
 export type Database = {
@@ -226,6 +248,12 @@ export type Database = {
         Row:    BookingRow;
         Insert: BookingInsert;
         Update: BookingUpdate;
+        Relationships: [];
+      };
+      messages: {
+        Row:    MessageRow;
+        Insert: MessageInsert;
+        Update: MessageUpdate;
         Relationships: [];
       };
     };
