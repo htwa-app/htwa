@@ -44,3 +44,8 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Generated / local artifacts (were accidentally committed — untracked 31 May)
+coverage/
+supabase/.temp/
+.claude/launch.json
