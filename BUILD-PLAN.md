@@ -96,18 +96,13 @@
 ## PHASE 5 — GOOGLE MAPS INTEGRATION
 *Needed before ride search or offering works. Set up early.*
 
-⬜ **Stage 26** — Google Maps Routes API connected — API key set up, environment variable added, route calculation working
+⏸️ **Stage 26** — Google Maps Routes API connected — **DEFERRED**: needs a Google Cloud project + billing (payment, Jordan's action) and `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY`. Resume when the key is available.
 
-⬜ **Stage 27** — Route input component — autocomplete address search (Google Places API), From/To with swap button
+⏸️ **Stage 27** — Route input component (Places autocomplete) — **DEFERRED** with Maps. A plain From/To text-input stub (with swap) is built for ride flows in the interim; autocomplete added when the key lands.
 
-⬜ **Stage 28** — Cost calculation engine (`utils/costCalculator.ts`):
-- Detects driver's home jurisdiction (ROI or NI)
-- Applies Revenue.ie rates (ROI drivers) or HMRC AMAP rates (NI drivers) for full journey
-- Calculates per-seat cost based on number of passengers
-- Enforces hard cap: driver can never earn more than calculated cost
-- Unit tests for all calculation scenarios including cross-border journeys
+✅ **Stage 28** — Cost calculation engine (`utils/costCalculator.ts`): ROI €0.43/km (Revenue.ie) / NI £0.2796/km (HMRC AMAP) by driver jurisdiction; suggested per-seat = totalCost/(seats+1) (driver shares, never profits); hard cap via `isWithinCap` (passengers' total ≤ driver cost). 24 unit tests incl. cross-border.
 
-⬜ **Stage 29** — Currency formatting utility (`utils/currency.ts`) — formats amounts as € or £ based on user's home location preference. Unit tested.
+✅ **Stage 29** — Currency formatting utility (`utils/currency.ts`) — `formatCurrency`/`parseCurrency`/`currencySymbol`, € or £, 2dp. 16 unit tests.
 
 ---
 
