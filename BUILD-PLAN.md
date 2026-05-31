@@ -194,11 +194,11 @@
 ## PHASE 11 — SAVINGS & STATS
 *The "save money vs bus/train" promise made visible.*
 
-⬜ **Stage 60** — Bus/train fare lookup or estimate table by route (`utils/publicTransportFares.ts`) — used to calculate "Saved €X vs bus" on trip cards and history
+✅ **Stage 60** — Fare lookup (`utils/publicTransportFares.ts`) — `getFareEstimate(from, to)` (Dublin↔Galway €13, ↔Cork €20, ↔Limerick €16, ↔Belfast €18, Cork↔Limerick €10, Galway↔Limerick €12; direction-agnostic, substring match) + `getSavingVsPublicTransport`.
 
-⬜ **Stage 61** — Journey history screen — total saved this semester, CO₂ saved, trip list with per-trip savings vs public transport
+✅ **Stage 61** — Journey history (`app/(tabs)/history.tsx`) — savings + CO₂ stats header, filter tabs, trip list with per-trip "Saved €X vs public transport". Checks `.error` on both queries; uses `trip.currency` (not hardcoded).
 
-⬜ **Stage 62** — CO₂ savings calculation (`utils/carbonCalculator.ts`) — calculates kg CO₂ saved vs solo car journey for shared seats
+✅ **Stage 62** — CO₂ savings (`utils/carbonCalculator.ts`) — `calculateCO2Savings(distanceKm, passengers)` → `{ savedKg, treesEquivalent, savedGrams }` at 170 g/km (richer than the spec's bare `number`; the UI shows kg + trees).
 
 ---
 
