@@ -15,6 +15,8 @@ import type {
   UserRow, UserInsert, UserUpdate,
   VerificationRow, VerificationInsert, VerificationUpdate,
   ProfileRow, ProfileInsert, ProfileUpdate,
+  RideRow, RideInsert, RideUpdate,
+  BookingRow, BookingInsert, BookingUpdate,
   HomeLocation, Currency,
   Database,
 } from '../../types/database';
@@ -29,6 +31,7 @@ const _userRow: UserRow = {
   full_name:     'Test User',
   home_location: 'ROI',
   currency:      'EUR',
+  gender:        null,
   created_at:    '2026-05-09T00:00:00Z',
 };
 
@@ -238,4 +241,54 @@ describe('types/database — Database shape', () => {
     const _pass: _RowCheck & _InsertCheck & _UpdateCheck = true;
     expect(_pass).toBe(true);
   });
+
+  it('has public.Tables.rides', () => {
+    type RideTable    = Database['public']['Tables']['rides'];
+    type _RowCheck    = RideTable['Row']    extends RideRow    ? true : never;
+    type _InsertCheck = RideTable['Insert'] extends RideInsert ? true : never;
+    type _UpdateCheck = RideTable['Update'] extends RideUpdate ? true : never;
+    const _pass: _RowCheck & _InsertCheck & _UpdateCheck = true;
+    expect(_pass).toBe(true);
+  });
+
+  it('has public.Tables.bookings', () => {
+    type BookingTable = Database['public']['Tables']['bookings'];
+    type _RowCheck    = BookingTable['Row']    extends BookingRow    ? true : never;
+    type _InsertCheck = BookingTable['Insert'] extends BookingInsert ? true : never;
+    type _UpdateCheck = BookingTable['Update'] extends BookingUpdate ? true : never;
+    const _pass: _RowCheck & _InsertCheck & _UpdateCheck = true;
+    expect(_pass).toBe(true);
+  });
 });
+
+// ─── Row literal shape checks (compile-time) ──────────────────────────────────
+
+const _rideRow: RideRow = {
+  id:                 'uuid-r',
+  driver_id:          'uuid-1',
+  from_location:      'Galway',
+  from_coords:        { lat: 53.27, lng: -9.05 },
+  to_location:        'Dublin',
+  to_coords:          null,
+  departure_datetime: '2026-06-01T09:00:00Z',
+  seats_total:        4,
+  seats_available:    3,
+  cost_per_seat:      12.5,
+  currency:           'EUR',
+  distance_km:        208.4,
+  women_only:         false,
+  status:             'active',
+  created_at:         null,
+};
+
+const _bookingRow: BookingRow = {
+  id:           'uuid-b',
+  ride_id:      'uuid-r',
+  passenger_id: 'uuid-2',
+  seats_booked: 1,
+  status:       'pending',
+  created_at:   null,
+};
+
+void _rideRow;
+void _bookingRow;

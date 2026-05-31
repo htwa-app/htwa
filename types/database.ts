@@ -18,6 +18,7 @@
 
 export type HomeLocation = 'ROI' | 'NI';
 export type Currency     = 'EUR' | 'GBP';
+export type Gender       = 'female' | 'male' | 'non_binary' | 'prefer_not_to_say';
 
 export type UserRow = {
   id:            string;          // uuid — matches auth.users.id
@@ -26,6 +27,7 @@ export type UserRow = {
   full_name:     string;
   home_location: HomeLocation;
   currency:      Currency;
+  gender:        Gender | null;   // migration 20260531000002 — used for women-only
   created_at:    string;          // timestamptz returned as ISO string
 }
 
@@ -36,6 +38,7 @@ export type UserInsert = {
   full_name:     string;
   home_location: HomeLocation;
   currency:      Currency;
+  gender?:       Gender | null;
   created_at?:   string;          // defaults to now()
 }
 
@@ -45,6 +48,7 @@ export type UserUpdate = {
   full_name?:     string;
   home_location?: HomeLocation;
   currency?:      Currency;
+  gender?:        Gender | null;
 }
 
 // ─── verification ─────────────────────────────────────────────────────────────
@@ -104,6 +108,91 @@ export type ProfileUpdate = {
   women_only_mode?:      boolean;
 }
 
+// ─── rides ────────────────────────────────────────────────────────────────────
+
+export type RideStatus = 'active' | 'full' | 'completed' | 'cancelled';
+
+/** Geographic point stored in the *_coords jsonb columns. */
+export type Coords = { lat: number; lng: number };
+
+export type RideRow = {
+  id:                 string;        // uuid
+  driver_id:          string;        // uuid → public.users.id
+  from_location:      string;
+  from_coords:        Coords | null; // jsonb
+  to_location:        string;
+  to_coords:          Coords | null; // jsonb
+  departure_datetime: string;        // timestamptz ISO
+  seats_total:        number;
+  seats_available:    number;
+  cost_per_seat:      number;        // numeric(10,2)
+  currency:           Currency;
+  distance_km:        number | null; // numeric(10,2)
+  women_only:         boolean;
+  status:             RideStatus;
+  created_at:         string | null;
+}
+
+export type RideInsert = {
+  id?:                 string;
+  driver_id:           string;
+  from_location:       string;
+  from_coords?:        Coords | null;
+  to_location:         string;
+  to_coords?:          Coords | null;
+  departure_datetime:  string;
+  seats_total:         number;
+  seats_available:     number;
+  cost_per_seat:       number;
+  currency:            Currency;
+  distance_km?:        number | null;
+  women_only?:         boolean;       // defaults to false
+  status?:             RideStatus;    // defaults to 'active'
+  created_at?:         string | null;
+}
+
+export type RideUpdate = {
+  from_location?:      string;
+  from_coords?:        Coords | null;
+  to_location?:        string;
+  to_coords?:          Coords | null;
+  departure_datetime?: string;
+  seats_total?:        number;
+  seats_available?:    number;
+  cost_per_seat?:      number;
+  currency?:           Currency;
+  distance_km?:        number | null;
+  women_only?:         boolean;
+  status?:             RideStatus;
+}
+
+// ─── bookings ─────────────────────────────────────────────────────────────────
+
+export type BookingStatus = 'pending' | 'confirmed' | 'declined' | 'cancelled';
+
+export type BookingRow = {
+  id:           string;        // uuid
+  ride_id:      string;        // uuid → public.rides.id
+  passenger_id: string;        // uuid → public.users.id
+  seats_booked: number;
+  status:       BookingStatus;
+  created_at:   string | null;
+}
+
+export type BookingInsert = {
+  id?:           string;
+  ride_id:       string;
+  passenger_id:  string;
+  seats_booked?: number;        // defaults to 1
+  status?:       BookingStatus; // defaults to 'pending'
+  created_at?:   string | null;
+}
+
+export type BookingUpdate = {
+  seats_booked?: number;
+  status?:       BookingStatus;
+}
+
 // ─── Database (Supabase client generic) ───────────────────────────────────────
 
 export type Database = {
@@ -125,6 +214,18 @@ export type Database = {
         Row:    ProfileRow;
         Insert: ProfileInsert;
         Update: ProfileUpdate;
+        Relationships: [];
+      };
+      rides: {
+        Row:    RideRow;
+        Insert: RideInsert;
+        Update: RideUpdate;
+        Relationships: [];
+      };
+      bookings: {
+        Row:    BookingRow;
+        Insert: BookingInsert;
+        Update: BookingUpdate;
         Relationships: [];
       };
     };

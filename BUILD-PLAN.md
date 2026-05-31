@@ -109,9 +109,7 @@
 ## PHASE 6 — RIDE FLOWS
 *The core of the app. Find a ride and offer a ride.*
 
-⬜ **Stage 30** — Ride database schema in Supabase:
-- `rides` table (id, driver_id, from_location, to_location, departure_datetime, seats_total, seats_available, cost_per_seat, currency, women_only, status)
-- `bookings` table (id, ride_id, passenger_id, seats_booked, status, created_at)
+✅ **Stage 30** — Ride database schema (`20260531000002_create_ride_tables.sql`, applied to live DB): `rides` + `bookings` with CHECK constraints, full RLS, `users.gender` column, and **DB-level women-only booking enforcement** (booking INSERT allowed only if ride is open or passenger gender = 'female'). `types/database.ts` extended with Ride/Booking/Gender types. Also added Maps-deferred stubs `components/RouteInput.tsx` (§9.2, text inputs + swap) and `components/RouteMapPlaceholder.tsx` for the ride flows.
 
 ⬜ **Stage 31** — Offer a ride screen — from/to (using route input component), date picker, time picker, seats available, price per seat (auto-calculated, editable within cap), women-only toggle, vehicle auto-populated from profile
 
