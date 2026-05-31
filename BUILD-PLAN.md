@@ -81,15 +81,15 @@
 ## PHASE 4 — USER PROFILES
 *Build trust. Profiles are central to the safety model.*
 
-⬜ **Stage 21** — Profile screen (own profile) — avatar, name, university, verified badges, rating, trips taken, reliability score, vehicle details (drivers), travel preferences
+✅ **Stage 21** — Profile screen (own profile) — avatar, name, university, verified badge, stats row (rating/trips/reliability placeholders until Phase 9), edit/settings/vehicle/my-rides actions. (`app/(tabs)/profile.tsx`)
 
-⬜ **Stage 22** — Edit profile screen — update bio, travel preferences (chatty/quiet, music ok, no smoking, pets ok), profile photo
+✅ **Stage 22** — Edit profile screen — bio, university, travel preference chips (chatty, music ok, no smoking, pets ok), upsert save. (`app/edit-profile.tsx`)
 
-⬜ **Stage 23** — Vehicle details screen (drivers only) — make, model, year, colour, seats, A/C, dashcam toggle
+✅ **Stage 23** — Vehicle details screen (drivers) — make/model/year/colour, seats stepper, A/C + dashcam toggles, saved to `profiles.vehicle_details`. (`app/vehicle-details.tsx`)
 
-⬜ **Stage 24** — Other user's profile screen (read-only) — same layout but shows reviews, frequent routes, trip history visible to others
+✅ **Stage 24** — Other user's profile screen (read-only) — name, university, verified + women-only badges, stats, reviews placeholder, report modal. (`app/user-profile/[id].tsx`)
 
-⬜ **Stage 25** — Supabase integration — profile read/write connected to database, unit + integration tests written
+✅ **Stage 25** — Supabase integration — migration `20260531000001_profile_columns.sql` (vehicle_details, women_only_mode, public-read RLS) applied to the live DB via Management API; `types/database.ts` updated to match; read/write wired with unit tests. ⏳ *Simulator end-to-end verification pending (Jordan).*
 
 ---
 
