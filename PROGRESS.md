@@ -4,6 +4,49 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 31 May 2026 (Session 28 — Disaster recovery + foundation type-system fix)
+
+### Git disaster recovery (resolved, no data lost)
+
+A second autonomous session collided on `feat/phase-4-profiles`, then GitHub
+Desktop + a Cowork edit-session fought over the repo, leaving a half-applied
+`git checkout`, a stale `HEAD.lock`, and lock-workaround debris in `.git/`.
+Recovered fully:
+- Confirmed every commit/object safe; cleared the stale lock + 8 debris files (only after verifying no live git process).
+- Jordan closed GitHub Desktop and authorised killing the rogue Cowork session (it had already exited).
+- Reset to a clean base: branch **`feat/profiles`** off `main` (a535347, Phase 3 complete). Overnight bulk preserved as **`spike/overnight-bulk`** for reference.
+- New CLAUDE.md decision/lesson: **only one autonomous Claude session per repo**, and quit GitHub Desktop during automated git work (it regenerates `.git/HEAD.lock`).
+
+### Foundation type-system fix (the keystone)
+
+Root-caused the long-standing `never` typing (8 errors on `main`, ~majority of the spike's 77):
+- `types/database.ts` declared table types as **`interface`** — not assignable to `Record<string, unknown>` (supabase-js's `GenericTable` constraint), so `Database` failed `GenericSchema` and **every `supabase.from()` degraded to `never`**. Fix: switch all table types to **`type`** aliases (what `supabase gen types` emits) + add `Views/Functions/Enums/CompositeTypes/Relationships`.
+- The `never` had masked real bugs, now fixed: `verify.tsx` (`home_location`/`currency` typed as `string` not the ROI/NI & EUR/GBP unions; `?? ''` would've violated the DB check constraint), `Badge.tsx` (invalid `accessibilityHidden` → `aria-hidden`), `Input.tsx` (onFocus/onBlur handler types too narrow for RN 0.81).
+- **`tsc --noEmit`: 8 → 0 errors. Jest: 523 passing.**
+
+### CI hardening
+
+- Added `npm run typecheck` (`tsc --noEmit`) and a **fail-fast typecheck step in CI** — the missing gate that let the type errors accumulate (Jest mocks Supabase + Babel strips types).
+
+### Files changed (branch `feat/profiles`)
+
+- `types/database.ts` — interface→type + GenericSchema conformance
+- `components/Badge.tsx`, `components/Input.tsx`, `app/verify.tsx` — fix exposed type bugs
+- `__tests__/unit/Badge.test.tsx` — query the now-aria-hidden tick
+- `.github/workflows/ci.yml`, `package.json` — typecheck gate + script
+- `.gitignore`, `CLAUDE.md`, `PROGRESS.md` — restored credential infra + honest history
+
+### Blocked on Jordan
+
+- **Supabase Management token** (`sbp_…` or DB connection string → 1Password) — still not added. Needed to apply migrations 003+ to the live DB and run `supabase gen types`. Until then the Phase-4+ feature screens (which need new columns/tables) can't be verified on the simulator.
+
+### Next
+
+- Open a focused PR for this foundation work (type fix + CI gate + infra); get it green + CodeRabbit-reviewed + merged to `main`.
+- Then rebuild Phase 4 (Stages 21–25) onto a clean branch, cribbing the sound screens from `spike/overnight-bulk`, applying migration 003 once the token lands, verifying on simulator, per-phase PR.
+
+---
+
 ## 31 May 2026 (Session 27 — Supervisory review & honest reconciliation)
 
 > This session took over after discovering **two autonomous Claude sessions were
