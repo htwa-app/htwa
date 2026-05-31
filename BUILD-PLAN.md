@@ -245,39 +245,39 @@
 
 ✅ **Stage 76** — QR code links to waiting list signup page
 
-⬜ **Stage 77** — University flyer printed and distributed (design already done in Claude Design)
+⏳ **Stage 77** — University flyer — **MANUAL (Jordan)**: design done in Claude Design; printing + campus distribution is Jordan's task (QR → waiting-list signup).
 
 ---
 
 ## PHASE 15 — BETA TESTING
 *Real users before public launch.*
 
-⬜ **Stage 78** — TestFlight set up (iOS) — invite beta testers from waiting list
+📄 **Stage 78** — TestFlight — `docs/beta-testing-guide.md` + `eas.json` (production profile) + `scripts/build-ios.sh`. ⏳ *Run after the Apple account exists (Jordan).*
 
-⬜ **Stage 79** — Google Play internal testing (Android) — invite beta testers
+📄 **Stage 79** — Google Play internal testing — guide + `scripts/build-android.sh` + `eas.json` submit (internal track). ⏳ *Run after the Play account exists.*
 
-⬜ **Stage 80** — Beta feedback collected and critical bugs fixed
+📄 **Stage 80** — Beta feedback — feedback template + triage rules in the beta guide. ⏳ *Collect once testers are in.*
 
-⬜ **Stage 81** — Load testing — simulate concurrent users on Supabase
+⏳ **Stage 81** — Load testing — *deferred*: pre-launch task against the live Supabase project.
 
 ---
 
 ## PHASE 16 — APP STORE SUBMISSION
 *The finish line for Phase 1.*
 
-⬜ **Stage 82** — Apple Developer account set up (hello@htwa-app.com, €99/year)
+⏳ **Stage 82** — Apple Developer account — **MANUAL (Jordan, €99/yr payment)**.
 
-⬜ **Stage 83** — Google Play Developer account set up (hello@htwa-app.com, €25 one-time)
+⏳ **Stage 83** — Google Play Developer account — **MANUAL (Jordan, €25 payment)**.
 
-⬜ **Stage 84** — App Store listing prepared — screenshots (all required sizes), description, keywords, category (Travel), age rating
+📄 **Stage 84** — App Store listing — `marketing/app-store-listing.md` (subtitle, description, keywords, category, screenshot captions for 6.7"/5.5"). ⏳ *Upload to App Store Connect (Jordan).*
 
-⬜ **Stage 85** — Google Play listing prepared — same assets adapted for Play Store requirements
+📄 **Stage 85** — Google Play listing — `marketing/play-store-listing.md`. ⏳ *Upload to Play Console.*
 
-⬜ **Stage 86** — iOS App Store submission — build uploaded via Xcode, review guidelines checklist completed, submitted for Apple review
+📄 **Stage 86** — iOS submission — `eas.json` + `scripts/build-ios.sh` + `marketing/launch-checklist.md`. ⏳ *`eas build` + `eas submit` after Apple account (Jordan).*
 
-⬜ **Stage 87** — Android Google Play submission — AAB uploaded, content rating completed, submitted for review
+📄 **Stage 87** — Android submission — `eas.json` + `scripts/build-android.sh`. ⏳ *`eas build` + `eas submit` after Play account.*
 
-⬜ **Stage 88** — App approved and live on both stores 🎉
+⏳ **Stage 88** — App approved & live 🎉 — **MANUAL**: the finish line, after the above.
 
 ---
 
