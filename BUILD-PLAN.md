@@ -224,13 +224,15 @@
 ## PHASE 13 — LEGAL & COMPLIANCE
 *Must be done before any public launch.*
 
-⬜ **Stage 70** — Privacy policy written and hosted at htwa-app.com/privacy — covers GDPR (ROI) and UK GDPR (NI), data retention, location data usage
+✅ **Stage 70** — Privacy policy (`legal/privacy-policy.md`) — GDPR (ROI) + UK GDPR (NI), location data, Stripe Identity, retention (3yr trips / 30d location), right to erasure. ⏳ *Host at htwa-app.com/privacy (Jordan).*
 
-⬜ **Stage 71** — Terms of service written and hosted at htwa-app.com/terms — covers cost-share model, driver obligations, cancellation policy, prohibited use
+✅ **Stage 71** — Terms of service (`legal/terms-of-service.md`) — cost-share model, driver obligations, 24h cancellation, **women-only clause** (§7.1), governing law (ROI: Irish courts; NI: NI courts). ⏳ *Host at htwa-app.com/terms.*
 
-⬜ **Stage 72** — Community safety pledge — short, plain-English pledge shown at signup and linked in app footer
+✅ **Stage 72** — Community safety pledge (`legal/community-safety-pledge.md`) — plain English, 5 bullets, shown at signup / footer.
 
-⬜ **Stage 73** — Cookie/tracking policy for website
+✅ **Stage 73** — Cookie policy (`legal/cookie-policy.md`) — essential cookies only, no analytics at launch.
+
+*(All legal docs: `htwa` lowercase, blank line before first heading.)*
 
 ---
 
