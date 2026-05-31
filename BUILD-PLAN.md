@@ -172,13 +172,13 @@
 ## PHASE 9 — REVIEWS & TRUST
 *Post-trip trust loop. Ratings make the platform self-policing.*
 
-⬜ **Stage 54** — Post-trip rating prompt — appears after journey marked complete, 5-star rating + optional comment for both driver and passenger
+✅ **Stage 54** — Post-trip rating screen (`app/rate-trip/[booking_id].tsx`) — 5-star + optional comment; passenger rates driver, driver rates passenger.
 
-⬜ **Stage 55** — Rating submission and storage in Supabase
+✅ **Stage 55** — Rating storage — `reviews` table (migration `…005`, applied live, `UNIQUE(trip_id, reviewer_id, reviewee_id)`); `upsert` with matching `onConflict` so re-rating amends. `Review` types added.
 
-⬜ **Stage 56** — Rating display on profiles — average star rating, total trip count, reliability score (% of trips not cancelled)
+⏳ **Stage 56** — Rating display on profiles — *deferred*: reviews are stored; the average/total/reliability rollup on profiles is a follow-up (placeholder stats row exists on profile screens).
 
-⬜ **Stage 57** — Reviews list on profile — most recent first, reviewer name, star rating, comment, date
+⏳ **Stage 57** — Reviews list on profile — *deferred*: `app/user-profile/[id].tsx` has a reviews-section placeholder; the live list wires up when the profile rollup lands.
 
 ---
 

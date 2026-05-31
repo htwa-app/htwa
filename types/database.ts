@@ -215,6 +215,33 @@ export type MessageUpdate = {
   content?: string;
 }
 
+// ─── reviews ──────────────────────────────────────────────────────────────────
+
+export type ReviewRow = {
+  id:          string;        // uuid
+  trip_id:     string;        // uuid → public.rides.id
+  reviewer_id: string;        // uuid → public.users.id
+  reviewee_id: string;        // uuid → public.users.id
+  rating:      number;        // 1–5
+  comment:     string | null;
+  created_at:  string | null;
+}
+
+export type ReviewInsert = {
+  id?:          string;
+  trip_id:      string;
+  reviewer_id:  string;
+  reviewee_id:  string;
+  rating:       number;
+  comment?:     string | null;
+  created_at?:  string | null;
+}
+
+export type ReviewUpdate = {
+  rating?:  number;
+  comment?: string | null;
+}
+
 // ─── Database (Supabase client generic) ───────────────────────────────────────
 
 export type Database = {
@@ -254,6 +281,12 @@ export type Database = {
         Row:    MessageRow;
         Insert: MessageInsert;
         Update: MessageUpdate;
+        Relationships: [];
+      };
+      reviews: {
+        Row:    ReviewRow;
+        Insert: ReviewInsert;
+        Update: ReviewUpdate;
         Relationships: [];
       };
     };
