@@ -15,7 +15,8 @@ These rules apply to all Claude tools (Cowork, Claude Code, Claude in Chrome) at
 2. **Personal email** — Never access or read Jordan's personal email accounts.
 3. **Personal social media** — Never access personal social media accounts. The business Instagram (@htwa.app) is fine.
 4. **Passwords & personal info** — Never share Jordan's passwords or personal information with any third party or service.
-5. **PROGRESS.md entry required** — Every session must end with a PROGRESS.md entry listing every file created or modified. No exceptions. If the session ends without one, write it before closing.
+5. **Project service credentials — OK to use freely** — Claude may read and use stored project credentials (1Password vault entries and `.env.local` env vars) to operate project services — Supabase, Stripe, GitHub, MailerLite — without asking each time. This covers running migrations, deploying, calling project APIs, and managing repos. **Limits that still apply:** this does NOT authorise making payments (rule 1 stands — every transaction needs explicit approval), and credentials must never be pasted into chat, committed to git, logged, or shared with any third party (rule 4 stands). Sensitive keys (Supabase service-role key, Stripe secret key, MailerLite API key) live in 1Password and are referenced via `op://…`, never written to disk.
+6. **PROGRESS.md entry required** — Every session must end with a PROGRESS.md entry listing every file created or modified. No exceptions. If the session ends without one, write it before closing.
 
 If in doubt about whether an action falls under these rules, stop and ask first.
 
@@ -142,7 +143,7 @@ Key sections:
 | Stripe Connect | Payments + application fees | Planned |
 | Google Maps Routes API | Route calculation + toll fees | Planned |
 | GitHub Desktop | Visual Git interface | Planned |
-| 1Password | Credentials management | Planned |
+| 1Password CLI (`op`) | Credentials management | ✅ Installed (v2.34.0, `/opt/homebrew/bin/op`); account sign-in pending (Jordan's action) |
 
 ### Explicitly Rejected Tools
 - ~~Cursor~~ — replaced by Claude Code
@@ -152,6 +153,28 @@ Key sections:
 - Target: iOS + Android
 - Both app stores required (Apple App Store + Google Play)
 - Apple App Store Review Guidelines apply
+
+### Secrets & Credentials (1Password)
+
+Sensitive server-side keys live in **1Password** (account `hello@htwa-app.com` on `my.1password.eu`), in the dedicated **HTWA** vault. They are **never** stored in `.env.local` or committed.
+
+- **Public, client-safe keys** stay in `.env.local` (gitignored): `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY`.
+- **Sensitive keys** are 1Password items in the **HTWA** vault (value in the item's `password` field):
+  - `op://HTWA/htwa supabase API key/password` → Supabase `sb_secret_…` project secret key (new-format replacement for the `service_role` JWT; authenticates against the project data API, NOT `api.supabase.com`). Env var: `SUPABASE_SECRET_KEY`.
+  - `op://HTWA/htwa stripe API key/password` → Stripe `sk_test_…` secret key. Env var: `STRIPE_SECRET_KEY`.
+  - `op://HTWA/htwa mailerlite API key/password` → MailerLite API token (JWT). Env var: `MAILERLITE_API_KEY`.
+- **Non-interactive access (no Touch ID):** a **1Password Service Account** (`htwa-claude-ci`, read-only on the HTWA vault) provides the token in `~/.config/op/htwa-sa.token` (perms `600`). `~/.zshenv` exports it as `OP_SERVICE_ACCOUNT_TOKEN`, so **every** `op` command runs silently — no biometric prompt. This is what makes credential access frictionless for Claude Code.
+- **How to use them:** `.secrets.env` (gitignored — pointers only) maps env-var names to the `op://` references. Run anything needing a secret through `op run`:
+  ```bash
+  op run --env-file=.secrets.env -- <command>
+  # exposes SUPABASE_SECRET_KEY, STRIPE_SECRET_KEY, MAILERLITE_API_KEY for that process only
+  ```
+  Secrets are injected as env vars for the command's lifetime and never written to disk.
+- **Rules:** never `echo`/print a secret value into the transcript or logs; to verify a reference, check `| wc -c` (length) not the value.
+- **Caveats of the service-account setup:**
+  - The token is **read-only and scoped to the HTWA vault only** — it cannot read Personal or write/edit anything. Item creates/edits/moves still need the **desktop-app integration** (Touch ID); to do those, run in a shell with `unset OP_SERVICE_ACCOUNT_TOKEN` so `op` falls back to the app.
+  - Because `OP_SERVICE_ACCOUNT_TOKEN` is set globally in `~/.zshenv`, the `op` CLI defaults to the service account everywhere; `unset` it in a terminal to use the full interactive account.
+  - **Security posture:** combined with `bypassPermissions`, this grants Claude unattended, no-confirmation **read** access to these three keys. Accepted by Jordan (30 May 2026) in exchange for zero friction. To revoke: delete the service account in 1Password (Developer → Service Accounts) and remove the `~/.zshenv` line.
 
 ---
 
@@ -232,6 +255,9 @@ This folder (`~/Documents/HTWA/`) is the **shared workspace** between Cowork and
 | May 2026 | Tab bar renamed and restructured | 4 tabs: Search (main/home), History (past trips), Live Trip (active journey + safety sharing — shows "no active journey" message when idle), Profile (settings via cog icon inside screen). Tab bar always visible regardless of trip state. |
 | May 2026 | Claude Code permissions set to `bypassPermissions` | No tool-approval prompts in this repo (Jordan's choice, risks acknowledged). Removes the confirmation gate on destructive shell commands; standing rules (payments, personal email/social) still apply regardless. Lives in `.claude/settings.json` via PR #9. |
 | May 2026 | Config changes kept in separate PRs from feature work | bypassPermissions split out of the auth PR (#8) via cherry-pick + revert so the feature diff stays reviewable. |
+| 30 May 2026 | Claude may use stored project credentials without asking | New standing rule #5. Lets Claude operate Supabase/Stripe/GitHub/MailerLite using secrets in 1Password + `.env.local` without a per-action prompt. Deliberately scoped: payment approval (rule 1) and no-credential-sharing (rule 4) are untouched. Jordan declined to relax the payments, personal-email, or personal-social rules. Claude cannot perform sign-ins itself — those need Jordan's master password/Touch ID; sensitive keys are stored in 1Password and referenced via `op://`. |
+| 31 May 2026 | Only ONE autonomous Claude session per repo at a time | Two sessions ran overnight on the same `feat/phase-4-profiles` branch and collided (clobbered files, stale `.git/HEAD.lock`, duplicate/contradictory work). Rule: never start a second autonomous builder on a repo that already has one running. |
+| 31 May 2026 | Supabase Management token to be added for autonomous migrations | Claude cannot apply DDL with the `sb_secret` key (PostgREST is data-only). Jordan to add an `sbp_…` Management token / DB connection string to 1Password so Claude can apply migrations and run `supabase gen types` autonomously. Until then, migration files are written but must be applied by Jordan in the dashboard SQL editor. |
 
 ---
 
@@ -266,6 +292,10 @@ This folder (`~/Documents/HTWA/`) is the **shared workspace** between Cowork and
 | May 2026 | CodeRabbit `CHANGES_REQUESTED` never auto-clears | CodeRabbit posts comment-type reviews across many commits but rarely submits an APPROVE, so GitHub's `reviewDecision` stays `CHANGES_REQUESTED` even after every finding is fixed. To merge: verify findings against the *live* code first, then either dismiss the stale reviews or `gh pr merge --squash --admin` when CI is green. |
 | May 2026 | `autoApprove` is not a valid settings.json key | To stop tool-approval prompts use `permissions.defaultMode` ("bypassPermissions" / "acceptEdits") or `permissions.allow` — NOT a fictional `autoApprove` array, which is silently ignored. `permissions.defaultMode` is read at startup, so a Claude Code restart is needed for it to take effect. |
 | May 2026 | Squash-merge auto-deletes the head branch | GitHub's "auto-delete head branches" removes the remote branch on merge, so a follow-up `git push origin --delete <branch>` errors with "remote ref does not exist" (harmless). Also: a PR branched from a red `main` inherits the failure — fix `main` first (merge the fix), then rebase the dependent branch. |
+| 31 May 2026 | Passing Jest tests ≠ correct code — always run `tsc --noEmit` | An overnight build had 709 green tests but 77 TypeScript errors. Jest mocks Supabase and Babel strips types, so type errors sail through. CI must include a `tsc --noEmit` step, and Claude must run it after any batch of work before claiming a phase done. |
+| 31 May 2026 | Regenerate `types/database.ts` after every schema migration | The 77 type errors were all `Property X does not exist on type 'never'` — caused by new tables (rides/bookings/messages/reviews) being added in migrations but the `Database` type never updated, so `supabase.from('rides')` typed as `never`. After any migration, run `supabase gen types typescript` (needs the Management token) or hand-update the types. |
+| 31 May 2026 | Never commit `coverage/` or generated artifacts | An overnight session committed 42 generated `coverage/` HTML files (incl. `' 2.tsx'` worktree duplicates), `supabase/.temp/`, and `.claude/launch.json`. These must stay gitignored. Run `git status` before committing and never `git add -A` blindly. |
+| 31 May 2026 | "Scaffolded + mocked tests" is not "done" | An autonomous run claimed Stages 21–88 complete; in reality 39–88 (payments, app store) were scaffolds with placeholder keys and no real verification. Only mark a stage ✅ after it typechecks, its tests are meaningful, and (for anything visual/behavioural) it's verified on the simulator. |
 
 ---
 

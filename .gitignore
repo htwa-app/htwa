@@ -35,6 +35,8 @@ yarn-error.*
 .env.*
 .env*.local
 !.env.example
+# 1Password op-run reference file (pointers only, but keep it local)
+.secrets.env
 
 # typescript
 *.tsbuildinfo
@@ -42,3 +44,12 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Generated / local artifacts (were accidentally committed — untracked 31 May)
+coverage/
+supabase/.temp/
+.claude/launch.json
+.claude/worktrees/
+
+# Google Play service account key (never commit)
+google-service-account.json
