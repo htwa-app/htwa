@@ -31,7 +31,9 @@ describe('Badge — verified variant (§6.5)', () => {
 
   it('displays the tick character', () => {
     render(<Badge variant="verified" />);
-    expect(screen.getByText('✓')).toBeTruthy();
+    // The decorative tick is aria-hidden (hidden from screen readers per a11y
+    // best practice), so include hidden elements when querying for it.
+    expect(screen.getByText('✓', { includeHiddenElements: true })).toBeTruthy();
   });
 
   it('container background is Colors.verified (#34C759)', () => {

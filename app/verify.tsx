@@ -12,6 +12,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Button } from '../components/Button';
 import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
 import { supabase } from '../lib/supabase';
+import type { HomeLocation, Currency } from '../types/database';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -65,8 +66,11 @@ export default function VerifyScreen() {
         email,
         phone:         phone         ?? '',
         full_name:     fullName      ?? '',
-        home_location: homeLocation  ?? '',
-        currency:      currency      ?? '',
+        // Stored as valid unions by the signup screen; default to ROI/EUR if
+        // absent. Use || (not ??) so an empty string also falls back — an empty
+        // string would violate the DB check constraint on these columns.
+        home_location: (homeLocation || 'ROI') as HomeLocation,
+        currency:      (currency || 'EUR') as Currency,
       });
       if (usersError) {
         setVerifyError(usersError.message ?? 'Failed to create account. Please try again.');

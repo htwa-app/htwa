@@ -19,7 +19,7 @@
 export type HomeLocation = 'ROI' | 'NI';
 export type Currency     = 'EUR' | 'GBP';
 
-export interface UserRow {
+export type UserRow = {
   id:            string;          // uuid — matches auth.users.id
   email:         string;
   phone:         string | null;
@@ -29,7 +29,7 @@ export interface UserRow {
   created_at:    string;          // timestamptz returned as ISO string
 }
 
-export interface UserInsert {
+export type UserInsert = {
   id:            string;          // must match the auth.users uuid
   email:         string;
   phone?:        string | null;
@@ -39,7 +39,7 @@ export interface UserInsert {
   created_at?:   string;          // defaults to now()
 }
 
-export interface UserUpdate {
+export type UserUpdate = {
   email?:         string;
   phone?:         string | null;
   full_name?:     string;
@@ -49,7 +49,7 @@ export interface UserUpdate {
 
 // ─── verification ─────────────────────────────────────────────────────────────
 
-export interface VerificationRow {
+export type VerificationRow = {
   id:              string;         // uuid
   user_id:         string;         // uuid → public.users.id
   id_verified:     boolean;
@@ -57,7 +57,7 @@ export interface VerificationRow {
   verified_at:     string | null;  // timestamptz or null
 }
 
-export interface VerificationInsert {
+export type VerificationInsert = {
   id?:              string;        // defaults to gen_random_uuid()
   user_id:          string;
   id_verified?:     boolean;       // defaults to false
@@ -65,7 +65,7 @@ export interface VerificationInsert {
   verified_at?:     string | null;
 }
 
-export interface VerificationUpdate {
+export type VerificationUpdate = {
   id_verified?:     boolean;
   selfie_verified?: boolean;
   verified_at?:     string | null;
@@ -73,7 +73,7 @@ export interface VerificationUpdate {
 
 // ─── profiles ─────────────────────────────────────────────────────────────────
 
-export interface ProfileRow {
+export type ProfileRow = {
   id:                   string;        // uuid
   user_id:              string;        // uuid → public.users.id
   bio:                  string | null;
@@ -82,7 +82,7 @@ export interface ProfileRow {
   nominated_contact:    Record<string, unknown> | null;  // jsonb
 }
 
-export interface ProfileInsert {
+export type ProfileInsert = {
   id?:                   string;       // defaults to gen_random_uuid()
   user_id:               string;
   bio?:                  string | null;
@@ -91,7 +91,7 @@ export interface ProfileInsert {
   nominated_contact?:    Record<string, unknown> | null;
 }
 
-export interface ProfileUpdate {
+export type ProfileUpdate = {
   bio?:                  string | null;
   university?:           string | null;
   travel_preferences?:   Record<string, unknown> | null;
@@ -100,24 +100,31 @@ export interface ProfileUpdate {
 
 // ─── Database (Supabase client generic) ───────────────────────────────────────
 
-export interface Database {
+export type Database = {
   public: {
     Tables: {
       users: {
         Row:    UserRow;
         Insert: UserInsert;
         Update: UserUpdate;
+        Relationships: [];
       };
       verification: {
         Row:    VerificationRow;
         Insert: VerificationInsert;
         Update: VerificationUpdate;
+        Relationships: [];
       };
       profiles: {
         Row:    ProfileRow;
         Insert: ProfileInsert;
         Update: ProfileUpdate;
+        Relationships: [];
       };
     };
+    Views:          { [_ in never]: never };
+    Functions:      { [_ in never]: never };
+    Enums:          { [_ in never]: never };
+    CompositeTypes: { [_ in never]: never };
   };
 }
