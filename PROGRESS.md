@@ -40,6 +40,33 @@ Autonomous, defensive run. ONE branch, commit per block, tsc+tests after each, *
 - Tests: +5 (search flexibility options + param pass-through; offer seat-cap + note; search-results ±flex window + exact-day window). tsc 0, 777 passing.
 - 📦 **Native dependency note:** the ±N flexibility chips need **no** new native module. A true **calendar date picker** is NOT built — the date is still a text field (`YYYY-MM-DD`). Adding one needs `@react-native-community/datetimepicker` (a native module) → a **fresh EAS build** would be required. Deferred.
 
+### Block 4 — Pricing engine + driver mileage tracking (CORE) ✅
+Committed in 3 sub-steps (6a5cec7 engine, 2e00242 migration+types, 62e78cb UI).
+
+**Pure engine (no UI/data logic), exhaustively tested:**
+- `constants/pricingRates.ts` — single source of truth. UK HMRC (GBP/mile): £0.55 first 10k mi, £0.25 over. ROI Revenue (EUR/km), 4 bands × 3 engine-cc columns (≤1200 / 1201–1500 / 1501+), non-monotonic (band 2 highest). Service charge 10%, booking fee flat 2.
+- `utils/pricingEngine.ts` — band index, `effectiveRate` band-straddle (charges whole journey at the **lower numeric** rate, safe for non-monotonic ROI), `totalJourneyCost = distance×rate + tolls`, `driverSeatPrice = total ÷ (seatsOffered + 1)` (the **+1 = the driver**, load-bearing), passenger pricing, **floor-to-minor-unit each step**.
+- `utils/mileageTracking.ts` — tax-year reset (UK 6 Apr / ROI 1 Jan), cumulative-for-tax-year, append-only increment log, over-click support flag.
+- 45 engine/mileage tests covering both jurisdictions, every ROI column/band, straddle both directions, tax-year reset, the 30→33→35 example, floor-to-cent, 1- & 4-seat division.
+
+**Migration (APPLIED to live DB, verified):** `20260601000001_pricing_and_driver.sql` — `pricing_rates` (14 seeded rows = 2 UK + 12 ROI, admin-editable), `pricing_config` (service_charge_rate, booking_fee), `driver_pricing_profiles`, append-only `driver_mileage_increments`; RLS owner-only + world-readable rate config. Types hand-added to `types/database.ts`.
+
+**UI:**
+- `app/driver-onboarding.tsx` — tax residence, engine cc, insurance-cert + notify-insurer checkboxes, declaration; persists with version + timestamp; routes to tabs.
+- `components/PriceBreakdown.tsx` — passenger headline + tappable "View price details" (base fare / Service charge (10%) / Booking fee). **Driver never sees fees or passenger price.**
+- `app/offer-ride.tsx` — **rewired**: driverSeatPrice is COMPUTED & **read-only** (manual price input removed), gated behind driver setup, uses cumulative mileage for the band. `app/ride/[id].tsx` — passengers now see passengerSeatPrice + breakdown.
+
+**⚠️ PLACEHOLDER LEGAL TEXT — needs adviser review before launch** (all marked in code with `// PLACEHOLDER LEGAL TEXT — PENDING ADVISER REVIEW`):
+1. Driver declaration (`app/driver-onboarding.tsx` `declarationText()`) — the full tax-residence/mileage-rate/no-off-app-reimbursement/responsibility-disclaimer paragraph. Version `v1-placeholder-2026-06`.
+2. Insurance-certificate confirmation checkbox copy.
+3. Notify-insurer confirmation checkbox copy.
+4. Also confirm with the adviser (honour-system, not code): the capped-rate cost-share basis is defensible; the manual "+1" honour-system mileage total (no enforcement) is adequate; the insurance attestation wording re: no-profit condition.
+
+**Deferred (documented, NOT built — per §4H):** 80/20 driver-storage split; dynamic price-drops as seats fill; connecting/multi-leg journeys; paid baggage. Also deferred: **tolls** (engine accepts `tolls` but offer-ride passes 0 — Routes toll fetch + manual fallback not wired); the manual **"+1" mileage button UI** (pure logic + DB table done; no on-screen button yet); loading DB rate overrides at runtime (app reads the TS constants).
+
+**⚠️ Transient note resolved:** Block 2's NI/UK-miles-vs-per-km-rate mismatch is fixed — the engine now uses miles × per-mile HMRC rates for UK drivers. NOTE the offer screen now keys off `driver_pricing_profiles.tax_residence` (ROI/UK), not the old `users.home_location` (ROI/NI) — a driver must complete `/driver-onboarding` before posting.
+- Tests: +56 (pricing 33, mileage 12, onboarding 5, breakdown 4, offer-ride +2). tsc 0, 833 passing.
+
 ---
 
 ## 31 May 2026 — Build complete: Stages 21–88
