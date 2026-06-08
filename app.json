@@ -18,6 +18,9 @@
       "bundleIdentifier": "com.htwa.app",
       "entitlements": {
         "aps-environment": "development"
+      },
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -33,13 +36,23 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "contactEmail": "hello@htwa-app.com"
+      "contactEmail": "hello@htwa-app.com",
+      "router": {},
+      "eas": {
+        "projectId": "2d69d8ec-3b00-4236-bc91-50e12577c738"
+      }
     },
     "plugins": [
       "expo-router",
       "expo-font",
       "expo-notifications",
-      ["@stripe/stripe-react-native", { "merchantIdentifier": "merchant.com.htwa" }]
-    ]
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.htwa"
+        }
+      ]
+    ],
+    "owner": "htwa-app"
   }
 }
