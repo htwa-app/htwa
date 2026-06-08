@@ -25,6 +25,12 @@ jest.mock('../../utils/costCalculator', () => ({
   calculateRideCost: () => ({ perSeatCost: 10.75, totalCost: 43.00, currency: 'EUR', rateApplied: 0.43 }),
   isWithinCap: () => true,
 }));
+
+// Block 2 — distance is auto-calculated via the Routes helper (no manual input).
+const mockComputeDistance = jest.fn();
+jest.mock('../../services/routes', () => ({
+  computeRouteDistance: (...args: unknown[]) => mockComputeDistance(...args),
+}));
 jest.mock('../../utils/currency', () => ({
   formatCurrency: (n: number, c: string) => `${c === 'EUR' ? '€' : '£'}${n.toFixed(2)}`,
 }));
@@ -54,6 +60,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockUseAuth.mockReturnValue({ user: { id: 'u1' } });
   mockSingleImpl.mockResolvedValue({ data: { home_location: 'ROI', currency: 'EUR' }, error: null });
+  mockComputeDistance.mockResolvedValue({ ok: true, distance: 210, unit: 'km' });
 });
 
 import OfferRideScreen from '../../app/offer-ride';
@@ -111,17 +118,39 @@ describe('OfferRideScreen — review button', () => {
     expect(screen.getByTestId('review-button').props.accessibilityState?.disabled).toBe(true);
   });
 
-  it('is enabled when all required fields are filled', async () => {
+  it('is enabled once the route distance is auto-calculated and fields are filled', async () => {
     render(<OfferRideScreen />);
     await waitFor(() => expect(screen.getByTestId('from-input')).toBeTruthy());
     fireEvent.changeText(screen.getByTestId('from-input'), 'Dublin');
     fireEvent.changeText(screen.getByTestId('to-input'), 'Galway');
-    fireEvent.changeText(screen.getByTestId('distance-input'), '210');
     fireEvent.changeText(screen.getByTestId('date-input'), '2026-06-01');
     fireEvent.changeText(screen.getByTestId('time-input'), '09:00');
-    fireEvent.changeText(screen.getByTestId('price-input'), '10.75');
-    await waitFor(() =>
-      expect(screen.getByTestId('review-button').props.accessibilityState?.disabled).toBe(false),
+    // distance + price auto-fill from the mocked Routes helper; no manual entry
+    await waitFor(
+      () => expect(screen.getByTestId('review-button').props.accessibilityState?.disabled).toBe(false),
+      { timeout: 2000 },
     );
+  });
+});
+
+describe('OfferRideScreen — Block 2 auto distance', () => {
+  it('shows the calculated distance (driver never types it)', async () => {
+    render(<OfferRideScreen />);
+    await waitFor(() => expect(screen.getByTestId('from-input')).toBeTruthy());
+    fireEvent.changeText(screen.getByTestId('from-input'), 'Galway');
+    fireEvent.changeText(screen.getByTestId('to-input'), 'Dublin');
+    await waitFor(() => expect(screen.getByTestId('distance-value')).toBeTruthy(), { timeout: 2000 });
+    expect(screen.getByTestId('distance-value')).toHaveTextContent(/210\s*km/);
+    expect(screen.queryByTestId('distance-input')).toBeNull(); // manual input removed
+  });
+
+  it('shows an unavailable state when distance calculation fails', async () => {
+    mockComputeDistance.mockResolvedValue({ ok: false, reason: 'unavailable' });
+    render(<OfferRideScreen />);
+    await waitFor(() => expect(screen.getByTestId('from-input')).toBeTruthy());
+    fireEvent.changeText(screen.getByTestId('from-input'), 'Galway');
+    fireEvent.changeText(screen.getByTestId('to-input'), 'Dublin');
+    await waitFor(() => expect(screen.getByTestId('distance-unavailable')).toBeTruthy(), { timeout: 2000 });
+    expect(screen.getByTestId('review-button').props.accessibilityState?.disabled).toBe(true);
   });
 });

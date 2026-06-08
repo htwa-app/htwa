@@ -1,0 +1,97 @@
+/**
+ * services/routes.ts
+ *
+ * Block 2 — Route distance via the Google Routes API (computeRoutes).
+ *
+ * The driver never types a distance; it is computed from origin + destination
+ * and returned in the unit appropriate to the driver's jurisdiction (miles for
+ * UK, km for ROI — see Block 4A). The result is cached on the journey record at
+ * posting time so it is not recomputed on every read.
+ *
+ * The API key (EXPO_PUBLIC_GOOGLE_MAPS_API_KEY) is currently a PLACEHOLDER
+ * (blocked on company/DUNS formation). A missing/placeholder/invalid key returns
+ * a graceful `{ ok: false, reason: 'unavailable' }` rather than throwing, so the
+ * UI can show a "distance calculation unavailable" state instead of crashing.
+ *
+ * `fetchImpl` is injectable so this is trivial to unit-test with a mocked response.
+ */
+
+export type DistanceUnit = 'km' | 'miles';
+
+export interface RouteDistanceResult {
+  ok: boolean;
+  /** Distance in the requested unit (present only when ok). */
+  distance?: number;
+  /** Raw metres from the API (present only when ok). */
+  meters?: number;
+  unit?: DistanceUnit;
+  /** Why it failed: 'unavailable' (key/network/no route) — UI shows a clear state. */
+  reason?: 'unavailable';
+}
+
+const ROUTES_ENDPOINT = 'https://routes.googleapis.com/directions/v2:computeRoutes';
+const METERS_PER_KM = 1000;
+const METERS_PER_MILE = 1609.344;
+
+/** A key that's missing, the known placeholder, or implausibly short is treated as invalid. */
+export function isMapsKeyUsable(key: string | undefined): boolean {
+  if (!key) return false;
+  if (key.toUpperCase().includes('PLACEHOLDER')) return false;
+  return key.length >= 20;
+}
+
+function toUnit(meters: number, unit: DistanceUnit): number {
+  const raw = unit === 'km' ? meters / METERS_PER_KM : meters / METERS_PER_MILE;
+  return Math.round(raw * 100) / 100;
+}
+
+/**
+ * Compute the driving distance between two locations.
+ *
+ * @param origin       free-text origin (city/town/university)
+ * @param destination  free-text destination
+ * @param unit         'km' (ROI) or 'miles' (UK) — from the driver's jurisdiction
+ * @param fetchImpl    injectable fetch (defaults to global fetch) for testing
+ */
+export async function computeRouteDistance(
+  origin: string,
+  destination: string,
+  unit: DistanceUnit,
+  fetchImpl: typeof fetch = fetch,
+): Promise<RouteDistanceResult> {
+  const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+  if (!isMapsKeyUsable(apiKey)) {
+    return { ok: false, reason: 'unavailable' };
+  }
+  if (!origin.trim() || !destination.trim()) {
+    return { ok: false, reason: 'unavailable' };
+  }
+
+  try {
+    const res = await fetchImpl(ROUTES_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': apiKey as string,
+        'X-Goog-FieldMask': 'routes.distanceMeters',
+      },
+      body: JSON.stringify({
+        origin: { address: origin },
+        destination: { address: destination },
+        travelMode: 'DRIVE',
+      }),
+    });
+
+    if (!res.ok) return { ok: false, reason: 'unavailable' };
+
+    const data = (await res.json()) as { routes?: Array<{ distanceMeters?: number }> };
+    const meters = data.routes?.[0]?.distanceMeters;
+    if (typeof meters !== 'number' || meters <= 0) {
+      return { ok: false, reason: 'unavailable' };
+    }
+
+    return { ok: true, meters, distance: toUnit(meters, unit), unit };
+  } catch {
+    return { ok: false, reason: 'unavailable' };
+  }
+}

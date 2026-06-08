@@ -1,0 +1,79 @@
+/**
+ * __tests__/unit/routes.test.ts
+ * Block 2 — unit tests for services/routes.ts (Google Routes distance helper)
+ */
+import { computeRouteDistance, isMapsKeyUsable } from '../../services/routes';
+
+const REAL_KEY = 'AIzaSyD-0123456789abcdefghij'; // ≥20 chars, no PLACEHOLDER
+const PLACEHOLDER_KEY = 'PLACEHOLDER_FILL_IN_REAL_KEY';
+
+function mockFetch(meters: number | null, ok = true): typeof fetch {
+  return jest.fn(async () => ({
+    ok,
+    json: async () => (meters === null ? { routes: [] } : { routes: [{ distanceMeters: meters }] }),
+  })) as unknown as typeof fetch;
+}
+
+describe('isMapsKeyUsable', () => {
+  it('rejects missing, placeholder, or implausibly short keys', () => {
+    expect(isMapsKeyUsable(undefined)).toBe(false);
+    expect(isMapsKeyUsable(PLACEHOLDER_KEY)).toBe(false);
+    expect(isMapsKeyUsable('short')).toBe(false);
+    expect(isMapsKeyUsable(REAL_KEY)).toBe(true);
+  });
+});
+
+describe('computeRouteDistance', () => {
+  const ORIGINAL = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+  afterEach(() => { process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY = ORIGINAL; });
+
+  it('returns unavailable (no throw) when the key is a placeholder', async () => {
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY = PLACEHOLDER_KEY;
+    const fetchSpy = mockFetch(208000);
+    const r = await computeRouteDistance('Galway', 'Dublin', 'km', fetchSpy);
+    expect(r).toEqual({ ok: false, reason: 'unavailable' });
+    expect(fetchSpy).not.toHaveBeenCalled(); // never even hits the network
+  });
+
+  it('converts metres to km for ROI drivers', async () => {
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY = REAL_KEY;
+    const r = await computeRouteDistance('Galway', 'Dublin', 'km', mockFetch(208000));
+    expect(r.ok).toBe(true);
+    expect(r.distance).toBe(208);
+    expect(r.unit).toBe('km');
+  });
+
+  it('converts metres to miles for UK drivers', async () => {
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY = REAL_KEY;
+    const r = await computeRouteDistance('Belfast', 'Dublin', 'miles', mockFetch(160934.4));
+    expect(r.ok).toBe(true);
+    expect(r.distance).toBe(100); // 160934.4 / 1609.344 = 100
+    expect(r.unit).toBe('miles');
+  });
+
+  it('returns unavailable on a non-OK API response', async () => {
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY = REAL_KEY;
+    const r = await computeRouteDistance('A', 'B', 'km', mockFetch(0, false));
+    expect(r.ok).toBe(false);
+    expect(r.reason).toBe('unavailable');
+  });
+
+  it('returns unavailable when no route is found', async () => {
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY = REAL_KEY;
+    const r = await computeRouteDistance('A', 'B', 'km', mockFetch(null));
+    expect(r.ok).toBe(false);
+  });
+
+  it('returns unavailable when fetch throws', async () => {
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY = REAL_KEY;
+    const throwing = (() => { throw new Error('network down'); }) as unknown as typeof fetch;
+    const r = await computeRouteDistance('A', 'B', 'km', throwing);
+    expect(r.ok).toBe(false);
+  });
+
+  it('returns unavailable for empty origin or destination', async () => {
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY = REAL_KEY;
+    const r = await computeRouteDistance('', 'Dublin', 'km', mockFetch(208000));
+    expect(r.ok).toBe(false);
+  });
+});

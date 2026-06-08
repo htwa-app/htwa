@@ -22,6 +22,15 @@ Autonomous, defensive run. ONE branch, commit per block, tsc+tests after each, *
 - Rename applied: "Find/Offer a ride" → "Find/Offer a journey", "Post a ride" → "Post a journey", women-only copy. Seats selector capped at **4** when searching (also satisfies part of Block 3).
 - Tests: +3 (RouteInput labels, Search labels, seats cap). tsc 0, 762 passing.
 
+### Block 2 — Distance via Google Routes API ✅
+- New `services/routes.ts`: `computeRouteDistance(origin, destination, unit, fetchImpl?)` calls the Google Routes API (`directions/v2:computeRoutes`) and returns distance in the driver's jurisdiction unit (km ROI / miles UK). `fetchImpl` is injectable for testing. `isMapsKeyUsable()` guards a missing/placeholder/invalid `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` and returns `{ ok:false, reason:'unavailable' }` (no throw, no network call).
+- `app/offer-ride.tsx`: **manual distance input REMOVED**. Distance now auto-calculates (debounced 500ms) from from/to and renders idle / calculating / value / **"Distance calculation unavailable"** states. Driver can never type or edit distance. Computed distance is passed to confirm → cached on the journey record (`rides.distance_km`).
+- Rename: "Offer a ride" → "Offer a journey", "Women-only ride" → "Women-only journey".
+- Tests: +10 (8 routes helper incl. placeholder-key short-circuit + km/miles conversion; 2 offer-ride distance UI). tsc 0, 772 passing.
+- ⚠️ **Blocked on real Maps key** (DUNS/company formation): with the current placeholder key the offer flow shows "unavailable" and a journey cannot be priced/posted on-device. This is the intended graceful state — wiring is complete and verified via mocked fetch.
+- ⚠️ **Transient note for Block 4:** for NI/UK drivers distance is now in *miles* but the *old* `costCalculator` still applies a per-km rate. Block 4's pricing engine replaces `costCalculator` and resolves this. ROI (km) is correct throughout.
+- Note: DB column is still named `distance_km` though it stores miles for UK drivers — functionally consistent (distance unit matches rate unit). Renaming is a migration; deferred.
+
 ---
 
 ## 31 May 2026 — Build complete: Stages 21–88

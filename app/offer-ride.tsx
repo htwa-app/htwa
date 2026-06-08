@@ -1,14 +1,19 @@
 /**
  * app/offer-ride.tsx
  *
- * Stage 31 — Offer a Ride screen.
+ * Stage 31 — Offer a Journey screen.
  *
  * Driver fills in:
  *   - Route (from/to) using RouteInput
  *   - Date + time using DateTimePicker
- *   - Seats available (stepper: 1–7)
+ *   - Seats available (stepper)
  *   - Price per seat (auto-calculated, editable within cap)
  *   - Women-only toggle
+ *
+ * Distance is auto-calculated from the route via the Google Routes API
+ * (Block 2). The driver NEVER types or edits the distance. If the Maps key
+ * is missing/placeholder/invalid, a "distance calculation unavailable" state
+ * is shown rather than crashing.
  *
  * Vehicle details auto-populated from profile.
  * Routes to /offer-ride-confirm on "Review offer".
@@ -30,6 +35,7 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { RouteInput } from '../components/RouteInput';
 import { calculateRideCost, isWithinCap } from '../utils/costCalculator';
+import { computeRouteDistance, type DistanceUnit } from '../services/routes';
 import { formatCurrency } from '../utils/currency';
 import {
   Colors,
@@ -46,7 +52,10 @@ import { useAuth } from '../context/AuthContext';
 
 const SEATS_MIN = 1;
 const SEATS_MAX = 7;
+const DISTANCE_DEBOUNCE_MS = 500; // wait for the driver to stop typing before calling the Routes API
 const TOGGLE_TRACK_OFF = 'rgba(40,30,20,0.15)'; // §9 switch inactive track — not in palette
+
+type DistanceState = 'idle' | 'calculating' | 'ok' | 'unavailable';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -54,17 +63,22 @@ export default function OfferRideScreen(): React.ReactElement {
   const router = useRouter();
   const { user } = useAuth();
 
-  const [from,         setFrom]         = useState('');
-  const [to,           setTo]           = useState('');
-  const [distanceKm,   setDistanceKm]   = useState<number | null>(null);
-  const [date,         setDate]         = useState('');   // YYYY-MM-DD
-  const [time,         setTime]         = useState('');   // HH:MM
-  const [seats,        setSeats]        = useState(3);
-  const [pricePerSeat, setPricePerSeat] = useState('');
-  const [womenOnly,    setWomenOnly]    = useState(false);
-  const [currency,     setCurrency]     = useState<'EUR' | 'GBP'>('EUR');
-  const [homeLocation, setHomeLocation] = useState<'ROI' | 'NI'>('ROI');
-  const [priceError,   setPriceError]   = useState<string | null>(null);
+  const [from,          setFrom]          = useState('');
+  const [to,            setTo]            = useState('');
+  const [distance,      setDistance]      = useState<number | null>(null);
+  const [distanceState, setDistanceState] = useState<DistanceState>('idle');
+  const [date,          setDate]          = useState('');   // YYYY-MM-DD
+  const [time,          setTime]          = useState('');   // HH:MM
+  const [seats,         setSeats]         = useState(3);
+  const [pricePerSeat,  setPricePerSeat]  = useState('');
+  const [womenOnly,     setWomenOnly]     = useState(false);
+  const [currency,      setCurrency]      = useState<'EUR' | 'GBP'>('EUR');
+  const [homeLocation,  setHomeLocation]  = useState<'ROI' | 'NI'>('ROI');
+  const [priceError,    setPriceError]    = useState<string | null>(null);
+
+  // Jurisdiction unit: ROI → km, UK (incl. NI) → miles. (Block 4 will key this off
+  // tax residence; for now it derives from the driver's home location.)
+  const unit: DistanceUnit = homeLocation === 'ROI' ? 'km' : 'miles';
 
   // Load driver's home location for rate calculation
   const loadHomeLocation = useCallback(async () => {
@@ -82,19 +96,40 @@ export default function OfferRideScreen(): React.ReactElement {
 
   useEffect(() => { void loadHomeLocation(); }, [loadHomeLocation]);
 
+  // Auto-calculate the route distance whenever from/to (or the unit) change.
+  // Debounced so we don't hit the Routes API on every keystroke. The driver
+  // never edits this value — it comes solely from the API.
+  useEffect(() => {
+    if (!from.trim() || !to.trim()) {
+      setDistance(null);
+      setDistanceState('idle');
+      return;
+    }
+    let cancelled = false;
+    setDistanceState('calculating');
+    const timer = setTimeout(() => {
+      void computeRouteDistance(from, to, unit).then((result) => {
+        if (cancelled) return;
+        if (result.ok && typeof result.distance === 'number') {
+          setDistance(result.distance);
+          setDistanceState('ok');
+        } else {
+          setDistance(null);
+          setDistanceState('unavailable');
+        }
+      });
+    }, DISTANCE_DEBOUNCE_MS);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [from, to, unit]);
+
   // Auto-calculate price when distance or seats change
   useEffect(() => {
-    if (distanceKm !== null && distanceKm > 0) {
-      const result = calculateRideCost(distanceKm, seats, homeLocation);
+    if (distance !== null && distance > 0) {
+      const result = calculateRideCost(distance, seats, homeLocation);
       setPricePerSeat(result.perSeatCost.toFixed(2));
       setPriceError(null);
     }
-  }, [distanceKm, seats, homeLocation]);
-
-  const handleDistanceChange = (text: string) => {
-    const n = parseFloat(text);
-    setDistanceKm(Number.isNaN(n) ? null : n);
-  };
+  }, [distance, seats, homeLocation]);
 
   const incrementSeats = () => setSeats((s) => Math.min(SEATS_MAX, s + 1));
   const decrementSeats = () => setSeats((s) => Math.max(SEATS_MIN, s - 1));
@@ -102,9 +137,9 @@ export default function OfferRideScreen(): React.ReactElement {
   const handlePriceChange = (text: string) => {
     setPricePerSeat(text);
     const val = parseFloat(text);
-    if (!isNaN(val) && distanceKm !== null) {
-      if (!isWithinCap(val, seats, distanceKm, homeLocation)) {
-        const { totalCost } = calculateRideCost(distanceKm, seats, homeLocation);
+    if (!isNaN(val) && distance !== null) {
+      if (!isWithinCap(val, seats, distance, homeLocation)) {
+        const { totalCost } = calculateRideCost(distance, seats, homeLocation);
         setPriceError(`Max allowed: ${formatCurrency(totalCost / seats, currency)}`);
       } else {
         setPriceError(null);
@@ -114,7 +149,7 @@ export default function OfferRideScreen(): React.ReactElement {
 
   const isValid = from.trim().length > 0
     && to.trim().length > 0
-    && distanceKm !== null && distanceKm > 0
+    && distance !== null && distance > 0
     && date.length > 0
     && time.length > 0
     && parseFloat(pricePerSeat) > 0
@@ -129,7 +164,7 @@ export default function OfferRideScreen(): React.ReactElement {
       seats: String(seats),
       pricePerSeat,
       currency,
-      distanceKm: String(distanceKm ?? 0),
+      distanceKm: String(distance ?? 0),
       womenOnly: String(womenOnly),
     });
     router.push(`/offer-ride-confirm?${params.toString()}`);
@@ -153,7 +188,7 @@ export default function OfferRideScreen(): React.ReactElement {
         >
           <Ionicons name="chevron-back" size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.screenTitle}>Offer a ride</Text>
+        <Text style={styles.screenTitle}>Offer a journey</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -169,19 +204,34 @@ export default function OfferRideScreen(): React.ReactElement {
         />
       </View>
 
-      {/* Distance — manual entry until the Maps Routes API auto-fills it (stub) */}
+      {/* Distance — auto-calculated from the route. The driver never edits this. */}
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Distance (km)</Text>
-        <Input
-          placeholder="e.g. 210"
-          value={distanceKm !== null ? String(distanceKm) : ''}
-          onChangeText={handleDistanceChange}
-          keyboardType="decimal-pad"
-          testID="distance-input"
-        />
-        <Text style={styles.priceHint}>
-          Used to calculate the fair price. Auto-filled from the route once maps are enabled.
-        </Text>
+        <Text style={styles.sectionLabel}>Distance</Text>
+        {distanceState === 'idle' && (
+          <Text style={styles.priceHint} testID="distance-idle">
+            Enter a start and destination to calculate the journey distance.
+          </Text>
+        )}
+        {distanceState === 'calculating' && (
+          <Text style={styles.priceHint} testID="distance-calculating">
+            Calculating route distance…
+          </Text>
+        )}
+        {distanceState === 'ok' && distance !== null && (
+          <>
+            <Text style={styles.distanceValue} testID="distance-value">
+              {distance} {unit}
+            </Text>
+            <Text style={styles.priceHint}>
+              Calculated from the route and used to set the fair price.
+            </Text>
+          </>
+        )}
+        {distanceState === 'unavailable' && (
+          <Text style={styles.priceError} testID="distance-unavailable">
+            Distance calculation unavailable. Please check the locations and try again later.
+          </Text>
+        )}
       </View>
 
       {/* Date + Time */}
@@ -263,7 +313,7 @@ export default function OfferRideScreen(): React.ReactElement {
         <View style={styles.rowCardContent}>
           <Ionicons name="person-outline" size={20} color={Colors.lavender} />
           <View>
-            <Text style={styles.rowCardLabel}>Women-only ride</Text>
+            <Text style={styles.rowCardLabel}>Women-only journey</Text>
             <Text style={styles.rowCardSub}>Only female passengers can request to join</Text>
           </View>
         </View>
@@ -274,7 +324,7 @@ export default function OfferRideScreen(): React.ReactElement {
           thumbColor={Platform.OS === 'android' ? Colors.surface : undefined}
           testID="women-only-toggle"
           accessibilityRole="switch"
-          accessibilityLabel="Women-only ride"
+          accessibilityLabel="Women-only journey"
           accessibilityState={{ checked: womenOnly }}
         />
       </View>
@@ -329,6 +379,7 @@ const styles = StyleSheet.create({
   },
   stepperBtnDisabled: { backgroundColor: Colors.border },
   stepperValue: { ...Typography.headingMedium, color: Colors.textPrimary, minWidth: 24, textAlign: 'center' },
+  distanceValue: { ...Typography.headingMedium, color: Colors.textPrimary },
   priceHint: { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: Spacing.xs },
   priceError: { ...Typography.bodySmall, color: Colors.sos, marginTop: Spacing.xs },
   ctaButton: { marginTop: Spacing.sm },
