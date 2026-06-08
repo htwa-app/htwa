@@ -72,6 +72,16 @@ Committed in 3 sub-steps (6a5cec7 engine, 2e00242 migration+types, 62e78cb UI).
 - `app/verify.tsx`: reads the stored gender and writes it to `users.gender` on account creation. (The `users.gender` column + DB-level women-only booking enforcement already existed.)
 - Drives the existing women-only journeys filter (both directions). Tests: +2 (gender required; two options + disclaimer); fillAll helper updated. tsc 0, 835 passing.
 
+### Block 6 — Edit profile fixes + university verification ✅
+- **Centred input text:** bio + university inputs on edit-profile now `textAlign: 'center'`.
+- **University mandatory:** save is disabled + a "University is required." hint shows when blank.
+- **University verification:** migration `20260601000002_university_verification.sql` (APPLIED) adds `profiles.university_verification_status` (unverified/pending/verified/rejected) + `profiles.student_card_url`, and a **private `student-cards` storage bucket** with owner-only RLS (user can only touch their own `<uid>/…` folder). Types updated.
+  - `services/studentCard.ts`: `uploadStudentCard()` uploads to the user's folder and sets status **`pending` (manual review)**; pure `normalizeName` + `namesLooselyMatch` helpers for the name-match.
+  - edit-profile: status badge + "Upload student card" button; on success → pending.
+  - **Name-match is manual-review** — automated OCR extraction of the card name is NOT built (no vision pipeline). `// TODO` in `services/studentCard.ts`: add an Edge Function OCR → auto-run `namesLooselyMatch` → set verified/rejected.
+- **📦 Native dependency:** `services/imagePicker.ts` is a **STUB** — `expo-image-picker` is a native module and is **not installed**; the picker returns `null` and the UI shows "needs the camera module — coming in the next build." Installing it (`npx expo install expo-image-picker`) requires a **fresh EAS build**. The upload→status flow behind it is fully wired + tested (mocked picker).
+- Tests: +12 (5 studentCard, 4 edit-profile Block 6, 3 within). tsc 0, 848 passing.
+
 ---
 
 ## 31 May 2026 — Build complete: Stages 21–88

@@ -74,6 +74,8 @@ const _profileRow: ProfileRow = {
   nominated_contact:  null,
   vehicle_details:    null,
   women_only_mode:    false,
+  university_verification_status: 'unverified',
+  student_card_url:   null,
 };
 
 const _profileInsert: ProfileInsert = {

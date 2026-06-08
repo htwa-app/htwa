@@ -36,6 +36,17 @@ import {
 } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { uploadStudentCard } from '../services/studentCard';
+import { pickStudentCardImage } from '../services/imagePicker';
+import type { UniversityVerificationStatus } from '../types/database';
+
+// Labels + colours for the university verification status badge.
+const UNI_STATUS: Record<UniversityVerificationStatus, { label: string; color: string }> = {
+  unverified: { label: 'Not verified',     color: Colors.textSecondary },
+  pending:    { label: 'Pending review',   color: Colors.amber },
+  verified:   { label: 'Verified',         color: Colors.verified },
+  rejected:   { label: 'Rejected — re-upload', color: Colors.sos },
+};
 
 // ─── Spec-local constants ─────────────────────────────────────────────────────
 
@@ -102,9 +113,14 @@ export default function EditProfileScreen(): React.ReactElement {
   const [bio,        setBio]        = useState('');
   const [university, setUniversity] = useState('');
   const [prefs,      setPrefs]      = useState<TravelPreferences>(DEFAULT_PREFS);
+  const [uniStatus,  setUniStatus]  = useState<UniversityVerificationStatus>('unverified');
+  const [uploading,  setUploading]  = useState(false);
+  const [uploadNote, setUploadNote] = useState<string | null>(null);
   const [isLoading,  setIsLoading]  = useState(true);
   const [isSaving,   setIsSaving]   = useState(false);
   const [saveError,  setSaveError]  = useState<string | null>(null);
+
+  const universityMissing = university.trim().length === 0;
 
   // ─── Load existing profile ─────────────────────────────────────────────────
 
@@ -113,13 +129,14 @@ export default function EditProfileScreen(): React.ReactElement {
     try {
       const { data } = await supabase
         .from('profiles')
-        .select('bio, university, travel_preferences')
+        .select('bio, university, travel_preferences, university_verification_status')
         .eq('user_id', user.id)
         .single();
 
       if (data) {
         setBio(data.bio ?? '');
         setUniversity(data.university ?? '');
+        setUniStatus((data.university_verification_status ?? 'unverified') as UniversityVerificationStatus);
         const saved = (data.travel_preferences ?? {}) as Partial<TravelPreferences>;
         setPrefs({ ...DEFAULT_PREFS, ...saved });
       }
@@ -136,8 +153,29 @@ export default function EditProfileScreen(): React.ReactElement {
     setPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const handleUploadStudentCard = async () => {
+    if (!user) return;
+    setUploadNote(null);
+    setUploading(true);
+    try {
+      const bytes = await pickStudentCardImage();
+      if (!bytes) {
+        // Native image-picker not installed yet (see services/imagePicker.ts).
+        setUploadNote('Photo upload needs the camera module — coming in the next build.');
+        return;
+      }
+      const result = await uploadStudentCard(user.id, bytes);
+      if (!result.ok) { setUploadNote('Upload failed. Please try again.'); return; }
+      setUniStatus(result.status);
+      setUploadNote('Student card uploaded — we’ll review it shortly.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!user) return;
+    if (universityMissing) { setSaveError('University is required.'); return; }
     setSaveError(null);
     setIsSaving(true);
     try {
@@ -210,20 +248,49 @@ export default function EditProfileScreen(): React.ReactElement {
           onChangeText={setBio}
           multiline
           numberOfLines={3}
+          style={styles.centeredInput}
           testID="bio-input"
         />
       </View>
 
-      {/* ── University ───────────────────────────────────────────────────────── */}
+      {/* ── University (mandatory) ───────────────────────────────────────────── */}
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>University</Text>
+        <Text style={styles.sectionLabel}>University *</Text>
         <Input
           placeholder="e.g. UCD, TCD, DCU"
           value={university}
           onChangeText={setUniversity}
           autoCapitalize="words"
+          style={styles.centeredInput}
           testID="university-input"
         />
+        {universityMissing && (
+          <Text style={styles.requiredHint} testID="university-required">University is required.</Text>
+        )}
+
+        {/* University verification (Block 6) */}
+        <View style={styles.verifyRow}>
+          <Text style={styles.verifyLabel}>Student card</Text>
+          <Text style={[styles.verifyStatus, { color: UNI_STATUS[uniStatus].color }]} testID="uni-status">
+            {UNI_STATUS[uniStatus].label}
+          </Text>
+        </View>
+        <Text style={styles.verifyHint}>
+          Upload a photo of your student card. The name must match the name on your verified ID.
+        </Text>
+        <TouchableOpacity
+          style={styles.uploadBtn}
+          onPress={handleUploadStudentCard}
+          disabled={uploading}
+          accessibilityRole="button"
+          testID="upload-student-card"
+        >
+          <Ionicons name="cloud-upload-outline" size={18} color={Colors.primary} />
+          <Text style={styles.uploadBtnText}>
+            {uploading ? 'Uploading…' : 'Upload student card'}
+          </Text>
+        </TouchableOpacity>
+        {uploadNote && <Text style={styles.verifyHint} testID="upload-note">{uploadNote}</Text>}
       </View>
 
       {/* ── Travel preferences ───────────────────────────────────────────────── */}
@@ -254,7 +321,7 @@ export default function EditProfileScreen(): React.ReactElement {
       <Button
         title={isSaving ? 'Saving…' : 'Save changes'}
         onPress={handleSave}
-        disabled={isSaving}
+        disabled={isSaving || universityMissing}
         style={styles.saveButton}
         testID="save-button"
       />
@@ -354,6 +421,49 @@ const styles = StyleSheet.create({
   },
   prefChipLabelSelected: {
     color: PREF_CHIP_SELECTED_TXT,
+  },
+
+  centeredInput: {
+    textAlign: 'center',
+  },
+  requiredHint: {
+    ...Typography.bodySmall,
+    color: Colors.sos,
+    marginTop: Spacing.xs,
+  },
+  verifyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: Spacing.lg,
+  },
+  verifyLabel: {
+    ...Typography.bodyMedium,
+    color: Colors.textPrimary,
+  },
+  verifyStatus: {
+    ...Typography.bodySmall,
+    fontFamily: FontFamily.medium,
+  },
+  verifyHint: {
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
+    marginTop: Spacing.xs,
+  },
+  uploadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.primaryLight,
+    borderRadius: BorderRadius.medium,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    alignSelf: 'flex-start',
+    marginTop: Spacing.sm,
+  },
+  uploadBtnText: {
+    ...Typography.bodyMedium,
+    color: Colors.primary,
   },
 
   errorText: {

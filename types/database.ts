@@ -86,7 +86,11 @@ export type ProfileRow = {
   nominated_contact:    Record<string, unknown> | null;  // jsonb
   vehicle_details:      Record<string, unknown> | null;  // jsonb — migration 20260531000001
   women_only_mode:      boolean;                          // migration 20260531000001
+  university_verification_status: UniversityVerificationStatus; // migration 20260601000002
+  student_card_url:     string | null;                    // migration 20260601000002
 }
+
+export type UniversityVerificationStatus = 'unverified' | 'pending' | 'verified' | 'rejected';
 
 export type ProfileInsert = {
   id?:                   string;       // defaults to gen_random_uuid()
@@ -97,6 +101,8 @@ export type ProfileInsert = {
   nominated_contact?:    Record<string, unknown> | null;
   vehicle_details?:      Record<string, unknown> | null;
   women_only_mode?:      boolean;      // defaults to false
+  university_verification_status?: UniversityVerificationStatus;
+  student_card_url?:     string | null;
 }
 
 export type ProfileUpdate = {
@@ -106,6 +112,8 @@ export type ProfileUpdate = {
   nominated_contact?:    Record<string, unknown> | null;
   vehicle_details?:      Record<string, unknown> | null;
   women_only_mode?:      boolean;
+  university_verification_status?: UniversityVerificationStatus;
+  student_card_url?:     string | null;
 }
 
 // ─── rides ────────────────────────────────────────────────────────────────────
