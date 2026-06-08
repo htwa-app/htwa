@@ -49,6 +49,7 @@ export default function SearchScreen(): React.ReactElement {
   const [from,       setFrom]       = useState('');
   const [to,         setTo]         = useState('');
   const [date,       setDate]       = useState('');
+  const [flexDays,   setFlexDays]   = useState<0 | 1 | 2 | 3>(0);
   const [seats,      setSeats]      = useState(1);
   const [womenOnly,  setWomenOnly]  = useState(false);
 
@@ -58,6 +59,7 @@ export default function SearchScreen(): React.ReactElement {
   const handleSearch = () => {
     const params = new URLSearchParams({
       from, to, date,
+      flexDays: String(flexDays),
       seats: String(seats),
       womenOnly: String(womenOnly),
     });
@@ -138,6 +140,31 @@ export default function SearchScreen(): React.ReactElement {
               keyboardType="numbers-and-punctuation"
               testID="search-date-input"
             />
+          </View>
+
+          {/* Date flexibility */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Date flexibility</Text>
+            <View style={styles.flexRow}>
+              {FLEX_OPTIONS.map((opt) => {
+                const active = flexDays === opt.value;
+                return (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[styles.flexChip, active && styles.flexChipActive]}
+                    onPress={() => setFlexDays(opt.value)}
+                    accessibilityRole="button"
+                    accessibilityLabel={opt.a11y}
+                    accessibilityState={{ selected: active }}
+                    testID={`flex-${opt.value}`}
+                  >
+                    <Text style={[styles.flexChipText, active && styles.flexChipTextActive]}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
 
           {/* Seats */}
@@ -221,6 +248,14 @@ export default function SearchScreen(): React.ReactElement {
   );
 }
 
+// Date-flexibility options for Find mode (±N days around the chosen date).
+const FLEX_OPTIONS: { value: 0 | 1 | 2 | 3; label: string; a11y: string }[] = [
+  { value: 0, label: 'Exact',   a11y: 'Exact date only' },
+  { value: 1, label: '±1 day',  a11y: 'Plus or minus 1 day' },
+  { value: 2, label: '±2 days', a11y: 'Plus or minus 2 days' },
+  { value: 3, label: '±3 days', a11y: 'Plus or minus 3 days' },
+];
+
 type SafetyFeature = {
   title:     string;
   desc:      string;
@@ -270,6 +305,14 @@ const styles = StyleSheet.create({
   findContent: { gap: Spacing.lg },
   fieldGroup: { gap: Spacing.sm },
   fieldLabel: { ...Typography.headingSmall, color: Colors.textPrimary },
+  flexRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  flexChip: {
+    backgroundColor: Colors.primaryLight, borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm,
+  },
+  flexChipActive: { backgroundColor: Colors.primary },
+  flexChipText: { fontSize: 14, fontFamily: FontFamily.semiBold, color: Colors.primary },
+  flexChipTextActive: { color: Colors.surface },
   seatsChip: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
     backgroundColor: Colors.primaryLight, borderRadius: BorderRadius.full,

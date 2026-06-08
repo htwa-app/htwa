@@ -51,7 +51,8 @@ import { useAuth } from '../context/AuthContext';
 // ─── Spec-local constants ─────────────────────────────────────────────────────
 
 const SEATS_MIN = 1;
-const SEATS_MAX = 7;
+const SEATS_CAP_DEFAULT = 4; // hard cap unless the driver's vehicle is evidenced (Block 3)
+const SEATS_CAP_VERIFIED = 7; // raised cap once extra-seat capacity is verified
 const DISTANCE_DEBOUNCE_MS = 500; // wait for the driver to stop typing before calling the Routes API
 const TOGGLE_TRACK_OFF = 'rgba(40,30,20,0.15)'; // §9 switch inactive track — not in palette
 
@@ -75,6 +76,11 @@ export default function OfferRideScreen(): React.ReactElement {
   const [currency,      setCurrency]      = useState<'EUR' | 'GBP'>('EUR');
   const [homeLocation,  setHomeLocation]  = useState<'ROI' | 'NI'>('ROI');
   const [priceError,    setPriceError]    = useState<string | null>(null);
+  // Block 3: posting more than 4 seats requires evidence the vehicle can carry them.
+  // TODO: build the evidence-upload flow (vehicle reg / insurance seats) that flips
+  // `extraSeatsVerified` to true. Until then the selector is hard-capped at 4.
+  const [extraSeatsVerified] = useState(false);
+  const seatsMax = extraSeatsVerified ? SEATS_CAP_VERIFIED : SEATS_CAP_DEFAULT;
 
   // Jurisdiction unit: ROI → km, UK (incl. NI) → miles. (Block 4 will key this off
   // tax residence; for now it derives from the driver's home location.)
@@ -131,7 +137,7 @@ export default function OfferRideScreen(): React.ReactElement {
     }
   }, [distance, seats, homeLocation]);
 
-  const incrementSeats = () => setSeats((s) => Math.min(SEATS_MAX, s + 1));
+  const incrementSeats = () => setSeats((s) => Math.min(seatsMax, s + 1));
   const decrementSeats = () => setSeats((s) => Math.max(SEATS_MIN, s - 1));
 
   const handlePriceChange = (text: string) => {
@@ -277,17 +283,22 @@ export default function OfferRideScreen(): React.ReactElement {
           </TouchableOpacity>
           <Text style={styles.stepperValue} testID="seats-value">{seats}</Text>
           <TouchableOpacity
-            style={[styles.stepperBtn, seats >= SEATS_MAX && styles.stepperBtnDisabled]}
+            style={[styles.stepperBtn, seats >= seatsMax && styles.stepperBtnDisabled]}
             onPress={incrementSeats}
-            disabled={seats >= SEATS_MAX}
+            disabled={seats >= seatsMax}
             accessibilityRole="button"
             accessibilityLabel="Increase seats"
             testID="seats-increment"
           >
-            <Ionicons name="add" size={18} color={seats >= SEATS_MAX ? Colors.textTertiary : Colors.primary} />
+            <Ionicons name="add" size={18} color={seats >= seatsMax ? Colors.textTertiary : Colors.primary} />
           </TouchableOpacity>
         </View>
       </View>
+      {!extraSeatsVerified && seats >= SEATS_CAP_DEFAULT && (
+        <Text style={styles.priceHint} testID="seats-cap-note">
+          Offering more than {SEATS_CAP_DEFAULT} seats requires vehicle verification (coming soon).
+        </Text>
+      )}
 
       {/* Price per seat */}
       <View style={styles.section}>

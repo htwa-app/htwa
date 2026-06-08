@@ -139,3 +139,24 @@ describe('SearchScreen — Block 1 clear labels', () => {
     expect(screen.getByTestId('search-seats-value')).toHaveTextContent('4');
   });
 });
+
+describe('SearchScreen — Block 3 date flexibility', () => {
+  it('shows the ±1/±2/±3 day flexibility options', () => {
+    render(<SearchScreen />);
+    expect(screen.getByText('Date flexibility')).toBeTruthy();
+    expect(screen.getByTestId('flex-0')).toBeTruthy();
+    expect(screen.getByTestId('flex-1')).toBeTruthy();
+    expect(screen.getByTestId('flex-2')).toBeTruthy();
+    expect(screen.getByTestId('flex-3')).toBeTruthy();
+  });
+
+  it('passes the selected flexibility into the search params', async () => {
+    render(<SearchScreen />);
+    fireEvent.changeText(screen.getByTestId('from-input'), 'Dublin');
+    fireEvent.changeText(screen.getByTestId('to-input'), 'Galway');
+    fireEvent.press(screen.getByTestId('flex-2'));
+    fireEvent.press(screen.getByTestId('search-button'));
+    await waitFor(() => expect(mockPush).toHaveBeenCalled());
+    expect(String(mockPush.mock.calls[0][0])).toContain('flexDays=2');
+  });
+});

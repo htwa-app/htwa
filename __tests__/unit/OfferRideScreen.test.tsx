@@ -154,3 +154,13 @@ describe('OfferRideScreen — Block 2 auto distance', () => {
     expect(screen.getByTestId('review-button').props.accessibilityState?.disabled).toBe(true);
   });
 });
+
+describe('OfferRideScreen — Block 3 seat cap', () => {
+  it('caps seats at 4 and shows the verification note when not verified', async () => {
+    render(<OfferRideScreen />);
+    await waitFor(() => expect(screen.getByTestId('seats-increment')).toBeTruthy());
+    for (let i = 0; i < 10; i++) fireEvent.press(screen.getByTestId('seats-increment'));
+    expect(screen.getByTestId('seats-value').props.children).toBe(4);
+    expect(screen.getByTestId('seats-cap-note')).toBeTruthy();
+  });
+});

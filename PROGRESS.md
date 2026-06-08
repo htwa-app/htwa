@@ -31,6 +31,15 @@ Autonomous, defensive run. ONE branch, commit per block, tsc+tests after each, *
 - ⚠️ **Transient note for Block 4:** for NI/UK drivers distance is now in *miles* but the *old* `costCalculator` still applies a per-km rate. Block 4's pricing engine replaces `costCalculator` and resolves this. ROI (km) is correct throughout.
 - Note: DB column is still named `distance_km` though it stores miles for UK drivers — functionally consistent (distance unit matches rate unit). Renaming is a migration; deferred.
 
+### Block 3 — Flexible dates + seat caps ✅
+- **Flexible search dates:** `app/(tabs)/index.tsx` Find mode now has a "Date flexibility" chip row — Exact / ±1 / ±2 / ±3 days — passed as `flexDays` into the search params. `app/search-results.tsx` widens the `departure_datetime` `gte`/`lte` window by ±flexDays (UTC, clamped 0–3) around the chosen date.
+- **Seat caps:**
+  - Searching: already hard-capped at **4** (Block 1).
+  - Posting: `app/offer-ride.tsx` now hard-caps the seats stepper at **4** unless `extraSeatsVerified` (default `false`). When `false`, going past 4 is blocked and a note shows: "Offering more than 4 seats requires vehicle verification (coming soon)." Raised cap (7) is wired behind the flag.
+  - **TODO (documented stub):** build the evidence-upload flow (vehicle reg / insurance seat count) that flips `extraSeatsVerified` to `true`. Not built this run.
+- Tests: +5 (search flexibility options + param pass-through; offer seat-cap + note; search-results ±flex window + exact-day window). tsc 0, 777 passing.
+- 📦 **Native dependency note:** the ±N flexibility chips need **no** new native module. A true **calendar date picker** is NOT built — the date is still a text field (`YYYY-MM-DD`). Adding one needs `@react-native-community/datetimepicker` (a native module) → a **fresh EAS build** would be required. Deferred.
+
 ---
 
 ## 31 May 2026 — Build complete: Stages 21–88

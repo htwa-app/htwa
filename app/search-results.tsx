@@ -48,7 +48,7 @@ export default function SearchResultsScreen(): React.ReactElement {
   const router = useRouter();
   const params = useLocalSearchParams<{
     from: string; to: string; date: string;
-    seats: string; womenOnly: string;
+    flexDays: string; seats: string; womenOnly: string;
   }>();
 
   const [rides,     setRides]     = useState<RideResult[]>([]);
@@ -58,6 +58,8 @@ export default function SearchResultsScreen(): React.ReactElement {
   const parsedSeats = parseInt(params.seats ?? '1', 10);
   const minSeats    = Number.isFinite(parsedSeats) && parsedSeats > 0 ? parsedSeats : 1;
   const womenOnly   = params.womenOnly === 'true';
+  const parsedFlex  = parseInt(params.flexDays ?? '0', 10);
+  const flexDays    = Number.isFinite(parsedFlex) && parsedFlex > 0 ? Math.min(3, parsedFlex) : 0;
 
   const fetchRides = useCallback(async () => {
     setIsLoading(true);
@@ -82,9 +84,13 @@ export default function SearchResultsScreen(): React.ReactElement {
       }
 
       if (params.date) {
-        const startOfDay = `${params.date}T00:00:00.000Z`;
-        const endOfDay   = `${params.date}T23:59:59.999Z`;
-        query = query.gte('departure_datetime', startOfDay).lte('departure_datetime', endOfDay);
+        // Widen the window by ±flexDays around the chosen date (Block 3).
+        const base  = new Date(`${params.date}T00:00:00.000Z`);
+        const start = new Date(base); start.setUTCDate(start.getUTCDate() - flexDays);
+        const end   = new Date(base); end.setUTCDate(end.getUTCDate() + flexDays);
+        const startOfWindow = `${start.toISOString().slice(0, 10)}T00:00:00.000Z`;
+        const endOfWindow   = `${end.toISOString().slice(0, 10)}T23:59:59.999Z`;
+        query = query.gte('departure_datetime', startOfWindow).lte('departure_datetime', endOfWindow);
       }
 
       const { data, error: dbError } = await query;
@@ -131,7 +137,7 @@ export default function SearchResultsScreen(): React.ReactElement {
     } finally {
       setIsLoading(false);
     }
-  }, [params.from, params.to, params.date, minSeats, womenOnly]);
+  }, [params.from, params.to, params.date, flexDays, minSeats, womenOnly]);
 
   useEffect(() => { void fetchRides(); }, [fetchRides]);
 
