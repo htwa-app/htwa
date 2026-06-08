@@ -126,7 +126,7 @@ export default function MyRidesScreen(): React.ReactElement {
         <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back" testID="back-button" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Ionicons name="chevron-back" size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.screenTitle}>My rides</Text>
+        <Text style={styles.screenTitle}>My journeys</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -135,7 +135,7 @@ export default function MyRidesScreen(): React.ReactElement {
       {/* Upcoming */}
       <Text style={styles.sectionLabel}>Upcoming</Text>
       {upcoming.length === 0 ? (
-        <Text style={styles.emptyText} testID="upcoming-empty">No upcoming rides</Text>
+        <Text style={styles.emptyText} testID="upcoming-empty">No upcoming journeys</Text>
       ) : (
         upcoming.map((ride) => <RideCard key={`${ride.role}-${ride.id}`} ride={ride} onPress={() => router.push(`/ride/${ride.id}`)} />)
       )}
@@ -143,7 +143,7 @@ export default function MyRidesScreen(): React.ReactElement {
       {/* Past */}
       <Text style={styles.sectionLabel}>Past</Text>
       {past.length === 0 ? (
-        <Text style={styles.emptyText} testID="past-empty">No past rides</Text>
+        <Text style={styles.emptyText} testID="past-empty">No past journeys</Text>
       ) : (
         past.map((ride) => <RideCard key={`${ride.role}-${ride.id}`} ride={ride} onPress={() => router.push(`/ride/${ride.id}`)} />)
       )}

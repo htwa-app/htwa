@@ -230,11 +230,11 @@ export default function ProfileScreen(): React.ReactElement {
           style={styles.actionButton}
           onPress={() => router.push('/my-rides')}
           accessibilityRole="button"
-          accessibilityLabel="View your rides"
+          accessibilityLabel="View your journeys"
           testID="my-rides-button"
         >
           <Ionicons name="car-outline" size={20} color={Colors.primary} />
-          <Text style={styles.actionButtonText}>My rides</Text>
+          <Text style={styles.actionButtonText}>My journeys</Text>
           <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
         </TouchableOpacity>
 

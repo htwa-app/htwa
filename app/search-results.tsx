@@ -94,7 +94,7 @@ export default function SearchResultsScreen(): React.ReactElement {
       }
 
       const { data, error: dbError } = await query;
-      if (dbError) { setError('Could not load rides. Please try again.'); return; }
+      if (dbError) { setError('Could not load journeys. Please try again.'); return; }
 
       // Collect unique driver IDs for a single batch verification query
       const driverIds = (data ?? [])
@@ -133,7 +133,7 @@ export default function SearchResultsScreen(): React.ReactElement {
       });
       setRides(rideList);
     } catch {
-      setError('Could not load rides. Please try again.');
+      setError('Could not load journeys. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -191,16 +191,16 @@ export default function SearchResultsScreen(): React.ReactElement {
       </View>
 
       <Text style={styles.resultCount} testID="result-count">
-        {rides.length} ride{rides.length !== 1 ? 's' : ''} found
+        {rides.length} journey{rides.length !== 1 ? 's' : ''} found
       </Text>
 
       {/* Empty state */}
       {rides.length === 0 && (
         <View style={styles.emptyState} testID="empty-state">
           <Ionicons name="car-outline" size={48} color={Colors.textTertiary} />
-          <Text style={styles.emptyTitle}>No rides found</Text>
+          <Text style={styles.emptyTitle}>No journeys found</Text>
           <Text style={styles.emptyText}>
-            No rides found for this route on this date. Try different dates or nearby locations.
+            No journeys found for this route on this date. Try different dates or nearby locations.
           </Text>
         </View>
       )}
