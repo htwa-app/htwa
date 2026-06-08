@@ -279,6 +279,7 @@ const _rideRow: RideRow = {
   currency:           'EUR',
   distance_km:        208.4,
   women_only:         false,
+  luggage_note:       null,
   status:             'active',
   created_at:         null,
 };

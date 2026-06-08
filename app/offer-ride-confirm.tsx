@@ -40,7 +40,7 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
   const params  = useLocalSearchParams<{
     from: string; to: string; date: string; time: string;
     seats: string; pricePerSeat: string; currency: string;
-    distanceKm: string; womenOnly: string;
+    distanceKm: string; womenOnly: string; luggageNote: string;
   }>();
 
   const [isPosting, setIsPosting] = useState(false);
@@ -70,6 +70,7 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
         currency,
         distance_km:        distanceKm || null,
         women_only:         womenOnly,
+        luggage_note:       params.luggageNote?.trim() || null,
         status:             'active',
       });
       if (error) { setPostError(error.message); return; }

@@ -137,6 +137,7 @@ export type RideRow = {
   currency:           Currency;
   distance_km:        number | null; // numeric(10,2)
   women_only:         boolean;
+  luggage_note:       string | null;  // migration 20260601000004 (Block 8)
   status:             RideStatus;
   created_at:         string | null;
 }
@@ -155,6 +156,7 @@ export type RideInsert = {
   currency:            Currency;
   distance_km?:        number | null;
   women_only?:         boolean;       // defaults to false
+  luggage_note?:       string | null;
   status?:             RideStatus;    // defaults to 'active'
   created_at?:         string | null;
 }
@@ -171,6 +173,7 @@ export type RideUpdate = {
   currency?:           Currency;
   distance_km?:        number | null;
   women_only?:         boolean;
+  luggage_note?:       string | null;
   status?:             RideStatus;
 }
 

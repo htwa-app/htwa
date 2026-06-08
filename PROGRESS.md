@@ -89,6 +89,13 @@ Committed in 3 sub-steps (6a5cec7 engine, 2e00242 migration+types, 62e78cb UI).
 - **📦 Outstanding manual steps (external):** create the Stripe Connect platform account; deploy the `create-connect-account` + `create-setup-intent` Edge Functions (`supabase functions deploy`). Until then both actions show "isn't available yet" — the entry points + status indicators are fully wired and tested.
 - Tests: +11 (6 payments service, 4 screen, 1 db types). tsc 0, 859 passing.
 
+### Block 8 — Baggage (low-friction) ✅
+- Migration `20260601000004_luggage_note.sql` (APPLIED): adds optional `rides.luggage_note` TEXT. Types updated.
+- `app/offer-ride.tsx`: optional "Luggage / bags" note field + helper line "Sort the details with passengers in the in-app chat after booking." Threaded through `offer-ride-confirm` → stored on the journey.
+- `app/ride/[id].tsx`: shows the luggage note (or a placeholder) + a line pointing passengers to chat for specifics.
+- **No baggage pricing / no paid "book a case" flow** (per spec). **Deferred (documented):** paid baggage as a future option.
+- Tests: +3 (offer-ride luggage param; ride detail note present/absent). tsc 0, 862 passing.
+
 ---
 
 ## 31 May 2026 — Build complete: Stages 21–88

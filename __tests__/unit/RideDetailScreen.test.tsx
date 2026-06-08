@@ -91,4 +91,15 @@ describe('RideDetailScreen', () => {
     render(<RideDetailScreen />);
     await waitFor(() => expect(screen.getByTestId('ride-detail-error')).toBeTruthy());
   });
+
+  it('shows the luggage note when present (Block 8)', async () => {
+    mockRide.mockResolvedValue({ data: { ...RIDE, luggage_note: 'one small case each' }, error: null });
+    render(<RideDetailScreen />);
+    await waitFor(() => expect(screen.getByTestId('ride-luggage-note')).toHaveTextContent('one small case each'));
+  });
+
+  it('shows a no-luggage placeholder when absent (Block 8)', async () => {
+    render(<RideDetailScreen />);
+    await waitFor(() => expect(screen.getByTestId('ride-luggage-none')).toBeTruthy());
+  });
 });

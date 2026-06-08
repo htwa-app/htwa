@@ -76,6 +76,7 @@ export default function OfferRideScreen(): React.ReactElement {
   // never type or edit it (Block 4). They only ever see their own cost-share.
   const [driverSeatPrice, setDriverSeatPrice] = useState<number | null>(null);
   const [womenOnly,     setWomenOnly]     = useState(false);
+  const [luggageNote,   setLuggageNote]   = useState(''); // Block 8 — optional
   // Block 3: posting more than 4 seats requires evidence the vehicle can carry them.
   // TODO: build the evidence-upload flow (vehicle reg / insurance seats) that flips
   // `extraSeatsVerified` to true. Until then the selector is hard-capped at 4.
@@ -190,6 +191,7 @@ export default function OfferRideScreen(): React.ReactElement {
       currency,
       distanceKm: String(distance ?? 0),
       womenOnly: String(womenOnly),
+      luggageNote: luggageNote.trim(),
     });
     router.push(`/offer-ride-confirm?${params.toString()}`);
   };
@@ -352,6 +354,22 @@ export default function OfferRideScreen(): React.ReactElement {
             Your fair cost-share appears once the distance is calculated.
           </Text>
         )}
+      </View>
+
+      {/* Luggage / bags note (Block 8 — optional, no extra charge) */}
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>Luggage / bags (optional)</Text>
+        <Input
+          placeholder="e.g. room for one small case per person"
+          value={luggageNote}
+          onChangeText={setLuggageNote}
+          multiline
+          numberOfLines={2}
+          testID="luggage-input"
+        />
+        <Text style={styles.priceHint}>
+          Sort the details with passengers in the in-app chat after booking.
+        </Text>
       </View>
 
       {/* Women-only toggle */}

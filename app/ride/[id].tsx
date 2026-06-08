@@ -31,6 +31,7 @@ interface RideDetail {
   cost_per_seat: number; currency: 'EUR' | 'GBP';
   distance_km: number | null;
   women_only: boolean;
+  luggage_note: string | null;
   driver_id: string;
   driver: { full_name: string; is_verified: boolean; university: string | null };
   vehicle: { make: string; model: string; seats: number; hasAC: boolean; dashcam: boolean } | null;
@@ -87,6 +88,7 @@ export default function RideDetailScreen(): React.ReactElement {
         currency: data.currency,
         distance_km: data.distance_km,
         women_only: data.women_only,
+        luggage_note: data.luggage_note ?? null,
         driver_id: data.driver_id,
         driver: {
           full_name:   driverData?.full_name ?? 'Driver',
@@ -175,6 +177,17 @@ export default function RideDetailScreen(): React.ReactElement {
           </View>
         </View>
       )}
+
+      {/* Luggage / bags (Block 8) */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Luggage</Text>
+        {ride.luggage_note ? (
+          <Text style={styles.vehicleText} testID="ride-luggage-note">{ride.luggage_note}</Text>
+        ) : (
+          <Text style={styles.metaText} testID="ride-luggage-none">No luggage note added.</Text>
+        )}
+        <Text style={styles.metaText}>Need to bring something specific? Message the driver in chat after booking.</Text>
+      </View>
 
       {/* Seat selector + booking */}
       {!isOwnRide && ride.seats_available > 0 && (

@@ -174,6 +174,24 @@ describe('OfferRideScreen — Block 3 seat cap', () => {
   });
 });
 
+describe('OfferRideScreen — Block 8 luggage note', () => {
+  it('passes the optional luggage note into the confirm params', async () => {
+    render(<OfferRideScreen />);
+    await waitFor(() => expect(screen.getByTestId('from-input')).toBeTruthy());
+    fireEvent.changeText(screen.getByTestId('from-input'), 'Galway');
+    fireEvent.changeText(screen.getByTestId('to-input'), 'Dublin');
+    fireEvent.changeText(screen.getByTestId('date-input'), '2026-06-01');
+    fireEvent.changeText(screen.getByTestId('time-input'), '09:00');
+    fireEvent.changeText(screen.getByTestId('luggage-input'), 'one small case each');
+    await waitFor(
+      () => expect(screen.getByTestId('review-button').props.accessibilityState?.disabled).toBe(false),
+      { timeout: 2000 },
+    );
+    fireEvent.press(screen.getByTestId('review-button'));
+    expect(String(mockPush.mock.calls[0][0])).toContain('luggageNote=one+small+case+each');
+  });
+});
+
 describe('OfferRideScreen — Block 4 fixed cost-share pricing', () => {
   it('shows a computed cost-share and no editable price input', async () => {
     render(<OfferRideScreen />);
