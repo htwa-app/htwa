@@ -13,18 +13,26 @@ jest.mock('@expo/vector-icons', () => {
   return { Ionicons: (p: Record<string, unknown>) => <View testID={`icon-${p.name}`} /> };
 });
 
-const mockSingleImpl = jest.fn();
+const mockProfile = jest.fn();
+const mockIncrements = jest.fn();
 jest.mock('../../lib/supabase', () => ({
-  supabase: { from: () => ({ select: () => ({ eq: () => ({ single: (...args: unknown[]) => mockSingleImpl(...args) }) }) }) },
+  supabase: {
+    from: (table: string) => {
+      if (table === 'driver_pricing_profiles') {
+        return { select: () => ({ eq: () => ({ maybeSingle: () => mockProfile() }) }) };
+      }
+      // driver_mileage_increments — select().eq() is awaitable (thenable)
+      const q: Record<string, unknown> = {};
+      q.select = () => q;
+      q.eq = () => q;
+      (q as { then: unknown }).then = (resolve: (v: unknown) => void) => resolve(mockIncrements());
+      return q;
+    },
+  },
 }));
 
 const mockUseAuth = jest.fn();
 jest.mock('../../context/AuthContext', () => ({ useAuth: () => mockUseAuth() }));
-
-jest.mock('../../utils/costCalculator', () => ({
-  calculateRideCost: () => ({ perSeatCost: 10.75, totalCost: 43.00, currency: 'EUR', rateApplied: 0.43 }),
-  isWithinCap: () => true,
-}));
 
 // Block 2 — distance is auto-calculated via the Routes helper (no manual input).
 const mockComputeDistance = jest.fn();
@@ -59,7 +67,8 @@ jest.mock('../../components/RouteInput', () => {
 beforeEach(() => {
   jest.clearAllMocks();
   mockUseAuth.mockReturnValue({ user: { id: 'u1' } });
-  mockSingleImpl.mockResolvedValue({ data: { home_location: 'ROI', currency: 'EUR' }, error: null });
+  mockProfile.mockResolvedValue({ data: { tax_residence: 'ROI', engine_cc: 'le1200' }, error: null });
+  mockIncrements.mockResolvedValue({ data: [], error: null });
   mockComputeDistance.mockResolvedValue({ ok: true, distance: 210, unit: 'km' });
 });
 
@@ -162,5 +171,30 @@ describe('OfferRideScreen — Block 3 seat cap', () => {
     for (let i = 0; i < 10; i++) fireEvent.press(screen.getByTestId('seats-increment'));
     expect(screen.getByTestId('seats-value').props.children).toBe(4);
     expect(screen.getByTestId('seats-cap-note')).toBeTruthy();
+  });
+});
+
+describe('OfferRideScreen — Block 4 fixed cost-share pricing', () => {
+  it('shows a computed cost-share and no editable price input', async () => {
+    render(<OfferRideScreen />);
+    await waitFor(() => expect(screen.getByTestId('from-input')).toBeTruthy());
+    fireEvent.changeText(screen.getByTestId('from-input'), 'Galway');
+    fireEvent.changeText(screen.getByTestId('to-input'), 'Dublin');
+    await waitFor(() => expect(screen.getByTestId('driver-seat-price')).toBeTruthy(), { timeout: 2000 });
+    // 210 km × €0.4180 = €87.78; ÷ (3 seats + driver = 4) = €21.94
+    expect(screen.getByTestId('driver-seat-price')).toHaveTextContent(/21\.94/);
+    expect(screen.queryByTestId('price-input')).toBeNull(); // driver can't edit the price
+  });
+
+  it('shows the complete-setup banner and disables review when no pricing profile', async () => {
+    mockProfile.mockResolvedValue({ data: null, error: null });
+    render(<OfferRideScreen />);
+    await waitFor(() => expect(screen.getByTestId('complete-setup-banner')).toBeTruthy());
+    fireEvent.changeText(screen.getByTestId('from-input'), 'Galway');
+    fireEvent.changeText(screen.getByTestId('to-input'), 'Dublin');
+    fireEvent.changeText(screen.getByTestId('date-input'), '2026-06-01');
+    fireEvent.changeText(screen.getByTestId('time-input'), '09:00');
+    await waitFor(() => expect(screen.getByTestId('distance-value')).toBeTruthy(), { timeout: 2000 });
+    expect(screen.getByTestId('review-button').props.accessibilityState?.disabled).toBe(true);
   });
 });

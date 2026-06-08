@@ -14,6 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '../../components/Avatar';
 import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
+import { PriceBreakdown } from '../../components/PriceBreakdown';
+import { passengerPricing } from '../../utils/pricingEngine';
 import { formatCurrency } from '../../utils/currency';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../constants/theme';
 import { supabase } from '../../lib/supabase';
@@ -111,11 +113,14 @@ export default function RideDetailScreen(): React.ReactElement {
   const initials = ride.driver.full_name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('');
   const depTime  = new Date(ride.departure_datetime).toLocaleTimeString('en-IE', { hour: '2-digit', minute: '2-digit' });
   const depDate  = new Date(ride.departure_datetime).toLocaleDateString('en-IE', { weekday: 'long', day: 'numeric', month: 'long' });
-  const totalCost = ride.cost_per_seat * seatsWant;
+  // cost_per_seat is the driver's cost-share (base fare). The passenger pays
+  // passengerSeatPrice (base fare + service charge + booking fee) per seat.
+  const { passengerSeatPrice } = passengerPricing(ride.cost_per_seat);
+  const totalCost = passengerSeatPrice * seatsWant;
   const isOwnRide = user?.id === ride.driver_id;
 
   const handleBook = () => {
-    router.push(`/booking-request?rideId=${ride.id}&seats=${seatsWant}&pricePerSeat=${ride.cost_per_seat}&currency=${ride.currency}`);
+    router.push(`/booking-request?rideId=${ride.id}&seats=${seatsWant}&pricePerSeat=${passengerSeatPrice}&currency=${ride.currency}`);
   };
 
   return (
@@ -174,6 +179,7 @@ export default function RideDetailScreen(): React.ReactElement {
       {/* Seat selector + booking */}
       {!isOwnRide && ride.seats_available > 0 && (
         <View style={styles.bookingCard}>
+          <PriceBreakdown driverSeatPrice={ride.cost_per_seat} currency={ride.currency} testID="ride-price-breakdown" />
           <View style={styles.seatRow}>
             <Text style={styles.seatLabel}>Seats needed</Text>
             <View style={styles.stepper}>

@@ -34,7 +34,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { RouteInput } from '../components/RouteInput';
-import { calculateRideCost, isWithinCap } from '../utils/costCalculator';
+import { calculateJourneyPricing, type Jurisdiction, type EngineCcBand } from '../utils/pricingEngine';
+import { cumulativeForTaxYear, type MileageIncrement } from '../utils/mileageTracking';
 import { computeRouteDistance, type DistanceUnit } from '../services/routes';
 import { formatCurrency } from '../utils/currency';
 import {
@@ -71,36 +72,57 @@ export default function OfferRideScreen(): React.ReactElement {
   const [date,          setDate]          = useState('');   // YYYY-MM-DD
   const [time,          setTime]          = useState('');   // HH:MM
   const [seats,         setSeats]         = useState(3);
-  const [pricePerSeat,  setPricePerSeat]  = useState('');
+  // driverSeatPrice is COMPUTED by the pricing engine and FIXED — the driver can
+  // never type or edit it (Block 4). They only ever see their own cost-share.
+  const [driverSeatPrice, setDriverSeatPrice] = useState<number | null>(null);
   const [womenOnly,     setWomenOnly]     = useState(false);
-  const [currency,      setCurrency]      = useState<'EUR' | 'GBP'>('EUR');
-  const [homeLocation,  setHomeLocation]  = useState<'ROI' | 'NI'>('ROI');
-  const [priceError,    setPriceError]    = useState<string | null>(null);
   // Block 3: posting more than 4 seats requires evidence the vehicle can carry them.
   // TODO: build the evidence-upload flow (vehicle reg / insurance seats) that flips
   // `extraSeatsVerified` to true. Until then the selector is hard-capped at 4.
   const [extraSeatsVerified] = useState(false);
   const seatsMax = extraSeatsVerified ? SEATS_CAP_VERIFIED : SEATS_CAP_DEFAULT;
 
-  // Jurisdiction unit: ROI → km, UK (incl. NI) → miles. (Block 4 will key this off
-  // tax residence; for now it derives from the driver's home location.)
-  const unit: DistanceUnit = homeLocation === 'ROI' ? 'km' : 'miles';
+  // Block 4 — driver pricing profile (tax residence drives everything).
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [jurisdiction,  setJurisdiction]  = useState<Jurisdiction | null>(null);
+  const [engineCc,      setEngineCc]      = useState<EngineCcBand | null>(null);
+  const [cumulative,    setCumulative]    = useState(0);
 
-  // Load driver's home location for rate calculation
-  const loadHomeLocation = useCallback(async () => {
+  const currency: 'EUR' | 'GBP' = jurisdiction === 'UK' ? 'GBP' : 'EUR';
+  // ROI → km, UK → miles.
+  const unit: DistanceUnit = jurisdiction === 'UK' ? 'miles' : 'km';
+
+  // Load the driver's pricing profile + their cumulative annual distance.
+  const loadDriverProfile = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from('users')
-      .select('home_location, currency')
-      .eq('id', user.id)
-      .single();
-    if (data) {
-      setHomeLocation(data.home_location as 'ROI' | 'NI');
-      setCurrency(data.currency as 'EUR' | 'GBP');
+    const { data: profile } = await supabase
+      .from('driver_pricing_profiles')
+      .select('tax_residence, engine_cc')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (profile) {
+      const jur = profile.tax_residence as Jurisdiction;
+      setJurisdiction(jur);
+      setEngineCc(profile.engine_cc as EngineCcBand);
+
+      const { data: increments } = await supabase
+        .from('driver_mileage_increments')
+        .select('amount, created_at, source')
+        .eq('driver_id', user.id);
+      const mapped: MileageIncrement[] = (increments ?? []).map((i) => ({
+        amount: Number(i.amount),
+        at: i.created_at as string,
+        source: i.source as MileageIncrement['source'],
+      }));
+      setCumulative(cumulativeForTaxYear(mapped, jur));
     }
+    setProfileLoaded(true);
   }, [user]);
 
-  useEffect(() => { void loadHomeLocation(); }, [loadHomeLocation]);
+  useEffect(() => { void loadDriverProfile(); }, [loadDriverProfile]);
+
+  const hasProfile = jurisdiction !== null && engineCc !== null;
 
   // Auto-calculate the route distance whenever from/to (or the unit) change.
   // Debounced so we don't hit the Routes API on every keystroke. The driver
@@ -128,38 +150,34 @@ export default function OfferRideScreen(): React.ReactElement {
     return () => { cancelled = true; clearTimeout(timer); };
   }, [from, to, unit]);
 
-  // Auto-calculate price when distance or seats change
+  // Compute the FIXED driver seat price via the pricing engine whenever the
+  // distance, seats or driver profile change. The driver never edits this.
   useEffect(() => {
-    if (distance !== null && distance > 0) {
-      const result = calculateRideCost(distance, seats, homeLocation);
-      setPricePerSeat(result.perSeatCost.toFixed(2));
-      setPriceError(null);
+    if (distance !== null && distance > 0 && hasProfile && jurisdiction) {
+      const result = calculateJourneyPricing({
+        jurisdiction,
+        engineCc: engineCc ?? undefined,
+        cumulativeBefore: cumulative,
+        distance,
+        tolls: 0, // tolls wiring deferred — see PROGRESS Block 4
+        seatsOffered: seats,
+      });
+      setDriverSeatPrice(result.driverSeatPrice);
+    } else {
+      setDriverSeatPrice(null);
     }
-  }, [distance, seats, homeLocation]);
+  }, [distance, seats, hasProfile, jurisdiction, engineCc, cumulative]);
 
   const incrementSeats = () => setSeats((s) => Math.min(seatsMax, s + 1));
   const decrementSeats = () => setSeats((s) => Math.max(SEATS_MIN, s - 1));
-
-  const handlePriceChange = (text: string) => {
-    setPricePerSeat(text);
-    const val = parseFloat(text);
-    if (!isNaN(val) && distance !== null) {
-      if (!isWithinCap(val, seats, distance, homeLocation)) {
-        const { totalCost } = calculateRideCost(distance, seats, homeLocation);
-        setPriceError(`Max allowed: ${formatCurrency(totalCost / seats, currency)}`);
-      } else {
-        setPriceError(null);
-      }
-    }
-  };
 
   const isValid = from.trim().length > 0
     && to.trim().length > 0
     && distance !== null && distance > 0
     && date.length > 0
     && time.length > 0
-    && parseFloat(pricePerSeat) > 0
-    && !priceError;
+    && hasProfile
+    && driverSeatPrice !== null && driverSeatPrice > 0;
 
   const handleReview = () => {
     const params = new URLSearchParams({
@@ -168,7 +186,7 @@ export default function OfferRideScreen(): React.ReactElement {
       date,
       time,
       seats: String(seats),
-      pricePerSeat,
+      pricePerSeat: String(driverSeatPrice ?? 0),
       currency,
       distanceKm: String(distance ?? 0),
       womenOnly: String(womenOnly),
@@ -197,6 +215,22 @@ export default function OfferRideScreen(): React.ReactElement {
         <Text style={styles.screenTitle}>Offer a journey</Text>
         <View style={styles.headerSpacer} />
       </View>
+
+      {/* Driver setup gate — pricing needs the driver's tax residence + engine cc. */}
+      {profileLoaded && !hasProfile && (
+        <TouchableOpacity
+          style={styles.setupBanner}
+          onPress={() => router.push('/driver-onboarding')}
+          accessibilityRole="button"
+          testID="complete-setup-banner"
+        >
+          <Ionicons name="information-circle-outline" size={20} color={Colors.primary} />
+          <Text style={styles.setupBannerText}>
+            Complete your driver setup to price and post journeys.
+          </Text>
+          <Ionicons name="chevron-forward" size={18} color={Colors.primary} />
+        </TouchableOpacity>
+      )}
 
       {/* Route */}
       <View style={styles.section}>
@@ -300,21 +334,22 @@ export default function OfferRideScreen(): React.ReactElement {
         </Text>
       )}
 
-      {/* Price per seat */}
+      {/* Your cost-share per seat — COMPUTED and fixed. The driver cannot edit it. */}
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Price per seat ({currency})</Text>
-        <Input
-          placeholder="0.00"
-          value={pricePerSeat}
-          onChangeText={handlePriceChange}
-          keyboardType="decimal-pad"
-          testID="price-input"
-        />
-        {priceError ? (
-          <Text style={styles.priceError} testID="price-error">{priceError}</Text>
+        <Text style={styles.sectionLabel}>Your cost-share per seat ({currency})</Text>
+        {driverSeatPrice !== null ? (
+          <>
+            <Text style={styles.distanceValue} testID="driver-seat-price">
+              {formatCurrency(driverSeatPrice, currency)}
+            </Text>
+            <Text style={styles.priceHint}>
+              Set automatically from the official mileage rate for your jurisdiction and split
+              across you and your passengers. You can never charge more than your share.
+            </Text>
+          </>
         ) : (
-          <Text style={styles.priceHint}>
-            Auto-calculated from civil service rates. You may not charge more than the journey cost.
+          <Text style={styles.priceHint} testID="price-pending">
+            Your fair cost-share appears once the distance is calculated.
           </Text>
         )}
       </View>
@@ -391,6 +426,12 @@ const styles = StyleSheet.create({
   stepperBtnDisabled: { backgroundColor: Colors.border },
   stepperValue: { ...Typography.headingMedium, color: Colors.textPrimary, minWidth: 24, textAlign: 'center' },
   distanceValue: { ...Typography.headingMedium, color: Colors.textPrimary },
+  setupBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    backgroundColor: Colors.primaryLight, borderRadius: BorderRadius.large,
+    padding: Spacing.cardPadding,
+  },
+  setupBannerText: { ...Typography.bodyMedium, color: Colors.primary, flex: 1 },
   priceHint: { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: Spacing.xs },
   priceError: { ...Typography.bodySmall, color: Colors.sos, marginTop: Spacing.xs },
   ctaButton: { marginTop: Spacing.sm },
