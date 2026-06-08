@@ -318,6 +318,34 @@ export type PricingConfigRow = {
   description: string | null;
 }
 
+// ─── payment_accounts (migration 20260601000003) ──────────────────────────────
+
+export type ConnectStatus = 'none' | 'pending' | 'active' | 'restricted';
+
+export type PaymentAccountRow = {
+  user_id:                   string;
+  stripe_connect_account_id: string | null;
+  connect_status:            ConnectStatus;
+  stripe_customer_id:        string | null;
+  has_payment_method:        boolean;
+  payment_method_brand:      string | null;
+  payment_method_last4:      string | null;
+  created_at:                string;
+  updated_at:                string;
+}
+
+export type PaymentAccountInsert = {
+  user_id:                    string;
+  stripe_connect_account_id?: string | null;
+  connect_status?:            ConnectStatus;
+  stripe_customer_id?:        string | null;
+  has_payment_method?:        boolean;
+  payment_method_brand?:      string | null;
+  payment_method_last4?:      string | null;
+}
+
+export type PaymentAccountUpdate = Partial<PaymentAccountInsert>;
+
 // ─── Database (Supabase client generic) ───────────────────────────────────────
 
 export type Database = {
@@ -387,6 +415,12 @@ export type Database = {
         Row:    PricingConfigRow;
         Insert: PricingConfigRow;
         Update: Partial<PricingConfigRow>;
+        Relationships: [];
+      };
+      payment_accounts: {
+        Row:    PaymentAccountRow;
+        Insert: PaymentAccountInsert;
+        Update: PaymentAccountUpdate;
         Relationships: [];
       };
     };

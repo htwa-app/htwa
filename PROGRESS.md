@@ -82,6 +82,13 @@ Committed in 3 sub-steps (6a5cec7 engine, 2e00242 migration+types, 62e78cb UI).
 - **📦 Native dependency:** `services/imagePicker.ts` is a **STUB** — `expo-image-picker` is a native module and is **not installed**; the picker returns `null` and the UI shows "needs the camera module — coming in the next build." Installing it (`npx expo install expo-image-picker`) requires a **fresh EAS build**. The upload→status flow behind it is fully wired + tested (mocked picker).
 - Tests: +12 (5 studentCard, 4 edit-profile Block 6, 3 within). tsc 0, 848 passing.
 
+### Block 7 — Payment methods ✅
+- Migration `20260601000003_payment_accounts.sql` (APPLIED): `payment_accounts` (connect_status none/pending/active/restricted; has_payment_method + brand/last4; stripe ids) with owner-only RLS. Types added.
+- `services/payments.ts`: `getPaymentAccount` (safe default), `startConnectOnboarding` (driver payouts via `create-connect-account` Edge Function), `createSetupIntent` (passenger card via `create-setup-intent`). Both **degrade to `{ ok:false, reason:'unavailable' }`** when the Edge Functions aren't deployed — no throw, no hardcoded keys (client uses `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY` via the existing `StripeProvider`).
+- `app/payment-methods.tsx`: two sections — **Driver payouts** (Connect status + Set up/Manage) and **Payment card** (saved-card status + Add/Update via the Stripe SDK setup sheet). Reached from a new **Payment methods** row on the Profile tab.
+- **📦 Outstanding manual steps (external):** create the Stripe Connect platform account; deploy the `create-connect-account` + `create-setup-intent` Edge Functions (`supabase functions deploy`). Until then both actions show "isn't available yet" — the entry points + status indicators are fully wired and tested.
+- Tests: +11 (6 payments service, 4 screen, 1 db types). tsc 0, 859 passing.
+
 ---
 
 ## 31 May 2026 — Build complete: Stages 21–88
