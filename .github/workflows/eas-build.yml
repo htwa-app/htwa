@@ -1,0 +1,70 @@
+name: EAS Build
+
+# Triggers a cloud build on EAS. Submission to the stores is intentionally NOT
+# wired here — it stays manual/dormant until Apple Developer + Google Play
+# accounts and credentials exist.
+#
+# Requires one GitHub repository secret: EXPO_TOKEN (a personal access token from
+# https://expo.dev/settings/access-tokens). Also requires `eas init` to have been
+# run once so app.json carries the EAS projectId.
+#
+# Cost note: EAS build minutes are limited on the free tier. Push-to-main builds
+# the cheap `development` profile (iOS simulator + Android APK, no credentials).
+# Use the manual run for `preview` / `production`.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'EAS build profile'
+        type: choice
+        options:
+          - development
+          - preview
+          - production
+        default: development
+      platform:
+        description: 'Platform to build'
+        type: choice
+        options:
+          - all
+          - ios
+          - android
+        default: all
+
+concurrency:
+  group: eas-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: EAS build (${{ github.event.inputs.profile || 'development' }})
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set up EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Run EAS build (non-interactive, no auto-submit)
+        run: |
+          eas build \
+            --platform "${{ github.event.inputs.platform || 'all' }}" \
+            --profile "${{ github.event.inputs.profile || 'development' }}" \
+            --non-interactive \
+            --no-wait
