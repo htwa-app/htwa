@@ -1,18 +1,44 @@
 {
+  // EAS Build & Submit configuration — https://docs.expo.dev/eas/json/
+  // New Architecture is enabled via app.json ("newArchEnabled": true), so it
+  // applies to every profile below automatically.
+  // All EXPO_PUBLIC_* env vars are pulled from EAS secrets at build time
+  // (see `eas secret:create`), never committed here.
   "cli": {
-    "version": ">= 10.0.0"
+    "version": ">= 20.1.0",
+    "appVersionSource": "remote"
   },
   "build": {
+    // ── development ──────────────────────────────────────────────────────────
+    // iOS SIMULATOR build — needs NO Apple Developer account. This is the one
+    // that replaces the broken local `expo run:ios`. Android = installable APK.
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      },
+      "android": {
+        "buildType": "apk"
+      }
     },
+    // ── preview ──────────────────────────────────────────────────────────────
+    // Internal distribution for later TestFlight / Play internal testing.
+    // NOTE: the iOS DEVICE build here requires Apple Developer Program enrolment
+    // (EAS will need to create/manage a provisioning profile). Android = APK.
     "preview": {
       "distribution": "internal",
       "ios": {
         "simulator": false
+      },
+      "android": {
+        "buildType": "apk"
       }
     },
+    // ── production ───────────────────────────────────────────────────────────
+    // Store builds. DORMANT until Apple Developer + Google Play accounts exist:
+    // the iOS app-store build needs Apple credentials, the Android aab needs a
+    // Play upload key. Safe to keep here; just don't run until accounts exist.
     "production": {
       "autoIncrement": true,
       "ios": {
@@ -24,15 +50,26 @@
     }
   },
   "submit": {
+    // Submission is intentionally INACTIVE. Uncomment + fill the relevant block
+    // only after the matching account + credentials exist. Until then, leaving
+    // these empty means `eas submit` simply has nothing configured to run.
     "production": {
       "ios": {
-        "appleId": "hello@htwa-app.com",
-        "ascAppId": "FILL_IN_APP_STORE_CONNECT_APP_ID",
-        "appleTeamId": "FILL_IN_APPLE_TEAM_ID"
+        // Requires: Apple Developer Program enrolment + an App Store Connect API
+        // key (App Store Connect -> Users and Access -> Integrations -> App Store
+        // Connect API -> generate key, download the .p8). Then uncomment:
+        // "ascApiKeyPath": "./asc-api-key.p8",
+        // "ascApiKeyId": "FILL_IN_ASC_API_KEY_ID",
+        // "ascApiKeyIssuerId": "FILL_IN_ASC_API_ISSUER_ID",
+        // "ascAppId": "FILL_IN_APP_STORE_CONNECT_APP_ID",
+        // "appleTeamId": "FILL_IN_APPLE_TEAM_ID"
       },
       "android": {
-        "serviceAccountKeyPath": "./google-service-account.json",
-        "track": "internal"
+        // Requires: a Google Play service account JSON (Play Console -> Setup ->
+        // API access -> create/link a service account, grant release permissions,
+        // download JSON to ./google-service-account.json — already gitignored).
+        // "serviceAccountKeyPath": "./google-service-account.json",
+        // "track": "internal"
       }
     }
   }
