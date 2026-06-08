@@ -242,6 +242,74 @@ export type ReviewUpdate = {
   comment?: string | null;
 }
 
+// ─── driver pricing + mileage (migration 20260601000001) ──────────────────────
+
+export type TaxResidence = 'ROI' | 'UK';
+export type EngineCcBand  = 'le1200' | 'cc1201to1500' | 'ge1501';
+export type DistanceUnitDb = 'km' | 'mile';
+export type MileageSource = 'journey' | 'manual';
+
+export type DriverPricingProfileRow = {
+  user_id:                  string;
+  tax_residence:            TaxResidence;
+  engine_cc:                EngineCcBand;
+  insurance_cert_confirmed: boolean;
+  notify_insurer_confirmed: boolean;
+  declaration_version:      string | null;
+  declaration_accepted_at:  string | null;
+  created_at:               string;
+  updated_at:               string;
+}
+
+export type DriverPricingProfileInsert = {
+  user_id:                   string;
+  tax_residence:             TaxResidence;
+  engine_cc:                 EngineCcBand;
+  insurance_cert_confirmed?: boolean;
+  notify_insurer_confirmed?: boolean;
+  declaration_version?:      string | null;
+  declaration_accepted_at?:  string | null;
+}
+
+export type DriverPricingProfileUpdate = Partial<DriverPricingProfileInsert>;
+
+export type MileageIncrementRow = {
+  id:         string;
+  driver_id:  string;
+  journey_id: string | null;
+  amount:     number;
+  unit:       DistanceUnitDb;
+  source:     MileageSource;
+  created_at: string;
+}
+
+export type MileageIncrementInsert = {
+  driver_id:   string;
+  journey_id?: string | null;
+  amount:      number;
+  unit:        DistanceUnitDb;
+  source:      MileageSource;
+}
+
+export type PricingRateRow = {
+  id:           string;
+  jurisdiction: TaxResidence;
+  band_index:   number;
+  engine_cc:    EngineCcBand | null;
+  upper_bound:  number;
+  rate:         number;
+  unit:         DistanceUnitDb;
+  currency:     Currency;
+  effective_from: string;
+  created_at:   string;
+}
+
+export type PricingConfigRow = {
+  key:         string;
+  value:       number;
+  description: string | null;
+}
+
 // ─── Database (Supabase client generic) ───────────────────────────────────────
 
 export type Database = {
@@ -287,6 +355,30 @@ export type Database = {
         Row:    ReviewRow;
         Insert: ReviewInsert;
         Update: ReviewUpdate;
+        Relationships: [];
+      };
+      driver_pricing_profiles: {
+        Row:    DriverPricingProfileRow;
+        Insert: DriverPricingProfileInsert;
+        Update: DriverPricingProfileUpdate;
+        Relationships: [];
+      };
+      driver_mileage_increments: {
+        Row:    MileageIncrementRow;
+        Insert: MileageIncrementInsert;
+        Update: Partial<MileageIncrementInsert>;
+        Relationships: [];
+      };
+      pricing_rates: {
+        Row:    PricingRateRow;
+        Insert: Partial<PricingRateRow>;
+        Update: Partial<PricingRateRow>;
+        Relationships: [];
+      };
+      pricing_config: {
+        Row:    PricingConfigRow;
+        Insert: PricingConfigRow;
+        Update: Partial<PricingConfigRow>;
         Relationships: [];
       };
     };
