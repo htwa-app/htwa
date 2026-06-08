@@ -4,6 +4,20 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 1 June 2026 — OVERNIGHT RUN: Journey overhaul + pricing engine (branch `feat/journey-overhaul`)
+
+Autonomous, defensive run. ONE branch, commit per block, tsc+tests after each, **nothing merged to main**. Global rename ride→journey applied to UI/new code as I go (DB-table/type-alias rename decision noted at the end). Block-by-block log below (updated as I go).
+
+### Block 0 — CodeRabbit feedback ✅
+- **No outstanding feedback on the current (merged) codebase.** PRs #24–26 had 0 comments; PR #11's one finding was actioned at the time.
+- **Stale PR #10** ("Stages 21–88" original bulk, branch `feat/phase-4-profiles`) is **CONFLICTING/superseded** by the clean rebuild (#11–26). Its 30 inline CodeRabbit comments are against old code. Triaged + verified against current code:
+  - **Already fixed in the rebuild** (verified): history `.error` checks + `trip.currency`; live-trip `.error` handling + "Open tracking link" a11y label; transaction-history `hitSlop` + named status colours (no bare hex); offer-ride stepper a11y labels; typed Ionicons/mock-data in LiveTrip/MyRides tests + MyRides error-scenario test.
+  - **Superseded by upcoming blocks:** offer-ride free-text date (→ Block 3 date picker), `loadHomeLocation` ROI/EUR default + error-swallow (→ Block 4 driver tax-residence rework), costCalculator "exactly at cap" test (→ Block 4 replaces the pricing engine).
+  - **Minor persisting / low-value:** live-trip "Message driver" `onPress={() => {}}` no-op (TODO — wire to chat in a later block); offer-ride-confirm timezone-naive datetime string (minor); a few test-quality nitpicks; `ACCOUNTS.md` blank-line.
+  - **Action for Jordan:** close stale PR #10 (it's superseded and conflicting).
+
+---
+
 ## 31 May 2026 — Build complete: Stages 21–88
 
 All phases rebuilt cleanly and **merged to `main` across 14 per-phase PRs (#11–#24)**, each tsc-0, CI-green, CodeRabbit-clean. **`tsc --noEmit`: 0 errors. Jest: 759 tests passing.** 7 Supabase migrations applied to the live DB via the Management API; `types/database.ts` covers users/verification/profiles/rides/bookings/messages/reviews + the `book_ride` RPC.
