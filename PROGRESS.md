@@ -96,6 +96,35 @@ Committed in 3 sub-steps (6a5cec7 engine, 2e00242 migration+types, 62e78cb UI).
 - **No baggage pricing / no paid "book a case" flow** (per spec). **Deferred (documented):** paid baggage as a future option.
 - Tests: +3 (offer-ride luggage param; ride detail note present/absent). tsc 0, 862 passing.
 
+### ✅ FINISH — overnight run summary
+
+**Status: all blocks 0–8 completed. None skipped.** `tsc --noEmit`: **0 errors**. Jest: **862 passing / 61 suites** (started at 759). Everything is on branch **`feat/journey-overhaul`** across 14 commits (`34e09c4`→`177ea8f`). **NOTHING merged to main; no force-push.** Working tree clean. Ready for your review in the morning.
+
+**4 migrations written + APPLIED to the live DB** (via Management API, verified): pricing rates/config + driver profiles + mileage; university verification (+ `student-cards` storage bucket); payment accounts; luggage note.
+
+**ride → journey rename:** all **user-facing copy** now says "journey" (search, offer, my-journeys, search results, payment receipts, ride detail, etc.). **Intentionally kept as "ride"** for stability (renaming overnight was too risky, consistent with the prior live-DB-rename decision): route paths (`/offer-ride`, `/ride/[id]`, `/my-rides`), DB tables (`rides`, `bookings`, `book_ride` RPC), testIDs, and internal TS type names (`RideRow`, etc.). Recommend a follow-up PR if you want the internal identifiers renamed too.
+
+**⚠️ PLACEHOLDER LEGAL TEXT — needs adviser sign-off before launch** (all marked `// PLACEHOLDER LEGAL TEXT — PENDING ADVISER REVIEW`):
+1. Driver declaration — `app/driver-onboarding.tsx` `declarationText()` (version `v1-placeholder-2026-06`).
+2. Insurance-certificate confirmation checkbox — `app/driver-onboarding.tsx`.
+3. Notify-insurer confirmation checkbox — `app/driver-onboarding.tsx`.
+4. Gender safety disclaimer — `app/signup.tsx` (tidy wording, keep meaning).
+5. Non-code confirmations to raise with the adviser: capped-rate cost-share is defensible as genuine cost-sharing; the honour-system manual mileage top-up (no enforcement) is adequate; insurance-attestation wording re: the no-profit condition vs car-share cover.
+
+**📦 Native deps → require a fresh EAS build (cannot be added OTA):**
+- `@react-native-community/datetimepicker` — for a real calendar date picker (Block 3; currently a text field + ±flex chips, which need no native dep).
+- `expo-image-picker` — for the student-card photo upload (Block 6; `services/imagePicker.ts` is a stub returning `null`, upload flow wired behind it).
+
+**🔧 External / manual steps still outstanding (flagged per block):**
+- Set `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` to a real key → unblocks Block 2 distance + on-device offer pricing (DUNS/company formation).
+- Create the Stripe Connect platform account; deploy Edge Functions `create-connect-account` + `create-setup-intent` (Block 7), and the existing `create-payment-intent`.
+- `npx expo install @react-native-community/datetimepicker expo-image-picker` then a fresh EAS build.
+- Simulator/device verification of the new screens (driver onboarding, payment methods, edit-profile upload, search flex/luggage).
+
+**Deferred (documented, NOT built):** tolls wiring (engine accepts `tolls`, offer passes 0); manual "+1" mileage button UI (pure logic + DB ready); 80/20 driver-storage split; dynamic price-drops; connecting/multi-leg journeys; paid baggage; OCR student-card name-match (manual review for now); runtime DB rate overrides (app reads TS constants).
+
+**Recommended for your review:** close stale PR #10 (Block 0); confirm the UK HMRC first-10k rate (seeded as £0.55 per the spec — published AMAP is 45p, but it's admin-editable config so trivially changeable); review the 5 placeholder-legal items above; decide whether to rename internal `ride` identifiers.
+
 ---
 
 ## 31 May 2026 — Build complete: Stages 21–88
