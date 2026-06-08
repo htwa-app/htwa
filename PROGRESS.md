@@ -16,6 +16,12 @@ Autonomous, defensive run. ONE branch, commit per block, tsc+tests after each, *
   - **Minor persisting / low-value:** live-trip "Message driver" `onPress={() => {}}` no-op (TODO — wire to chat in a later block); offer-ride-confirm timezone-naive datetime string (minor); a few test-quality nitpicks; `ACCOUNTS.md` blank-line.
   - **Action for Jordan:** close stale PR #10 (it's superseded and conflicting).
 
+### Block 1 — Search screen clarity + copy ✅
+- `app/(tabs)/index.tsx`: added prominent labels — "Departing from" / "Destination" (via new `RouteInput` `fromLabel`/`toLabel` props), "When do you want to travel?", "Number of seats required", "Women-only journeys"; primary button "Search". Real labels above fields, not faint placeholders.
+- `components/RouteInput.tsx`: optional `fromLabel`/`toLabel` props (back-compat — offer-ride unaffected).
+- Rename applied: "Find/Offer a ride" → "Find/Offer a journey", "Post a ride" → "Post a journey", women-only copy. Seats selector capped at **4** when searching (also satisfies part of Block 3).
+- Tests: +3 (RouteInput labels, Search labels, seats cap). tsc 0, 762 passing.
+
 ---
 
 ## 31 May 2026 — Build complete: Stages 21–88
