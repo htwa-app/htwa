@@ -55,13 +55,28 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Skip gracefully (green) until EXPO_TOKEN is configured + `eas init` has run.
+      - name: Check EAS is configured
+        id: gate
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::notice::EXPO_TOKEN not set — skipping EAS build. Add it under repo Settings → Secrets to enable cloud builds."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up EAS
+        if: steps.gate.outputs.ready == 'true'
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Run EAS build (non-interactive, no auto-submit)
+        if: steps.gate.outputs.ready == 'true'
         run: |
           eas build \
             --platform "${{ github.event.inputs.platform || 'all' }}" \
