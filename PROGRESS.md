@@ -67,6 +67,11 @@ Committed in 3 sub-steps (6a5cec7 engine, 2e00242 migration+types, 62e78cb UI).
 **⚠️ Transient note resolved:** Block 2's NI/UK-miles-vs-per-km-rate mismatch is fixed — the engine now uses miles × per-mile HMRC rates for UK drivers. NOTE the offer screen now keys off `driver_pricing_profiles.tax_residence` (ROI/UK), not the old `users.home_location` (ROI/NI) — a driver must complete `/driver-onboarding` before posting.
 - Tests: +56 (pricing 33, mileage 12, onboarding 5, breakdown 4, offer-ride +2). tsc 0, 833 passing.
 
+### Block 5 — Registration gender field ✅
+- `app/signup.tsx`: added a **Female / Male** selector (exactly two options) with the safety disclaimer: *"Everyone is free to identify however they wish. For the safety and protection of our users, we record the gender shown on your government-issued ID, for consistency and safety. This also enables our women-only journeys feature."* Gender is now **required** to continue; persisted to AsyncStorage.
+- `app/verify.tsx`: reads the stored gender and writes it to `users.gender` on account creation. (The `users.gender` column + DB-level women-only booking enforcement already existed.)
+- Drives the existing women-only journeys filter (both directions). Tests: +2 (gender required; two options + disclaimer); fillAll helper updated. tsc 0, 835 passing.
+
 ---
 
 ## 31 May 2026 — Build complete: Stages 21–88
