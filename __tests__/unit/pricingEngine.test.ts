@@ -104,24 +104,29 @@ describe('passengerPricing — the 30 → 35 worked example', () => {
 });
 
 describe('calculateJourneyPricing — full results', () => {
-  it('ROI, le1200, band 1, 4 seats offered → /5, EUR', () => {
+  it('ROI, le1200, band 1 → always ÷5 (car has 5 seats), EUR', () => {
     const r = calculateJourneyPricing({
       jurisdiction: 'ROI', engineCc: 'le1200', cumulativeBefore: 0, distance: 100, seatsOffered: 4,
     });
     expect(r.currency).toBe('EUR');
     expect(r.ratePerUnit).toBe(0.4180);
     expect(r.totalJourneyCost).toBe(41.80);
-    expect(r.driverSeatPrice).toBe(8.36); // 41.80 / 5
+    expect(r.driverSeatPrice).toBe(8.36); // 41.80 / 5 (÷5 because the car has 5 seats, not 4+1)
     expect(r.serviceCharge).toBe(0.83);
     expect(r.bookingFee).toBe(2);
     expect(r.passengerSeatPrice).toBe(11.19);
   });
 
-  it('1-seat division divides by 2 (driver + 1)', () => {
-    const r = calculateJourneyPricing({
-      jurisdiction: 'ROI', engineCc: 'le1200', cumulativeBefore: 0, distance: 100, seatsOffered: 1,
-    });
-    expect(r.driverSeatPrice).toBe(20.90); // 41.80 / 2
+  it('always divides by 5 regardless of seatsOffered (1, 2, 3, 4 → same price)', () => {
+    const driverPriceFor = (seatsOffered: number) =>
+      calculateJourneyPricing({
+        jurisdiction: 'ROI', engineCc: 'le1200', cumulativeBefore: 0, distance: 100, seatsOffered,
+      }).driverSeatPrice;
+    // 41.80 / 5 = 8.36 for every seat count — a passenger never pays more than 1/5.
+    expect(driverPriceFor(1)).toBe(8.36);
+    expect(driverPriceFor(2)).toBe(8.36);
+    expect(driverPriceFor(3)).toBe(8.36);
+    expect(driverPriceFor(4)).toBe(8.36);
   });
 
   it('UK, miles/GBP, first-band rate', () => {

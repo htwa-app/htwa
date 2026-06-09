@@ -4,7 +4,17 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
-## 1 June 2026 — OVERNIGHT RUN: Journey overhaul + pricing engine (branch `feat/journey-overhaul`)
+## 1 June 2026 (follow-up) — 3 changes on `feat/journey-overhaul`
+
+Follow-up to the 8-block overhaul. Each change is a separate commit; nothing merged to main.
+
+### Change 1 — Pricing divisor hard-coded ÷5 ✅
+- `utils/pricingEngine.ts`: `driverSeatPrice = totalJourneyCost ÷ STANDARD_VEHICLE_CAPACITY (5)`, **always**. `seatsOffered` no longer affects the divisor (kept only for the `< 1` validation + future use). A passenger always pays exactly one fifth share and can never pay more because fewer seats are available; the driver absorbs unsold/self-reserved seats (one booked seat = 20% recovery — intended).
+- **Safe because** bookable seats are hard-capped at 4 for ALL vehicles at launch (Block 3), so even a 7/8-seater can only sell 4 → ÷5 can never over-recover.
+- **TODO (V2.0):** larger vehicles (max 8 incl. driver) with a capacity-based divisor; until then a 7/8-seater recoups at most 4 seats' worth (acceptable). Noted in code (`pricingEngine.ts` header) + here.
+- Tests: updated the old "÷2 for 1 seat" assertion → ÷5 = 8.36; added a test proving seatsOffered 1/2/3/4 all yield the same price; updated the offer-ride cost-share assertion (€21.94 → €17.55). tsc 0, 862 passing.
+
+
 
 Autonomous, defensive run. ONE branch, commit per block, tsc+tests after each, **nothing merged to main**. Global rename ride→journey applied to UI/new code as I go (DB-table/type-alias rename decision noted at the end). Block-by-block log below (updated as I go).
 

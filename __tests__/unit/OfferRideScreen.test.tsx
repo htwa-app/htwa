@@ -199,8 +199,8 @@ describe('OfferRideScreen — Block 4 fixed cost-share pricing', () => {
     fireEvent.changeText(screen.getByTestId('from-input'), 'Galway');
     fireEvent.changeText(screen.getByTestId('to-input'), 'Dublin');
     await waitFor(() => expect(screen.getByTestId('driver-seat-price')).toBeTruthy(), { timeout: 2000 });
-    // 210 km × €0.4180 = €87.78; ÷ (3 seats + driver = 4) = €21.94
-    expect(screen.getByTestId('driver-seat-price')).toHaveTextContent(/21\.94/);
+    // 210 km × €0.4180 = €87.78; ÷ 5 (standard vehicle capacity) = €17.55
+    expect(screen.getByTestId('driver-seat-price')).toHaveTextContent(/17\.55/);
     expect(screen.queryByTestId('price-input')).toBeNull(); // driver can't edit the price
   });
 

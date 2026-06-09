@@ -25,6 +25,25 @@ import {
 
 export type { Jurisdiction, EngineCcBand };
 
+/**
+ * A standard car seats 5 (driver + 4 passengers). At launch EVERY journey is
+ * priced by dividing the total cost by 5, regardless of how many seats are
+ * actually offered or booked. A passenger always pays exactly ONE share
+ * (total ÷ 5) and can NEVER pay more just because fewer seats are available —
+ * the driver bears the cost of every unsold or self-reserved seat. One booked
+ * seat recovers 20% for the driver, which is the intended "heading that way
+ * anyway" model.
+ *
+ * This is only safe because bookable seats are hard-capped at 4 for ALL
+ * vehicles at launch (see Block 3 / offer-ride), so a larger vehicle can still
+ * only sell 4 seats and ÷5 can never over-recover.
+ *
+ * TODO (V2.0): support larger vehicles (max 8 incl. driver) with a
+ *   capacity-based divisor. Until then everyone divides by 5 and a 7/8-seater
+ *   recoups at most 4 seats' worth (acceptable).
+ */
+export const STANDARD_VEHICLE_CAPACITY = 5;
+
 export interface PricingInput {
   jurisdiction: Jurisdiction;
   /** Required for ROI (drives the rate column); ignored for UK. */
@@ -35,7 +54,11 @@ export interface PricingInput {
   distance: number;
   /** Tolls in currency units; added BEFORE division so they're shared by everyone. */
   tolls?: number;
-  /** Passenger seats offered (the driver is added internally as the +1). */
+  /**
+   * Passenger seats offered. NOTE: this does NOT affect the divisor — pricing
+   * always divides by STANDARD_VEHICLE_CAPACITY (5). Retained for validation
+   * and future capacity-based pricing (V2.0).
+   */
   seatsOffered: number;
 }
 
@@ -133,11 +156,11 @@ export function calculateJourneyPricing(input: PricingInput): PricingResult {
 
   const totalJourneyCost = floorMoney(distance * ratePerUnit + tolls);
 
-  // The "+1" includes the DRIVER as a cost-sharing participant. This is
-  // load-bearing for the cost-sharing licensing position — the driver shares
-  // the cost and never profits.
-  const costSharingParticipants = seatsOffered + 1;
-  const driverSeatPrice = floorMoney(totalJourneyCost / costSharingParticipants);
+  // ALWAYS divide by the standard vehicle capacity (5 = driver + 4). seatsOffered
+  // deliberately does NOT affect the divisor — a passenger always pays one fifth
+  // share; the driver absorbs the cost of any unsold/self-reserved seats. Safe
+  // because bookable seats are hard-capped at 4 for every vehicle at launch.
+  const driverSeatPrice = floorMoney(totalJourneyCost / STANDARD_VEHICLE_CAPACITY);
 
   const { serviceCharge, bookingFee, passengerSeatPrice } = passengerPricing(driverSeatPrice);
 
