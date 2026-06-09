@@ -280,6 +280,8 @@ const _rideRow: RideRow = {
   distance_km:        208.4,
   women_only:         false,
   luggage_note:       null,
+  estimated_duration_seconds: null,
+  window_end:         null,
   status:             'active',
   created_at:         null,
 };

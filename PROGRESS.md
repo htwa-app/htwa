@@ -14,6 +14,16 @@ Follow-up to the 8-block overhaul. Each change is a separate commit; nothing mer
 - **TODO (V2.0):** larger vehicles (max 8 incl. driver) with a capacity-based divisor; until then a 7/8-seater recoups at most 4 seats' worth (acceptable). Noted in code (`pricingEngine.ts` header) + here.
 - Tests: updated the old "÷2 for 1 seat" assertion → ÷5 = 8.36; added a test proving seatsOffered 1/2/3/4 all yield the same price; updated the offer-ride cost-share assertion (€21.94 → €17.55). tsc 0, 862 passing.
 
+### Change 2 — No overlapping journeys for a driver ✅
+- A journey's window = `[departure, departure + driving-duration + 30-min buffer)`. A driver can't post two journeys whose windows overlap (`startA < endB AND startB < endA`); sequential journeys are fine once the previous window (incl. buffer) has passed.
+- `services/routes.ts`: now also returns `durationSeconds` (field mask `routes.duration`, parsed from "1234s") + `parseDurationSeconds` helper.
+- `utils/journeyWindow.ts` (pure): `OVERLAP_BUFFER_SECONDS` (1800), `FALLBACK_DURATION_SECONDS` (6h — conservative, over-blocks), `computeWindowEnd`, `windowsOverlap`, `findConflict`, `conflictMessage`.
+- `services/journeyConflicts.ts`: `checkDriverOverlap` — fetches the user's own ACTIVE journeys (passenger bookings excluded) and checks; gives immediate UX feedback.
+- **Server-side authoritative guard:** migration `20260601000005_journey_overlap.sql` (APPLIED) adds `rides.estimated_duration_seconds` + `rides.window_end` and a **BEFORE INSERT trigger** `check_driver_journey_overlap` that RAISEs `JOURNEY_OVERLAP` if the new window overlaps any active journey by the same driver. Legacy/null `window_end` rows fall back to a conservative 6h30m window. Types updated.
+- `app/offer-ride.tsx` → `offer-ride-confirm.tsx`: duration threaded through; confirm computes `window_end`, runs the client check (clear message naming the conflict + next-available time), stores both columns, and surfaces the trigger's `JOURNEY_OVERLAP` if a concurrent overlap slips past.
+- **Maps-unavailable fallback:** when duration can't be estimated (placeholder key), both client and trigger use the conservative 6h window so the check still applies (over-blocks rather than allowing overlaps).
+- Tests: +~18 (journeyWindow incl. 20-min-rejected / 40-min-allowed buffer cases; journeyConflicts incl. passenger-bookings-excluded + legacy fallback; routes duration parse; confirm overlap-blocks + window_end payload). tsc 0.
+
 
 
 Autonomous, defensive run. ONE branch, commit per block, tsc+tests after each, **nothing merged to main**. Global rename ride→journey applied to UI/new code as I go (DB-table/type-alias rename decision noted at the end). Block-by-block log below (updated as I go).

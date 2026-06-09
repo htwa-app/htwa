@@ -2,17 +2,29 @@
  * __tests__/unit/routes.test.ts
  * Block 2 — unit tests for services/routes.ts (Google Routes distance helper)
  */
-import { computeRouteDistance, isMapsKeyUsable } from '../../services/routes';
+import { computeRouteDistance, isMapsKeyUsable, parseDurationSeconds } from '../../services/routes';
 
 const REAL_KEY = 'AIzaSyD-0123456789abcdefghij'; // ≥20 chars, no PLACEHOLDER
 const PLACEHOLDER_KEY = 'PLACEHOLDER_FILL_IN_REAL_KEY';
 
-function mockFetch(meters: number | null, ok = true): typeof fetch {
+function mockFetch(meters: number | null, ok = true, duration?: string): typeof fetch {
   return jest.fn(async () => ({
     ok,
-    json: async () => (meters === null ? { routes: [] } : { routes: [{ distanceMeters: meters }] }),
+    json: async () => (meters === null ? { routes: [] } : { routes: [{ distanceMeters: meters, duration }] }),
   })) as unknown as typeof fetch;
 }
+
+describe('parseDurationSeconds', () => {
+  it('parses a "1234s" duration string', () => {
+    expect(parseDurationSeconds('3600s')).toBe(3600);
+    expect(parseDurationSeconds('90.5s')).toBe(91); // rounded
+  });
+  it('returns undefined for invalid input', () => {
+    expect(parseDurationSeconds(undefined)).toBeUndefined();
+    expect(parseDurationSeconds('abc')).toBeUndefined();
+    expect(parseDurationSeconds('0s')).toBeUndefined();
+  });
+});
 
 describe('isMapsKeyUsable', () => {
   it('rejects missing, placeholder, or implausibly short keys', () => {
@@ -41,6 +53,12 @@ describe('computeRouteDistance', () => {
     expect(r.ok).toBe(true);
     expect(r.distance).toBe(208);
     expect(r.unit).toBe('km');
+  });
+
+  it('returns the driving duration in seconds when present', async () => {
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY = REAL_KEY;
+    const r = await computeRouteDistance('Galway', 'Dublin', 'km', mockFetch(208000, true, '7200s'));
+    expect(r.durationSeconds).toBe(7200);
   });
 
   it('converts metres to miles for UK drivers', async () => {

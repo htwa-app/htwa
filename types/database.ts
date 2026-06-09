@@ -138,6 +138,8 @@ export type RideRow = {
   distance_km:        number | null; // numeric(10,2)
   women_only:         boolean;
   luggage_note:       string | null;  // migration 20260601000004 (Block 8)
+  estimated_duration_seconds: number | null; // migration 20260601000005 (Change 2)
+  window_end:         string | null;  // migration 20260601000005 — overlap guard
   status:             RideStatus;
   created_at:         string | null;
 }
@@ -157,6 +159,8 @@ export type RideInsert = {
   distance_km?:        number | null;
   women_only?:         boolean;       // defaults to false
   luggage_note?:       string | null;
+  estimated_duration_seconds?: number | null;
+  window_end?:         string | null;
   status?:             RideStatus;    // defaults to 'active'
   created_at?:         string | null;
 }

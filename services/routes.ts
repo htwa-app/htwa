@@ -25,8 +25,20 @@ export interface RouteDistanceResult {
   /** Raw metres from the API (present only when ok). */
   meters?: number;
   unit?: DistanceUnit;
+  /** Estimated driving duration in seconds (present only when ok). Drives the
+   *  no-overlapping-journeys window (Change 2). */
+  durationSeconds?: number;
   /** Why it failed: 'unavailable' (key/network/no route) — UI shows a clear state. */
   reason?: 'unavailable';
+}
+
+/** Parse a Routes API duration string like "1234s" into seconds. */
+export function parseDurationSeconds(raw: unknown): number | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const match = raw.match(/^(\d+(?:\.\d+)?)s$/);
+  if (!match) return undefined;
+  const n = Math.round(parseFloat(match[1]));
+  return Number.isFinite(n) && n > 0 ? n : undefined;
 }
 
 const ROUTES_ENDPOINT = 'https://routes.googleapis.com/directions/v2:computeRoutes';
@@ -73,7 +85,7 @@ export async function computeRouteDistance(
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': apiKey as string,
-        'X-Goog-FieldMask': 'routes.distanceMeters',
+        'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration',
       },
       body: JSON.stringify({
         origin: { address: origin },
@@ -84,13 +96,20 @@ export async function computeRouteDistance(
 
     if (!res.ok) return { ok: false, reason: 'unavailable' };
 
-    const data = (await res.json()) as { routes?: Array<{ distanceMeters?: number }> };
-    const meters = data.routes?.[0]?.distanceMeters;
+    const data = (await res.json()) as { routes?: Array<{ distanceMeters?: number; duration?: string }> };
+    const route = data.routes?.[0];
+    const meters = route?.distanceMeters;
     if (typeof meters !== 'number' || meters <= 0) {
       return { ok: false, reason: 'unavailable' };
     }
 
-    return { ok: true, meters, distance: toUnit(meters, unit), unit };
+    return {
+      ok: true,
+      meters,
+      distance: toUnit(meters, unit),
+      unit,
+      durationSeconds: parseDurationSeconds(route?.duration),
+    };
   } catch {
     return { ok: false, reason: 'unavailable' };
   }

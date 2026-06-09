@@ -33,6 +33,8 @@ import {
 } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { checkDriverOverlap } from '../services/journeyConflicts';
+import { computeWindowEnd } from '../utils/journeyWindow';
 
 export default function OfferRideConfirmScreen(): React.ReactElement {
   const router = useRouter();
@@ -41,6 +43,7 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
     from: string; to: string; date: string; time: string;
     seats: string; pricePerSeat: string; currency: string;
     distanceKm: string; womenOnly: string; luggageNote: string;
+    durationSeconds: string;
   }>();
 
   const [isPosting, setIsPosting] = useState(false);
@@ -52,6 +55,8 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
   const distanceKm   = parseFloat(params.distanceKm ?? '0');
   const womenOnly    = params.womenOnly === 'true';
   const totalCharge  = pricePerSeat * seats;
+  const parsedDuration = parseInt(params.durationSeconds ?? '', 10);
+  const durationSeconds = Number.isFinite(parsedDuration) && parsedDuration > 0 ? parsedDuration : null;
 
   const handlePost = async () => {
     if (!user) return;
@@ -59,6 +64,15 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
     setIsPosting(true);
     try {
       const departureStr = `${params.date}T${params.time}:00`;
+      const departureISO = new Date(departureStr).toISOString();
+      // window_end = departure + driving duration + 30-min buffer (Change 2).
+      const windowEnd = computeWindowEnd(departureISO, durationSeconds);
+
+      // Client-side overlap check for immediate feedback (the DB trigger is the
+      // authoritative guard).
+      const overlap = await checkDriverOverlap(user.id, departureISO, durationSeconds);
+      if (!overlap.ok) { setPostError(overlap.message ?? 'This journey overlaps another of yours.'); return; }
+
       const { error } = await supabase.from('rides').insert({
         driver_id:          user.id,
         from_location:      params.from ?? '',
@@ -71,12 +85,20 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
         distance_km:        distanceKm || null,
         women_only:         womenOnly,
         luggage_note:       params.luggageNote?.trim() || null,
+        estimated_duration_seconds: durationSeconds,
+        window_end:         windowEnd,
         status:             'active',
       });
-      if (error) { setPostError(error.message); return; }
+      if (error) {
+        // The DB trigger raises 'JOURNEY_OVERLAP: …' if a concurrent overlap slipped past.
+        setPostError(error.message?.includes('JOURNEY_OVERLAP')
+          ? 'This journey overlaps another of your journeys. Choose a different time.'
+          : error.message);
+        return;
+      }
       router.replace('/ride-posted');
     } catch (e: unknown) {
-      setPostError(e instanceof Error ? e.message : 'Failed to post ride. Please try again.');
+      setPostError(e instanceof Error ? e.message : 'Failed to post journey. Please try again.');
     } finally {
       setIsPosting(false);
     }

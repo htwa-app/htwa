@@ -68,6 +68,7 @@ export default function OfferRideScreen(): React.ReactElement {
   const [from,          setFrom]          = useState('');
   const [to,            setTo]            = useState('');
   const [distance,      setDistance]      = useState<number | null>(null);
+  const [durationSeconds, setDurationSeconds] = useState<number | null>(null); // Change 2 — overlap window
   const [distanceState, setDistanceState] = useState<DistanceState>('idle');
   const [date,          setDate]          = useState('');   // YYYY-MM-DD
   const [time,          setTime]          = useState('');   // HH:MM
@@ -141,9 +142,11 @@ export default function OfferRideScreen(): React.ReactElement {
         if (cancelled) return;
         if (result.ok && typeof result.distance === 'number') {
           setDistance(result.distance);
+          setDurationSeconds(result.durationSeconds ?? null);
           setDistanceState('ok');
         } else {
           setDistance(null);
+          setDurationSeconds(null);
           setDistanceState('unavailable');
         }
       });
@@ -192,6 +195,7 @@ export default function OfferRideScreen(): React.ReactElement {
       distanceKm: String(distance ?? 0),
       womenOnly: String(womenOnly),
       luggageNote: luggageNote.trim(),
+      durationSeconds: durationSeconds != null ? String(durationSeconds) : '',
     });
     router.push(`/offer-ride-confirm?${params.toString()}`);
   };
