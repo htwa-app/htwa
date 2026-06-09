@@ -43,7 +43,24 @@ Migration `20260601000006_chat_lifecycle.sql` (APPLIED + schema-verified). 894 t
 - **Driver-side chat surfacing in History:** History shows the chat link on the **passenger** side (booking-scoped). The driver side is ride-scoped (a ride has many bookings/chats) and needs a per-booking list — follow-up.
 - Tests: +~22 (chatService 7; ChatScreen lifecycle 4: end-chat-gated/read-only/close-flow; History chat-link open + closed 2; db-types). tsc 0, 894 passing.
 
+### ✅ Follow-up FINISH — summary
 
+**All 3 changes completed; none skipped.** Each is its own commit on `feat/journey-overhaul` (`50cf50c` ÷5, `a60938b` overlap, `7ed6436` chat). **Nothing merged to main** (main still at `aa1d8e7`); no force-push. `tsc --noEmit`: **0 errors**. Jest: **894 passing / 64 suites** (was 862).
+
+**What needs your review:**
+- **Change 1 — V2.0 larger-vehicle TODO:** at launch every journey divides by 5 and bookable seats are capped at 4 for all vehicles (incl. 7/8-seaters, which recoup at most 4 seats' worth — acceptable). V2.0 should add a capacity-based divisor (max 8 incl. driver). Marked in `utils/pricingEngine.ts`.
+- **Change 2 — Maps key:** the overlap window uses the real Routes API *duration*; with the placeholder key it falls back to a conservative 6h window (over-blocks). The DB trigger is the authoritative guard regardless.
+- **Change 3 — account deletion after the retention fix:** messages are now un-deletable (`ON DELETE RESTRICT`). There is **no account-deletion flow yet**; when built it must **anonymise the `users` row in place**, not DELETE it (else it errors against retained messages). Driver "accept request" UI and driver-side History chat list are documented follow-ups.
+
+**Adviser-review list — two items ADDED this run** (alongside the 5 placeholder-legal items in the overnight FINISH below):
+6. **Permanent chat retention vs GDPR right-to-erasure** — needs a lawful basis (safeguarding/dispute record) + privacy-policy disclosure, given messages are retained forever and un-deletable.
+7. **Account-deletion = anonymise-in-place** — confirm scrubbing PII from the `users` row while retaining message history is acceptable under GDPR.
+
+Tests changed: `pricingEngine.test.ts`, `OfferRideScreen.test.tsx`, `OfferRideConfirmScreen.test.tsx`, `routes.test.ts`, `ChatScreen.test.tsx`, `HistoryScreen.test.tsx`, `database.types.test.ts`; new suites: `journeyWindow.test.ts`, `journeyConflicts.test.ts`, `chatService.test.ts`.
+
+---
+
+## 1 June 2026 — OVERNIGHT RUN: Journey overhaul + pricing engine (branch `feat/journey-overhaul`)
 
 Autonomous, defensive run. ONE branch, commit per block, tsc+tests after each, **nothing merged to main**. Global rename ride→journey applied to UI/new code as I go (DB-table/type-alias rename decision noted at the end). Block-by-block log below (updated as I go).
 
