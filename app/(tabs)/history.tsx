@@ -30,6 +30,9 @@ interface TripHistoryItem {
   status:        string;
   role:          'driver' | 'passenger';
   otherPartyName: string;
+  bookingId?:    string;       // passenger items — chat is booking-scoped (Change 3)
+  bookingStatus?: string;
+  chatStatus?:   string;       // 'open' | 'closed'
 }
 
 export default function HistoryScreen(): React.ReactElement {
@@ -47,7 +50,7 @@ export default function HistoryScreen(): React.ReactElement {
     try {
       const [driverRes, passengerRes] = await Promise.all([
         supabase.from('rides').select('id, from_location, to_location, departure_datetime, cost_per_seat, currency, status').eq('driver_id', user.id).order('departure_datetime', { ascending: false }),
-        supabase.from('bookings').select('id, status, ride:rides(id, from_location, to_location, departure_datetime, cost_per_seat, currency, status, driver:users!driver_id(full_name))').eq('passenger_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('bookings').select('id, status, chat_status, ride:rides(id, from_location, to_location, departure_datetime, cost_per_seat, currency, status, driver:users!driver_id(full_name))').eq('passenger_id', user.id).order('created_at', { ascending: false }),
       ]);
       if (driverRes.error || passengerRes.error) {
         setError('Could not load your trips. Please try again.');
@@ -70,6 +73,9 @@ export default function HistoryScreen(): React.ReactElement {
           currency: (ride?.currency as 'EUR' | 'GBP' | undefined) ?? 'EUR',
           status: (ride?.status as string | undefined) ?? b.status as string,
           role: 'passenger', otherPartyName: (driver?.full_name as string | undefined) ?? 'Driver',
+          bookingId: b.id as string,
+          bookingStatus: b.status as string,
+          chatStatus: (b.chat_status as string | undefined) ?? 'open',
         };
       });
       setTrips([...driverItems, ...passengerItems].sort((a, b) => new Date(b.departure_datetime).getTime() - new Date(a.departure_datetime).getTime()));
@@ -149,6 +155,21 @@ export default function HistoryScreen(): React.ReactElement {
                   </Text>
                 )}
               </View>
+              {/* Chat opens once the driver accepts (booking confirmed); closed chats stay read-only (Change 3). */}
+              {trip.role === 'passenger' && trip.bookingId && trip.bookingStatus === 'confirmed' && (
+                <TouchableOpacity
+                  style={styles.chatLink}
+                  onPress={() => router.push(`/chat/${trip.bookingId}`)}
+                  accessibilityRole="button"
+                  accessibilityLabel={trip.chatStatus === 'closed' ? 'View closed chat' : 'Open chat'}
+                  testID={`chat-link-${trip.bookingId}`}
+                >
+                  <Ionicons name="chatbubble-ellipses-outline" size={16} color={Colors.primary} />
+                  <Text style={styles.chatLinkText}>
+                    {trip.chatStatus === 'closed' ? 'View chat (closed)' : 'Message driver'}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </TouchableOpacity>
           );
         })
@@ -178,4 +199,6 @@ const styles = StyleSheet.create({
   tripMeta: { flexDirection: 'row', justifyContent: 'space-between' },
   tripDate: { ...Typography.bodySmall, color: Colors.textTertiary },
   savings: { ...Typography.bodySmall, color: Colors.verified },
+  chatLink: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginTop: Spacing.xs },
+  chatLinkText: { ...Typography.bodySmall, color: Colors.primary, fontFamily: FontFamily.medium },
 });

@@ -24,6 +24,25 @@ Follow-up to the 8-block overhaul. Each change is a separate commit; nothing mer
 - **Maps-unavailable fallback:** when duration can't be estimated (placeholder key), both client and trigger use the conservative 6h window so the check still applies (over-blocks rather than allowing overlaps).
 - Tests: +~18 (journeyWindow incl. 20-min-rejected / 40-min-allowed buffer cases; journeyConflicts incl. passenger-bookings-excluded + legacy fallback; routes duration parse; confirm overlap-blocks + window_end payload). tsc 0.
 
+### Change 3 — Chat lifecycle + retention ✅
+Migration `20260601000006_chat_lifecycle.sql` (APPLIED + schema-verified). 894 tests passing, tsc 0.
+
+**3A — Retention (chat history never deletable):** the `messages` FKs (`booking_id`, `sender_id`) were `ON DELETE CASCADE` — switched **both to `ON DELETE RESTRICT`** (verified: `confdeltype='r'`). No `FOR DELETE` policy exists or was added, so with RLS on, deletes are denied for all non-service clients. Chat rows are retained read-only forever for safeguarding/disputes.
+  - **⚠️ Account/booking deletion behaviour after this change:** a booking or user that has messages can no longer be hard-DELETEd (RESTRICT). Normal flows are unaffected — **bookings/rides are CANCELLED via a status change, never DELETEd**. There is **no account-deletion flow in the codebase today**, so nothing breaks now; when one is built it MUST **anonymise the `users` row in place** (scrub name/email/phone, keep the row so message FKs hold) rather than DELETE it. This is documented in the migration header and flagged for the adviser (below).
+
+**3B — Lifecycle:** chat state lives **on the booking** (1:1 with a booking → no separate table): `chat_status` ('open'|'closed', default 'open'), `chat_closed_at`, `chat_closed_by`. A chat is OPEN once the driver ACCEPTS the booking (`status`→'confirmed'). `services/chat.ts`: `acceptBooking` (pending→confirmed), `closeChat` (RPC), `canCloseChat` (pure completion gate), `getChatMeta`. **Server-side completion gate:** `close_chat(p_booking_id)` SECURITY DEFINER RPC verifies the caller is a participant AND the ride is `completed`, else RAISEs (`journey_not_complete` / `not_a_participant`).
+
+**3C — Read-only archive:** `app/chat/[booking_id].tsx` loads `chat_status` + ride status; when closed the input + send button are **hidden** and a "This chat is closed" banner shows, full history stays visible. **"End chat"** appears in the header **only once the journey is complete** and the chat is still open, with a confirmation (one-way). The **INSERT RLS policy** was recreated to also require `bookings.status='confirmed'` AND `chat_status='open'` — so the server rejects any message once the chat is closed (or before acceptance). Closed chats remain reachable read-only from **History** (passenger side): a "Message driver" / "View chat (closed)" link on confirmed passenger bookings opens `/chat/[booking_id]`.
+
+**3D — Safeguarding:** messages are retained server-side regardless of UI close state.
+  - **Future (NOT built):** a reporting/moderation surface — data is retained to support it.
+  - **⚠️ Adviser review:** permanent chat retention vs **GDPR right-to-erasure** needs a lawful basis + privacy-policy disclosure (added to the adviser list below).
+
+**Known gaps (follow-up, documented):**
+- **Driver "accept request" UI:** `acceptBooking` is wired + tested but no incoming-requests screen calls it yet (bookings are created 'pending' by `book_ride`). A driver-facing requests screen is needed to drive acceptance.
+- **Driver-side chat surfacing in History:** History shows the chat link on the **passenger** side (booking-scoped). The driver side is ride-scoped (a ride has many bookings/chats) and needs a per-booking list — follow-up.
+- Tests: +~22 (chatService 7; ChatScreen lifecycle 4: end-chat-gated/read-only/close-flow; History chat-link open + closed 2; db-types). tsc 0, 894 passing.
+
 
 
 Autonomous, defensive run. ONE branch, commit per block, tsc+tests after each, **nothing merged to main**. Global rename ride→journey applied to UI/new code as I go (DB-table/type-alias rename decision noted at the end). Block-by-block log below (updated as I go).

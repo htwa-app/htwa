@@ -184,6 +184,7 @@ export type RideUpdate = {
 // ─── bookings ─────────────────────────────────────────────────────────────────
 
 export type BookingStatus = 'pending' | 'confirmed' | 'declined' | 'cancelled';
+export type ChatStatus = 'open' | 'closed'; // migration 20260601000006 (Change 3)
 
 export type BookingRow = {
   id:           string;        // uuid
@@ -191,6 +192,9 @@ export type BookingRow = {
   passenger_id: string;        // uuid → public.users.id
   seats_booked: number;
   status:       BookingStatus;
+  chat_status:    ChatStatus;
+  chat_closed_at: string | null;
+  chat_closed_by: string | null;
   created_at:   string | null;
 }
 
@@ -200,12 +204,18 @@ export type BookingInsert = {
   passenger_id:  string;
   seats_booked?: number;        // defaults to 1
   status?:       BookingStatus; // defaults to 'pending'
+  chat_status?:    ChatStatus;  // defaults to 'open'
+  chat_closed_at?: string | null;
+  chat_closed_by?: string | null;
   created_at?:   string | null;
 }
 
 export type BookingUpdate = {
   seats_booked?: number;
   status?:       BookingStatus;
+  chat_status?:    ChatStatus;
+  chat_closed_at?: string | null;
+  chat_closed_by?: string | null;
 }
 
 // ─── messages ─────────────────────────────────────────────────────────────────
@@ -435,6 +445,10 @@ export type Database = {
     Functions: {
       book_ride: {
         Args: { p_ride_id: string; p_passenger_id: string; p_seats: number };
+        Returns: undefined;
+      };
+      close_chat: {
+        Args: { p_booking_id: string };
         Returns: undefined;
       };
     };

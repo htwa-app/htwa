@@ -292,6 +292,9 @@ const _bookingRow: BookingRow = {
   passenger_id: 'uuid-2',
   seats_booked: 1,
   status:       'pending',
+  chat_status:    'open',
+  chat_closed_at: null,
+  chat_closed_by: null,
   created_at:   null,
 };
 

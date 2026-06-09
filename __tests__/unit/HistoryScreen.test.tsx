@@ -84,4 +84,26 @@ describe('HistoryScreen', () => {
     render(<HistoryScreen />);
     await waitFor(() => expect(screen.getByTestId('history-empty')).toBeTruthy());
   });
+
+  it('surfaces a chat link for confirmed passenger bookings and opens the chat (Change 3)', async () => {
+    mockRides.mockResolvedValue({ data: [], error: null });
+    mockBookings.mockResolvedValue({ data: [{
+      id: 'b9', status: 'confirmed', chat_status: 'open',
+      ride: { id: 'r9', from_location: 'Galway', to_location: 'Dublin', departure_datetime: '2026-05-02T09:00:00Z', cost_per_seat: 5, currency: 'EUR', status: 'completed', driver: { full_name: 'Aoife' } },
+    }], error: null });
+    render(<HistoryScreen />);
+    await waitFor(() => expect(screen.getByTestId('chat-link-b9')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('chat-link-b9'));
+    expect(mockPush).toHaveBeenCalledWith('/chat/b9');
+  });
+
+  it('shows a closed-chat label and keeps it reachable (Change 3)', async () => {
+    mockRides.mockResolvedValue({ data: [], error: null });
+    mockBookings.mockResolvedValue({ data: [{
+      id: 'b8', status: 'confirmed', chat_status: 'closed',
+      ride: { id: 'r8', from_location: 'Cork', to_location: 'Limerick', departure_datetime: '2026-05-02T09:00:00Z', cost_per_seat: 5, currency: 'EUR', status: 'completed', driver: { full_name: 'Sean' } },
+    }], error: null });
+    render(<HistoryScreen />);
+    await waitFor(() => expect(screen.getByTestId('chat-link-b8')).toHaveTextContent(/closed/));
+  });
 });

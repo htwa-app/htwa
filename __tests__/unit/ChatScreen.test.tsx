@@ -36,6 +36,16 @@ jest.mock('../../lib/supabase', () => ({
 const mockUseAuth = jest.fn();
 jest.mock('../../context/AuthContext', () => ({ useAuth: () => mockUseAuth() }));
 
+// Change 3 — chat lifecycle service (isolated; its own unit test covers logic).
+const mockGetChatMeta = jest.fn();
+const mockCloseChat = jest.fn();
+jest.mock('../../services/chat', () => ({
+  getChatMeta: (...a: unknown[]) => mockGetChatMeta(...a),
+  closeChat: (...a: unknown[]) => mockCloseChat(...a),
+  canCloseChat: (rideStatus: string | null) => rideStatus === 'completed',
+}));
+
+import { Alert } from 'react-native';
 import ChatScreen from '../../app/chat/[booking_id]';
 
 const MESSAGES: MockMessage[] = [
@@ -48,6 +58,8 @@ beforeEach(() => {
   mockUseAuth.mockReturnValue({ user: { id: 'u1' } });
   mockOrder.mockResolvedValue({ data: MESSAGES, error: null });
   mockInsert.mockResolvedValue({ error: null });
+  mockGetChatMeta.mockResolvedValue({ chatStatus: 'open', rideStatus: 'active' });
+  mockCloseChat.mockResolvedValue({ ok: true });
 });
 
 describe('ChatScreen', () => {
@@ -87,5 +99,45 @@ describe('ChatScreen', () => {
     mockOrder.mockResolvedValue({ data: [], error: null });
     render(<ChatScreen />);
     await waitFor(() => expect(screen.getByTestId('chat-empty')).toBeTruthy());
+  });
+});
+
+describe('ChatScreen — Change 3 lifecycle', () => {
+  it('hides the End chat button while the journey is not complete', async () => {
+    mockGetChatMeta.mockResolvedValue({ chatStatus: 'open', rideStatus: 'active' });
+    render(<ChatScreen />);
+    await waitFor(() => expect(screen.getByTestId('message-input')).toBeTruthy());
+    expect(screen.queryByTestId('end-chat-button')).toBeNull();
+  });
+
+  it('shows the End chat button once the journey is complete (chat still open)', async () => {
+    mockGetChatMeta.mockResolvedValue({ chatStatus: 'open', rideStatus: 'completed' });
+    render(<ChatScreen />);
+    await waitFor(() => expect(screen.getByTestId('end-chat-button')).toBeTruthy());
+  });
+
+  it('is read-only when closed: input hidden, banner shown, history visible', async () => {
+    mockGetChatMeta.mockResolvedValue({ chatStatus: 'closed', rideStatus: 'completed' });
+    render(<ChatScreen />);
+    await waitFor(() => expect(screen.getByTestId('chat-closed-banner')).toBeTruthy());
+    expect(screen.queryByTestId('message-input')).toBeNull();
+    expect(screen.queryByTestId('send-button')).toBeNull();
+    expect(screen.getByTestId('message-m1')).toBeTruthy(); // history still readable
+    expect(screen.queryByTestId('end-chat-button')).toBeNull(); // already closed
+  });
+
+  it('closes the chat via the End chat confirmation', async () => {
+    mockGetChatMeta.mockResolvedValue({ chatStatus: 'open', rideStatus: 'completed' });
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, buttons) => {
+      // press the destructive "End chat" button
+      const endBtn = (buttons ?? []).find((b) => b.style === 'destructive');
+      void endBtn?.onPress?.();
+    });
+    render(<ChatScreen />);
+    await waitFor(() => expect(screen.getByTestId('end-chat-button')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('end-chat-button'));
+    await waitFor(() => expect(mockCloseChat).toHaveBeenCalledWith('b1'));
+    await waitFor(() => expect(screen.getByTestId('chat-closed-banner')).toBeTruthy());
+    alertSpy.mockRestore();
   });
 });
