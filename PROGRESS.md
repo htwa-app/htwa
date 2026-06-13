@@ -77,6 +77,19 @@ Modified (docs):
 
 - `PROGRESS.md` (this entry + MD022 blank-line fixes across the file)
 
+### Follow-up — pricing_config write access locked to service_role ✅
+
+The `pricing_config` `FOR UPDATE` policy added above (in `…001_review_security_hardening`) was scoped `TO authenticated` — a privilege-escalation hole: any logged-in user could rewrite global rates/fees via a direct PostgREST call. It was also unnecessary — no end-user session ever writes these tables (the app reads rates from `constants/pricingRates.ts`, not the DB; the only writer is the migration seed running as `postgres`).
+
+- **Migration `20260613000003_pricing_config_service_role_only.sql`** (NEW, APPLIED + verified): drops `"Authenticated can update config"`; adds explicit `Service role manages config` / `Service role manages rates` (`FOR ALL TO service_role`) on `pricing_config` + `pricing_rates` to document the service-only write intent.
+- **Audited all pricing tables.** Resulting policies (role · command):
+  - `pricing_config` — `Anyone can read config` (public · SELECT), `Service role manages config` (service_role · ALL). No authenticated/anon write.
+  - `pricing_rates` — `Anyone can read rates` (public · SELECT), `Service role manages rates` (service_role · ALL). Already had no write policy; now explicit.
+  - `driver_pricing_profiles` — owner-scoped (public · SELECT/INSERT/UPDATE, all `auth.uid() = user_id`). Correct: this is the driver's OWN tax-residence/engine settings, not global config — left as-is.
+- **Verified live (rolled-back transactions):** as `authenticated`, UPDATE affects 0 rows and INSERT raises RLS error 42501, while SELECT still works; as `service_role`, the `ON CONFLICT DO UPDATE` upsert succeeds. `service_role`/`postgres` have `BYPASSRLS=true`; `authenticated`/`anon` do not.
+- **Upsert path confirmed:** the rate-config seed runs in migrations as `postgres` (BYPASSRLS), so it's unaffected. No app code writes these tables from an end-user session.
+- tsc 0, full suite 901/901 (SQL-only change, no test changes needed).
+
 ---
 
 ## 1 June 2026 (follow-up) — 3 changes on `feat/journey-overhaul`
