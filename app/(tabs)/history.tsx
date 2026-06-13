@@ -17,6 +17,7 @@ import { calculateCO2Savings } from '../../utils/carbonCalculator';
 import { Colors, Typography, Spacing, BorderRadius, Shadows, FontFamily } from '../../constants/theme';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import type { BookingStatus, ChatStatus } from '../../types/database';
 
 type FilterTab = 'all' | 'rider' | 'driver' | 'cancelled';
 
@@ -31,8 +32,8 @@ interface TripHistoryItem {
   role:          'driver' | 'passenger';
   otherPartyName: string;
   bookingId?:    string;       // passenger items — chat is booking-scoped (Change 3)
-  bookingStatus?: string;
-  chatStatus?:   string;       // 'open' | 'closed'
+  bookingStatus?: BookingStatus;
+  chatStatus?:   ChatStatus;
 }
 
 export default function HistoryScreen(): React.ReactElement {
@@ -74,8 +75,8 @@ export default function HistoryScreen(): React.ReactElement {
           status: (ride?.status as string | undefined) ?? b.status as string,
           role: 'passenger', otherPartyName: (driver?.full_name as string | undefined) ?? 'Driver',
           bookingId: b.id as string,
-          bookingStatus: b.status as string,
-          chatStatus: (b.chat_status as string | undefined) ?? 'open',
+          bookingStatus: b.status as BookingStatus,
+          chatStatus: (b.chat_status as ChatStatus | undefined) ?? 'open',
         };
       });
       setTrips([...driverItems, ...passengerItems].sort((a, b) => new Date(b.departure_datetime).getTime() - new Date(a.departure_datetime).getTime()));

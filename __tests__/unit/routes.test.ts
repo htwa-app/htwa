@@ -4,7 +4,9 @@
  */
 import { computeRouteDistance, isMapsKeyUsable, parseDurationSeconds } from '../../services/routes';
 
-const REAL_KEY = 'AIzaSyD-0123456789abcdefghij'; // ≥20 chars, no PLACEHOLDER
+// Neutral test key: ≥20 chars, no PLACEHOLDER, and deliberately NOT shaped like
+// a real Google API key (no AIza prefix) so it doesn't trip secret scanners.
+const REAL_KEY = 'test-maps-key-0123456789abcdef';
 const PLACEHOLDER_KEY = 'PLACEHOLDER_FILL_IN_REAL_KEY';
 
 function mockFetch(meters: number | null, ok = true, duration?: string): typeof fetch {

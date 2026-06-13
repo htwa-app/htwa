@@ -65,7 +65,13 @@ export function PriceBreakdown({
   );
 }
 
-function LineItem({ label, value, emphasis }: { label: string; value: string; emphasis?: boolean }): React.ReactElement {
+interface LineItemProps {
+  label: string;
+  value: string;
+  emphasis?: boolean;
+}
+
+function LineItem({ label, value, emphasis }: LineItemProps): React.ReactElement {
   return (
     <View style={styles.lineItem}>
       <Text style={[styles.lineLabel, emphasis && styles.lineEmphasis]}>{label}</Text>
