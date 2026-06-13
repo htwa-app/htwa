@@ -4,6 +4,24 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 13 June 2026 (follow-up 3) — dev-only reset/sign-out control
+
+Added a DEV-ONLY control to make testing the auth/onboarding flow repeatable. In production the Supabase session correctly persists across rebuilds, so there was no way to re-run signup/onboarding from scratch during development. Branch `feat/journey-overhaul`; **not merged to main.** `tsc` 0, full suite **918/918** (was 912; +6 tests, +1 suite).
+
+### What changed ✅
+
+- **NEW `utils/devReset.ts`** — `devResetAndSignOut()`: signs out of Supabase (clears the persisted `sb-*-auth-token`), then wipes all AsyncStorage keys prefixed `htwa:` (onboarding/profile cache) or `sb-` (residual auth tokens), so the next launch behaves like a fresh install. **Guarded by `__DEV__` — a hard no-op in production** (belt & suspenders alongside the UI gate). **Throws on failure** (e.g. sign-out error) so the caller surfaces a half-cleared state rather than swallowing it.
+- **`app/settings.tsx`** — a "Reset / Sign out (dev)" button rendered ONLY inside `{__DEV__ && …}` (a "Developer tools" section). On tap it runs the helper in try/catch: on success `router.replace('/login')` (back to the first auth screen); on failure it shows an inline error and does NOT navigate. Busy state while running.
+- **`__DEV__` gating confirmed:** Metro replaces `__DEV__` with `false` in production, so the JSX block is dead-code-eliminated AND the util early-returns — zero chance it ships.
+- **Tests:** NEW `__tests__/unit/devReset.test.ts` (signs out + wipes only `htwa:`/`sb-` keys leaving others intact; throws on sign-out failure without wiping; no-op when nothing matches). Updated `SettingsScreen.test.tsx` (dev button renders under `__DEV__`; success path calls the helper + navigates to `/login`; failure surfaces an error and does not navigate; also mocks the helper so the real `lib/supabase` stays out of the test).
+
+### Files
+
+Created: `utils/devReset.ts`, `__tests__/unit/devReset.test.ts`.
+Modified: `app/settings.tsx`, `__tests__/unit/SettingsScreen.test.tsx`, `PROGRESS.md`.
+
+---
+
 ## 13 June 2026 (follow-up 2) — pricing rates: DB is now the SOLE source of truth
 
 Resolved the pricing-rate source-of-truth duplication. Mileage rates/fees previously lived in BOTH the DB (`pricing_rates` / `pricing_config`) AND `constants/pricingRates.ts`, and the app read the constants file — so the "admin-editable" DB table didn't actually drive pricing and the two could drift. Now the DB is the only source. Branch `feat/journey-overhaul`; **not merged to main.** `tsc` 0, full suite **912/912** (was 901; +11 tests, +1 suite).
