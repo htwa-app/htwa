@@ -44,6 +44,7 @@ export function parseDurationSeconds(raw: unknown): number | undefined {
 const ROUTES_ENDPOINT = 'https://routes.googleapis.com/directions/v2:computeRoutes';
 const METERS_PER_KM = 1000;
 const METERS_PER_MILE = 1609.344;
+const ROUTES_TIMEOUT_MS = 8000; // abort the Routes request if it hangs
 
 /** A key that's missing, the known placeholder, or implausibly short is treated as invalid. */
 export function isMapsKeyUsable(key: string | undefined): boolean {
@@ -79,6 +80,10 @@ export async function computeRouteDistance(
     return { ok: false, reason: 'unavailable' };
   }
 
+  // Abort the request if it hangs so the caller's "calculating" state can't get
+  // stuck forever on a slow/unresponsive network.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), ROUTES_TIMEOUT_MS);
   try {
     const res = await fetchImpl(ROUTES_ENDPOINT, {
       method: 'POST',
@@ -92,6 +97,7 @@ export async function computeRouteDistance(
         destination: { address: destination },
         travelMode: 'DRIVE',
       }),
+      signal: controller.signal,
     });
 
     if (!res.ok) return { ok: false, reason: 'unavailable' };
@@ -112,5 +118,7 @@ export async function computeRouteDistance(
     };
   } catch {
     return { ok: false, reason: 'unavailable' };
+  } finally {
+    clearTimeout(timeout);
   }
 }

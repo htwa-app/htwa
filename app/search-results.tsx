@@ -86,11 +86,15 @@ export default function SearchResultsScreen(): React.ReactElement {
       if (params.date) {
         // Widen the window by ±flexDays around the chosen date (Block 3).
         const base  = new Date(`${params.date}T00:00:00.000Z`);
-        const start = new Date(base); start.setUTCDate(start.getUTCDate() - flexDays);
-        const end   = new Date(base); end.setUTCDate(end.getUTCDate() + flexDays);
-        const startOfWindow = `${start.toISOString().slice(0, 10)}T00:00:00.000Z`;
-        const endOfWindow   = `${end.toISOString().slice(0, 10)}T23:59:59.999Z`;
-        query = query.gte('departure_datetime', startOfWindow).lte('departure_datetime', endOfWindow);
+        // A malformed date param would make toISOString() throw — skip the date
+        // filter (rather than crash) if it doesn't parse.
+        if (!Number.isNaN(base.getTime())) {
+          const start = new Date(base); start.setUTCDate(start.getUTCDate() - flexDays);
+          const end   = new Date(base); end.setUTCDate(end.getUTCDate() + flexDays);
+          const startOfWindow = `${start.toISOString().slice(0, 10)}T00:00:00.000Z`;
+          const endOfWindow   = `${end.toISOString().slice(0, 10)}T23:59:59.999Z`;
+          query = query.gte('departure_datetime', startOfWindow).lte('departure_datetime', endOfWindow);
+        }
       }
 
       const { data, error: dbError } = await query;

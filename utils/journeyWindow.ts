@@ -75,12 +75,22 @@ export function findConflict(
   newEndISO: string,
   existing: ExistingJourneyWindow[],
 ): JourneyConflict | null {
-  for (const j of existing) {
-    if (windowsOverlap(newStartISO, newEndISO, j.departure_datetime, j.window_end)) {
-      return { journey: j, nextAvailableFrom: j.window_end };
-    }
-  }
-  return null;
+  const overlapping = existing.filter((j) =>
+    windowsOverlap(newStartISO, newEndISO, j.departure_datetime, j.window_end),
+  );
+  if (overlapping.length === 0) return null;
+
+  // Report the earliest-departing overlapping journey for context, but set
+  // nextAvailableFrom to the LATEST window_end across ALL overlapping journeys —
+  // otherwise the suggested next start could still collide with another overlap.
+  const journey = overlapping.reduce((earliest, j) =>
+    new Date(j.departure_datetime).getTime() < new Date(earliest.departure_datetime).getTime() ? j : earliest,
+  );
+  const nextAvailableFrom = overlapping.reduce((latest, j) =>
+    new Date(j.window_end).getTime() > new Date(latest).getTime() ? j.window_end : latest,
+    overlapping[0].window_end,
+  );
+  return { journey, nextAvailableFrom };
 }
 
 /** Build the user-facing rejection message for a conflict. */

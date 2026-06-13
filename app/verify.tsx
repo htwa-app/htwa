@@ -18,6 +18,8 @@ import type { HomeLocation, Currency, Gender } from '../types/database';
 
 const OTP_LENGTH              = 6;
 const RESEND_COOLDOWN_SECONDS = 60;
+// Allowlist for the cached gender value — anything outside the union is stored as null.
+const ALLOWED_GENDERS: Gender[] = ['female', 'male', 'non_binary', 'prefer_not_to_say'];
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -72,8 +74,9 @@ export default function VerifyScreen() {
         // string would violate the DB check constraint on these columns.
         home_location: (homeLocation || 'ROI') as HomeLocation,
         currency:      (currency || 'EUR') as Currency,
-        // Block 5 — gender drives the women-only filter; null if somehow absent.
-        gender:        (gender || null) as Gender | null,
+        // Block 5 — gender drives the women-only filter. Validate against the
+        // Gender union (don't trust the raw AsyncStorage string); null if invalid.
+        gender:        ALLOWED_GENDERS.includes(gender as Gender) ? (gender as Gender) : null,
       });
       if (usersError) {
         setVerifyError(usersError.message ?? 'Failed to create account. Please try again.');

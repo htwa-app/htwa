@@ -3,13 +3,19 @@
  * Change 3 — chat lifecycle service.
  */
 const mockUpdateEq = jest.fn();
+const mockUpdateSelect = jest.fn();
 const mockUpdate = jest.fn();
 const mockRpc = jest.fn();
 const mockMaybeSingle = jest.fn();
 jest.mock('../../lib/supabase', () => ({
   supabase: {
     from: () => ({
-      update: (arg: unknown) => { mockUpdate(arg); return { eq: mockUpdateEq }; },
+      // acceptBooking now chains .update().eq().select('id') so it can verify a
+      // row was actually affected.
+      update: (arg: unknown) => {
+        mockUpdate(arg);
+        return { eq: (col: string, val: string) => { mockUpdateEq(col, val); return { select: () => mockUpdateSelect() }; } };
+      },
       select: () => ({ eq: () => ({ maybeSingle: () => mockMaybeSingle() }) }),
     }),
     rpc: (name: string, args: unknown) => mockRpc(name, args),
@@ -21,16 +27,22 @@ import { acceptBooking, canCloseChat, closeChat, getChatMeta } from '../../servi
 beforeEach(() => jest.clearAllMocks());
 
 describe('acceptBooking', () => {
-  it('sets the booking status to confirmed', async () => {
-    mockUpdateEq.mockResolvedValue({ error: null });
+  it('sets the booking status to confirmed when a row is updated', async () => {
+    mockUpdateSelect.mockResolvedValue({ data: [{ id: 'b1' }], error: null });
     const res = await acceptBooking('b1');
     expect(res.ok).toBe(true);
     expect(mockUpdate).toHaveBeenCalledWith({ status: 'confirmed' });
     expect(mockUpdateEq).toHaveBeenCalledWith('id', 'b1');
   });
   it('reports an error on failure', async () => {
-    mockUpdateEq.mockResolvedValue({ error: { message: 'nope' } });
+    mockUpdateSelect.mockResolvedValue({ data: null, error: { message: 'nope' } });
     expect((await acceptBooking('b1')).ok).toBe(false);
+  });
+  it('reports failure when zero rows are updated (not found / RLS-blocked)', async () => {
+    mockUpdateSelect.mockResolvedValue({ data: [], error: null });
+    const res = await acceptBooking('b1');
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/not found|permitted/i);
   });
 });
 
@@ -67,5 +79,9 @@ describe('getChatMeta', () => {
   it('returns null when the booking is missing', async () => {
     mockMaybeSingle.mockResolvedValue({ data: null, error: null });
     expect(await getChatMeta('b1')).toBeNull();
+  });
+  it('throws on a query error (distinguishes failure from "not found")', async () => {
+    mockMaybeSingle.mockResolvedValue({ data: null, error: { message: 'boom' } });
+    await expect(getChatMeta('b1')).rejects.toThrow('boom');
   });
 });

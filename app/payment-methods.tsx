@@ -43,7 +43,19 @@ export default function PaymentMethodsScreen(): React.ReactElement {
 
   const load = useCallback(async () => {
     if (!user) return;
-    setAccount(await getPaymentAccount(user.id));
+    try {
+      setAccount(await getPaymentAccount(user.id));
+    } catch {
+      // Fall back to a safe default so the screen renders (never stuck on the
+      // spinner) and surface a retry note.
+      setNote('Could not load your payment methods. Please try again.');
+      setAccount({
+        connect_status: 'none',
+        has_payment_method: false,
+        payment_method_brand: null,
+        payment_method_last4: null,
+      });
+    }
   }, [user]);
 
   useEffect(() => { void load(); }, [load]);
@@ -59,6 +71,8 @@ export default function PaymentMethodsScreen(): React.ReactElement {
         return;
       }
       await Linking.openURL(result.url);
+    } catch {
+      setNote('Could not open payout setup. Please try again.');
     } finally {
       setBusy(null);
     }
@@ -84,6 +98,8 @@ export default function PaymentMethodsScreen(): React.ReactElement {
         setNote('Card saved.');
         await load();
       }
+    } catch {
+      setNote('Could not start card setup. Please try again.');
     } finally {
       setBusy(null);
     }

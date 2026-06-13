@@ -54,14 +54,25 @@ export function cumulativeForTaxYear(
     .reduce((sum, inc) => sum + inc.amount, 0);
 }
 
-/** Append an increment (returns a new array; does not mutate). */
+/** Max value storable in the DECIMAL(10,2) amount column (8 integer digits + 2 dp). */
+const MAX_INCREMENT_AMOUNT = 99999999.99;
+
+/**
+ * Append an increment (returns a new array; does not mutate). Validates the
+ * amount is finite and > 0 and fits the DECIMAL(10,2) column, then normalises it
+ * to 2 dp so the stored value can't violate the column scale.
+ */
 export function recordIncrement(
   increments: MileageIncrement[],
   amount: number,
   source: IncrementSource = 'journey',
   at: Date = new Date(),
 ): MileageIncrement[] {
-  return [...increments, { amount, at: at.toISOString(), source }];
+  if (!Number.isFinite(amount) || amount <= 0 || amount > MAX_INCREMENT_AMOUNT) {
+    throw new Error(`Invalid mileage increment: ${amount}`);
+  }
+  const normalised = Math.round(amount * 100) / 100;
+  return [...increments, { amount: normalised, at: at.toISOString(), source }];
 }
 
 export interface OverClickOptions {

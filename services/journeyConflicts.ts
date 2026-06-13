@@ -32,11 +32,20 @@ export async function checkDriverOverlap(
 ): Promise<OverlapCheckResult> {
   const newEnd = computeWindowEnd(newDepartureISO, newDurationSeconds);
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('rides')
     .select('id, from_location, to_location, departure_datetime, window_end')
     .eq('driver_id', driverId)
     .eq('status', 'active');
+
+  // A failed overlap query must NOT read as "safe to insert". Block with a
+  // retry message; the DB trigger remains the authoritative guard on insert.
+  if (error) {
+    return {
+      ok: false,
+      message: 'Could not check your other journeys right now. Please try again.',
+    };
+  }
 
   const existing: ExistingJourneyWindow[] = (data ?? []).map((r) => ({
     id: r.id as string,

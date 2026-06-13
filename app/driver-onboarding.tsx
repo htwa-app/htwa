@@ -66,20 +66,25 @@ export default function DriverOnboardingScreen(): React.ReactElement {
     if (!isValid || !user) return;
     setSaving(true);
     setError(null);
-    const { error: dbError } = await supabase
-      .from('driver_pricing_profiles')
-      .upsert({
-        user_id:                  user.id,
-        tax_residence:            taxResidence,
-        engine_cc:                engineCc,
-        insurance_cert_confirmed: insuranceCert,
-        notify_insurer_confirmed: notifyInsurer,
-        declaration_version:      DECLARATION_VERSION,
-        declaration_accepted_at:  new Date().toISOString(),
-      }, { onConflict: 'user_id' });
-    setSaving(false);
-    if (dbError) { setError('Could not save your details. Please try again.'); return; }
-    router.replace('/(tabs)');
+    try {
+      const { error: dbError } = await supabase
+        .from('driver_pricing_profiles')
+        .upsert({
+          user_id:                  user.id,
+          tax_residence:            taxResidence,
+          engine_cc:                engineCc,
+          insurance_cert_confirmed: insuranceCert,
+          notify_insurer_confirmed: notifyInsurer,
+          declaration_version:      DECLARATION_VERSION,
+          declaration_accepted_at:  new Date().toISOString(),
+        }, { onConflict: 'user_id' });
+      if (dbError) { setError('Could not save your details. Please try again.'); return; }
+      router.replace('/(tabs)');
+    } catch {
+      setError('Could not save your details. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

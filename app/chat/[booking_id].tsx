@@ -43,17 +43,23 @@ export default function ChatScreen(): React.ReactElement {
   const loadMessages = useCallback(async () => {
     if (!booking_id) return;
     setIsLoading(true);
-    const [{ data }, meta] = await Promise.all([
-      supabase
-        .from('messages')
-        .select('id, sender_id, content, created_at')
-        .eq('booking_id', booking_id)
-        .order('created_at', { ascending: true }),
-      getChatMeta(booking_id),
-    ]);
-    setMessages((data as Message[]) ?? []);
-    if (meta) { setChatStatus(meta.chatStatus); setRideStatus(meta.rideStatus); }
-    setIsLoading(false);
+    try {
+      const [{ data }, meta] = await Promise.all([
+        supabase
+          .from('messages')
+          .select('id, sender_id, content, created_at')
+          .eq('booking_id', booking_id)
+          .order('created_at', { ascending: true }),
+        getChatMeta(booking_id),
+      ]);
+      setMessages((data as Message[]) ?? []);
+      if (meta) { setChatStatus(meta.chatStatus); setRideStatus(meta.rideStatus); }
+    } catch {
+      // getChatMeta now throws on query failure; don't leave the screen spinning.
+      // Leave any already-loaded messages in place and fall back to an open chat.
+    } finally {
+      setIsLoading(false);
+    }
   }, [booking_id]);
 
   useEffect(() => { void loadMessages(); }, [loadMessages]);
@@ -76,7 +82,9 @@ export default function ChatScreen(): React.ReactElement {
     );
   }, [booking_id]);
 
-  // Realtime subscription
+  // Realtime subscription — new messages AND chat lifecycle changes. If the other
+  // party closes the chat, the bookings row's chat_status flips and we make the
+  // UI read-only live (no reload needed).
   useEffect(() => {
     if (!booking_id) return;
     const channel = supabase
@@ -86,6 +94,13 @@ export default function ChatScreen(): React.ReactElement {
         filter: `booking_id=eq.${booking_id}`,
       }, (payload) => {
         setMessages((prev) => [...prev, payload.new as Message]);
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'bookings',
+        filter: `id=eq.${booking_id}`,
+      }, (payload) => {
+        const next = (payload.new as { chat_status?: string }).chat_status;
+        if (next === 'open' || next === 'closed') setChatStatus(next);
       })
       .subscribe();
     return () => { void supabase.removeChannel(channel); };

@@ -3,7 +3,7 @@
  * Stage 53 — unit tests for app/chat/[booking_id].tsx
  */
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
 
 const mockBack = jest.fn();
 jest.mock('expo-router', () => ({
@@ -20,8 +20,14 @@ interface MockMessage { id: string; sender_id: string; content: string; created_
 const mockOrder = jest.fn();
 const mockInsert = jest.fn();
 const mockSubscribe = jest.fn(() => ({ unsubscribe: jest.fn() }));
-const mockOn = jest.fn(() => ({ subscribe: mockSubscribe }));
-const mockChannel = jest.fn((_name: string) => ({ on: mockOn }));
+// .on() is chainable — the screen registers a message INSERT listener AND a
+// booking chat_status UPDATE listener, so each .on() returns the same builder.
+const mockChannelBuilder: { on: jest.Mock; subscribe: jest.Mock } = {
+  on: jest.fn(() => mockChannelBuilder),
+  subscribe: mockSubscribe,
+};
+const mockOn = mockChannelBuilder.on;
+const mockChannel = jest.fn((_name: string) => mockChannelBuilder);
 jest.mock('../../lib/supabase', () => ({
   supabase: {
     from: () => ({
@@ -73,6 +79,21 @@ describe('ChatScreen', () => {
     render(<ChatScreen />);
     await waitFor(() => expect(mockChannel).toHaveBeenCalledWith('chat:b1'));
     expect(mockSubscribe).toHaveBeenCalled();
+  });
+
+  it('flips to read-only live when a chat_status UPDATE arrives (other party closed it)', async () => {
+    render(<ChatScreen />);
+    await waitFor(() => expect(screen.getByTestId('message-input')).toBeTruthy());
+    // Find the bookings UPDATE listener registered via .on(config, cb) and fire it.
+    // .on(event, config, cb) — find the bookings UPDATE registration.
+    const updateCall = mockOn.mock.calls.find(
+      ([, cfg]) => (cfg as { table?: string }).table === 'bookings',
+    );
+    expect(updateCall).toBeTruthy();
+    const cb = updateCall![2] as (p: { new: { chat_status: string } }) => void;
+    act(() => cb({ new: { chat_status: 'closed' } }));
+    await waitFor(() => expect(screen.getByTestId('chat-closed-banner')).toBeTruthy());
+    expect(screen.queryByTestId('message-input')).toBeNull();
   });
 
   it('sends a message and clears the input on success', async () => {

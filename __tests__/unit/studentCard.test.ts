@@ -3,12 +3,16 @@
  * Block 6 — student-card name match + upload.
  */
 const mockUpload = jest.fn();
-const mockUpdate = jest.fn();
-const mockEq = jest.fn();
+const mockRemove = jest.fn();
+const mockUpsert = jest.fn();
 jest.mock('../../lib/supabase', () => ({
   supabase: {
-    storage: { from: () => ({ upload: (...a: unknown[]) => mockUpload(...a) }) },
-    from: () => ({ update: (...a: unknown[]) => { mockUpdate(...a); return { eq: (...e: unknown[]) => mockEq(...e) }; } }),
+    storage: { from: () => ({
+      upload: (...a: unknown[]) => mockUpload(...a),
+      remove: (...a: unknown[]) => mockRemove(...a),
+    }) },
+    // uploadStudentCard now upserts (onConflict user_id) instead of update().eq().
+    from: () => ({ upsert: (...a: unknown[]) => mockUpsert(...a) }),
   },
 }));
 
@@ -43,14 +47,19 @@ describe('uploadStudentCard', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUpload.mockResolvedValue({ error: null });
-    mockEq.mockResolvedValue({ error: null });
+    mockUpsert.mockResolvedValue({ error: null });
+    mockRemove.mockResolvedValue({ error: null });
   });
 
-  it('uploads to the user folder and sets status pending (manual review)', async () => {
+  it('uploads to the user folder and upserts status pending (manual review)', async () => {
     const res = await uploadStudentCard('u1', new Uint8Array([1, 2, 3]));
     expect(res).toEqual({ ok: true, status: 'pending', path: 'u1/student-card.jpg' });
     expect(mockUpload).toHaveBeenCalledWith('u1/student-card.jpg', expect.anything(), expect.objectContaining({ upsert: true }));
-    expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ university_verification_status: 'pending', student_card_url: 'u1/student-card.jpg' }));
+    expect(mockUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({ user_id: 'u1', university_verification_status: 'pending', student_card_url: 'u1/student-card.jpg' }),
+      expect.objectContaining({ onConflict: 'user_id' }),
+    );
+    expect(mockRemove).not.toHaveBeenCalled();
   });
 
   it('returns an error when the upload fails', async () => {
@@ -60,9 +69,10 @@ describe('uploadStudentCard', () => {
     expect(res.status).toBe('unverified');
   });
 
-  it('returns an error when the profile update fails', async () => {
-    mockEq.mockResolvedValue({ error: { message: 'db failed' } });
+  it('rolls back the uploaded file when the profile write fails (no orphan)', async () => {
+    mockUpsert.mockResolvedValue({ error: { message: 'db failed' } });
     const res = await uploadStudentCard('u1', new Uint8Array([1]));
     expect(res.ok).toBe(false);
+    expect(mockRemove).toHaveBeenCalledWith(['u1/student-card.jpg']);
   });
 });

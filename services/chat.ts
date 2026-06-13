@@ -22,11 +22,18 @@ export interface SimpleResult {
  * which makes the (already 'open') chat available to both parties.
  */
 export async function acceptBooking(bookingId: string): Promise<SimpleResult> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('bookings')
     .update({ status: 'confirmed' })
-    .eq('id', bookingId);
-  return error ? { ok: false, error: error.message } : { ok: true };
+    .eq('id', bookingId)
+    .select('id');
+  if (error) return { ok: false, error: error.message };
+  // A non-error response with zero rows updated (e.g. blocked by RLS, or the
+  // booking no longer exists) must NOT read as success.
+  if (!data || data.length === 0) {
+    return { ok: false, error: 'Booking could not be accepted (not found or not permitted).' };
+  }
+  return { ok: true };
 }
 
 /**
@@ -55,11 +62,14 @@ export interface ChatMeta {
 
 /** Load the chat lifecycle state for a booking (chat_status + the ride's status). */
 export async function getChatMeta(bookingId: string): Promise<ChatMeta | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('bookings')
     .select('chat_status, ride:rides(status)')
     .eq('id', bookingId)
     .maybeSingle();
+  // Distinguish a query failure from a genuine "not found": throw on error so
+  // callers don't silently treat a failed read as an absent booking.
+  if (error) throw new Error(error.message);
   if (!data) return null;
   const ride = (data as { ride?: { status?: string } | null }).ride;
   return {

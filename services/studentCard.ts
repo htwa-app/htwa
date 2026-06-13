@@ -68,11 +68,19 @@ export async function uploadStudentCard(
   if (uploadError) return { ok: false, status: 'unverified', error: uploadError.message };
 
   // Manual review: OCR isn't built, so we cannot auto-confirm the name match.
+  // Upsert (not update) so a missing profile row can't make this silently report
+  // success with zero rows affected.
   const { error: dbError } = await supabase
     .from('profiles')
-    .update({ student_card_url: path, university_verification_status: 'pending' })
-    .eq('user_id', userId);
-  if (dbError) return { ok: false, status: 'unverified', error: dbError.message };
+    .upsert(
+      { user_id: userId, student_card_url: path, university_verification_status: 'pending' },
+      { onConflict: 'user_id' },
+    );
+  if (dbError) {
+    // The file is uploaded but the DB write failed — remove the orphaned upload.
+    await supabase.storage.from('student-cards').remove([path]);
+    return { ok: false, status: 'unverified', error: dbError.message };
+  }
 
   return { ok: true, status: 'pending', path };
 }

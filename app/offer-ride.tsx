@@ -98,29 +98,34 @@ export default function OfferRideScreen(): React.ReactElement {
   // Load the driver's pricing profile + their cumulative annual distance.
   const loadDriverProfile = useCallback(async () => {
     if (!user) return;
-    const { data: profile } = await supabase
-      .from('driver_pricing_profiles')
-      .select('tax_residence, engine_cc')
-      .eq('user_id', user.id)
-      .maybeSingle();
+    try {
+      const { data: profile } = await supabase
+        .from('driver_pricing_profiles')
+        .select('tax_residence, engine_cc')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-    if (profile) {
-      const jur = profile.tax_residence as Jurisdiction;
-      setJurisdiction(jur);
-      setEngineCc(profile.engine_cc as EngineCcBand);
+      if (profile) {
+        const jur = profile.tax_residence as Jurisdiction;
+        setJurisdiction(jur);
+        setEngineCc(profile.engine_cc as EngineCcBand);
 
-      const { data: increments } = await supabase
-        .from('driver_mileage_increments')
-        .select('amount, created_at, source')
-        .eq('driver_id', user.id);
-      const mapped: MileageIncrement[] = (increments ?? []).map((i) => ({
-        amount: Number(i.amount),
-        at: i.created_at as string,
-        source: i.source as MileageIncrement['source'],
-      }));
-      setCumulative(cumulativeForTaxYear(mapped, jur));
+        const { data: increments } = await supabase
+          .from('driver_mileage_increments')
+          .select('amount, created_at, source')
+          .eq('driver_id', user.id);
+        const mapped: MileageIncrement[] = (increments ?? []).map((i) => ({
+          amount: Number(i.amount),
+          at: i.created_at as string,
+          source: i.source as MileageIncrement['source'],
+        }));
+        setCumulative(cumulativeForTaxYear(mapped, jur));
+      }
+    } finally {
+      // Always lift the gate, even on a thrown query, so the screen never hangs
+      // in the loading state (the setup banner shows when no profile loaded).
+      setProfileLoaded(true);
     }
-    setProfileLoaded(true);
   }, [user]);
 
   useEffect(() => { void loadDriverProfile(); }, [loadDriverProfile]);
@@ -139,18 +144,26 @@ export default function OfferRideScreen(): React.ReactElement {
     let cancelled = false;
     setDistanceState('calculating');
     const timer = setTimeout(() => {
-      void computeRouteDistance(from, to, unit).then((result) => {
-        if (cancelled) return;
-        if (result.ok && typeof result.distance === 'number') {
-          setDistance(result.distance);
-          setDurationSeconds(result.durationSeconds ?? null);
-          setDistanceState('ok');
-        } else {
+      void (async () => {
+        try {
+          const result = await computeRouteDistance(from, to, unit);
+          if (cancelled) return;
+          if (result.ok && typeof result.distance === 'number') {
+            setDistance(result.distance);
+            setDurationSeconds(result.durationSeconds ?? null);
+            setDistanceState('ok');
+          } else {
+            setDistance(null);
+            setDurationSeconds(null);
+            setDistanceState('unavailable');
+          }
+        } catch {
+          if (cancelled) return;
           setDistance(null);
           setDurationSeconds(null);
           setDistanceState('unavailable');
         }
-      });
+      })();
     }, DISTANCE_DEBOUNCE_MS);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [from, to, unit]);
