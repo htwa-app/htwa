@@ -4,6 +4,33 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 13 June 2026 (follow-up 4) — fix forwardRef error on launch / signup (Stripe + React 19)
+
+Fixed the runtime error thrown on launch / at the signup screen: *"forwardRef render functions accept exactly two parameters: props and ref. Did you forget to use the ref parameter?"*, stack pointing at the `StripeProvider` import in `app/_layout.tsx`. Branch `feat/journey-overhaul`; **not merged to main.** `tsc` 0, full suite **921/921** (was 918; +3).
+
+### Diagnosis ✅
+
+- Root cause is a **stripe-react-native@0.65.1 + React 19 incompatibility**, NOT our `_layout.tsx`. `StripeProvider` itself is a plain function component, but importing the Stripe barrel (`@stripe/stripe-react-native`) eagerly evaluates every sibling component, and `PaymentMethodMessagingElement` is defined as `forwardRef(function(_ref){…})` — a **single-parameter** render function. React 19 validates forwardRef arity at `forwardRef()` CALL time (module import), so the barrel import logs the error. That's why the stack points at the import line even though we never render that component.
+- It is a dev-only `console.error` (React's prod build has no such check), but in React Native dev it surfaces as a **LogBox red overlay** that covered the signup screen — making the "Continue" button look like it had vanished.
+- **The signup button is NOT conditionally hidden/misplaced** (point 4): `app/signup.tsx` renders `<Button title="Continue" …>` unconditionally (only `disabled` until the form is valid; the `Button` component always renders, greyed, never null). The disappearance was solely the overlay. Confirmed by the existing `SignupScreen.test.tsx` (button renders, disabled/enabled states, tappable → navigates to `/verify`).
+
+### Fix ✅
+
+- **`patches/@stripe+stripe-react-native+0.65.1.patch`** (NEW, via patch-package) rewrites the offending render fn from `function(_ref)` to `function(_ref, ref)` in BOTH built outputs (`lib/module` + `lib/commonjs`). `ref` was already ignored by the component, so behaviour is unchanged — this only satisfies React 19's arity check, clearing the error at every import site (`_layout` + the payment screens).
+- **`package.json`**: added `patch-package` devDep + a `"postinstall": "patch-package"` script so the fix re-applies on every install (including CI). Verified idempotent (`patch-package` → `@stripe/stripe-react-native@0.65.1 ✔`).
+- **Tests:** NEW `__tests__/unit/stripeForwardRefPatch.test.ts` asserts the built Stripe files no longer contain the single-arg `forwardRef` (and do contain the 2-arg form) and that the patch file is committed — a deterministic guard that fails loudly if the patch ever stops applying (e.g. a version bump without re-patching).
+
+### Verification note
+
+Verified via tsc + the full Jest suite + a static assertion that the patched build no longer has a single-arg forwardRef. **Not yet run on a simulator/device** — worth a quick manual launch to confirm the LogBox overlay is gone and the signup "Continue" button is visible/tappable (the actual user-facing symptom). The patch is the root-cause fix, so the overlay should not reappear.
+
+### Files
+
+Created: `patches/@stripe+stripe-react-native+0.65.1.patch`, `__tests__/unit/stripeForwardRefPatch.test.ts`.
+Modified: `package.json`, `package-lock.json`, `PROGRESS.md`.
+
+---
+
 ## 13 June 2026 (follow-up 3) — dev-only reset/sign-out control
 
 Added a DEV-ONLY control to make testing the auth/onboarding flow repeatable. In production the Supabase session correctly persists across rebuilds, so there was no way to re-run signup/onboarding from scratch during development. Branch `feat/journey-overhaul`; **not merged to main.** `tsc` 0, full suite **918/918** (was 912; +6 tests, +1 suite).
