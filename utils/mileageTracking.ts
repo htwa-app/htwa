@@ -16,7 +16,7 @@
  * flag rather than silently inflating the total.
  */
 
-import type { Jurisdiction } from '../constants/pricingRates';
+import type { Jurisdiction } from './pricingEngine';
 
 export type IncrementSource = 'journey' | 'manual';
 

@@ -13,7 +13,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { passengerPricing } from '../utils/pricingEngine';
+import { passengerPricing, type PricingRates } from '../utils/pricingEngine';
 import { formatCurrency } from '../utils/currency';
 import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
 
@@ -21,16 +21,19 @@ export interface PriceBreakdownProps {
   /** The driver's per-seat cost share (base fare). */
   driverSeatPrice: number;
   currency: 'EUR' | 'GBP';
+  /** DB-sourced rates (fees) — passed in so this stays a pure presentational component. */
+  rates: PricingRates;
   testID?: string;
 }
 
 export function PriceBreakdown({
   driverSeatPrice,
   currency,
+  rates,
   testID = 'price-breakdown',
 }: PriceBreakdownProps): React.ReactElement {
   const [open, setOpen] = useState(false);
-  const { serviceCharge, bookingFee, passengerSeatPrice } = passengerPricing(driverSeatPrice);
+  const { serviceCharge, bookingFee, passengerSeatPrice } = passengerPricing(rates, driverSeatPrice);
 
   return (
     <View style={styles.container} testID={testID}>

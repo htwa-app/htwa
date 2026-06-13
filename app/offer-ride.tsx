@@ -34,7 +34,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { RouteInput } from '../components/RouteInput';
-import { calculateJourneyPricing, type Jurisdiction, type EngineCcBand } from '../utils/pricingEngine';
+import { calculateJourneyPricing, type Jurisdiction, type EngineCcBand, type PricingRates } from '../utils/pricingEngine';
+import { fetchPricingRates } from '../services/pricingRates';
 import { cumulativeForTaxYear, type MileageIncrement } from '../utils/mileageTracking';
 import { computeRouteDistance, type DistanceUnit } from '../services/routes';
 import { formatCurrency } from '../utils/currency';
@@ -91,6 +92,11 @@ export default function OfferRideScreen(): React.ReactElement {
   const [engineCc,      setEngineCc]      = useState<EngineCcBand | null>(null);
   const [cumulative,    setCumulative]    = useState(0);
 
+  // Rates come from the DB (sole source of truth). null until loaded; ratesError
+  // when the fetch fails — pricing then FAILS LOUD, never from a hardcoded rate.
+  const [pricingRates,  setPricingRates]  = useState<PricingRates | null>(null);
+  const [ratesError,    setRatesError]    = useState(false);
+
   const currency: 'EUR' | 'GBP' = jurisdiction === 'UK' ? 'GBP' : 'EUR';
   // ROI → km, UK → miles.
   const unit: DistanceUnit = jurisdiction === 'UK' ? 'miles' : 'km';
@@ -129,6 +135,20 @@ export default function OfferRideScreen(): React.ReactElement {
   }, [user]);
 
   useEffect(() => { void loadDriverProfile(); }, [loadDriverProfile]);
+
+  // Load DB rates once. A failure is a HARD failure — surface it, never fall back.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const r = await fetchPricingRates();
+        if (!cancelled) { setPricingRates(r); setRatesError(false); }
+      } catch {
+        if (!cancelled) { setPricingRates(null); setRatesError(true); }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const hasProfile = jurisdiction !== null && engineCc !== null;
 
@@ -171,8 +191,8 @@ export default function OfferRideScreen(): React.ReactElement {
   // Compute the FIXED driver seat price via the pricing engine whenever the
   // distance, seats or driver profile change. The driver never edits this.
   useEffect(() => {
-    if (distance !== null && distance > 0 && hasProfile && jurisdiction) {
-      const result = calculateJourneyPricing({
+    if (distance !== null && distance > 0 && hasProfile && jurisdiction && pricingRates) {
+      const result = calculateJourneyPricing(pricingRates, {
         jurisdiction,
         engineCc: engineCc ?? undefined,
         cumulativeBefore: cumulative,
@@ -184,7 +204,7 @@ export default function OfferRideScreen(): React.ReactElement {
     } else {
       setDriverSeatPrice(null);
     }
-  }, [distance, seats, hasProfile, jurisdiction, engineCc, cumulative]);
+  }, [distance, seats, hasProfile, jurisdiction, engineCc, cumulative, pricingRates]);
 
   const incrementSeats = () => setSeats((s) => Math.min(seatsMax, s + 1));
   const decrementSeats = () => setSeats((s) => Math.max(SEATS_MIN, s - 1));
@@ -365,7 +385,12 @@ export default function OfferRideScreen(): React.ReactElement {
       {/* Your cost-share per seat — COMPUTED and fixed. The driver cannot edit it. */}
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>Your cost-share per seat ({currency})</Text>
-        {driverSeatPrice !== null ? (
+        {ratesError ? (
+          <Text style={styles.priceError} testID="rates-unavailable">
+            Pricing unavailable, please try again. We couldn’t load the current mileage rates,
+            so we can’t price this journey right now.
+          </Text>
+        ) : driverSeatPrice !== null ? (
           <>
             <Text style={styles.distanceValue} testID="driver-seat-price">
               {formatCurrency(driverSeatPrice, currency)}

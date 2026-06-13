@@ -43,6 +43,12 @@ jest.mock('../../utils/currency', () => ({
   formatCurrency: (n: number, c: string) => `${c === 'EUR' ? '€' : '£'}${n.toFixed(2)}`,
 }));
 
+// Block 4 — rates come from the DB (services/pricingRates). Mocked here.
+const mockFetchRates = jest.fn();
+jest.mock('../../services/pricingRates', () => ({
+  fetchPricingRates: (...a: unknown[]) => mockFetchRates(...a),
+}));
+
 // RouteInput mock — no type annotations in factory (Jest hoisting rule)
 jest.mock('../../components/RouteInput', () => {
   const { View, TextInput } = require('react-native');
@@ -70,9 +76,11 @@ beforeEach(() => {
   mockProfile.mockResolvedValue({ data: { tax_residence: 'ROI', engine_cc: 'le1200' }, error: null });
   mockIncrements.mockResolvedValue({ data: [], error: null });
   mockComputeDistance.mockResolvedValue({ ok: true, distance: 210, unit: 'km' });
+  mockFetchRates.mockResolvedValue(TEST_PRICING_RATES);
 });
 
 import OfferRideScreen from '../../app/offer-ride';
+import { TEST_PRICING_RATES } from '../fixtures/pricingRates';
 
 describe('OfferRideScreen — smoke', () => {
   it('renders without crashing', async () => {
@@ -173,6 +181,22 @@ describe('OfferRideScreen — distanceKm persistence unit (regression)', () => {
     const params = await fillAndReview();
     // 100 miles × 1.60934 = 160.934 km
     expect(Number(params.get('distanceKm'))).toBeCloseTo(160.934, 3);
+  });
+});
+
+describe('OfferRideScreen — pricing fails loud when DB rates are unavailable', () => {
+  it('shows a pricing-unavailable message, no price, and keeps review disabled', async () => {
+    mockFetchRates.mockRejectedValue(new Error('rates down'));
+    render(<OfferRideScreen />);
+    await waitFor(() => expect(screen.getByTestId('from-input')).toBeTruthy());
+    fireEvent.changeText(screen.getByTestId('from-input'), 'Galway');
+    fireEvent.changeText(screen.getByTestId('to-input'), 'Dublin');
+    fireEvent.changeText(screen.getByTestId('date-input'), '2026-06-01');
+    fireEvent.changeText(screen.getByTestId('time-input'), '09:00');
+    // distance still resolves, but with no rates the price must NOT compute.
+    await waitFor(() => expect(screen.getByTestId('rates-unavailable')).toBeTruthy(), { timeout: 2000 });
+    expect(screen.queryByTestId('driver-seat-price')).toBeNull();
+    expect(screen.getByTestId('review-button').props.accessibilityState?.disabled).toBe(true);
   });
 });
 

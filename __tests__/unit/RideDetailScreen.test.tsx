@@ -45,7 +45,14 @@ jest.mock('../../lib/supabase', () => ({
 const mockUseAuth = jest.fn();
 jest.mock('../../context/AuthContext', () => ({ useAuth: () => mockUseAuth() }));
 
+// Block 4 — rates come from the DB (services/pricingRates). Mocked here.
+const mockFetchRates = jest.fn();
+jest.mock('../../services/pricingRates', () => ({
+  fetchPricingRates: (...a: unknown[]) => mockFetchRates(...a),
+}));
+
 import RideDetailScreen from '../../app/ride/[id]';
+import { TEST_PRICING_RATES } from '../fixtures/pricingRates';
 
 const RIDE = {
   id: 'r1', driver_id: 'd1', from_location: 'Galway', to_location: 'Dublin',
@@ -60,6 +67,7 @@ beforeEach(() => {
   mockUser.mockResolvedValue({ data: { full_name: 'Aoife Murphy' }, error: null });
   mockProfile.mockResolvedValue({ data: { university: 'NUIG', vehicle_details: { make: 'Toyota', model: 'Yaris', seats: 4, hasAC: true, dashcam: false } }, error: null });
   mockVerif.mockResolvedValue({ data: { id_verified: true, selfie_verified: true }, error: null });
+  mockFetchRates.mockResolvedValue(TEST_PRICING_RATES);
 });
 
 describe('RideDetailScreen', () => {

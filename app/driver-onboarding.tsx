@@ -18,7 +18,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../components/Button';
 import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
-import { ENGINE_CC_LABELS, type EngineCcBand } from '../constants/pricingRates';
+import { ENGINE_CC_LABELS, type EngineCcBand } from '../utils/pricingEngine';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 

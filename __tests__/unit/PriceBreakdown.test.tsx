@@ -11,20 +11,21 @@ jest.mock('@expo/vector-icons', () => {
 });
 
 import { PriceBreakdown } from '../../components/PriceBreakdown';
+import { TEST_PRICING_RATES as RATES } from '../fixtures/pricingRates';
 
 describe('PriceBreakdown', () => {
   it('shows the single headline passenger total (driver 30 → passenger 35)', () => {
-    render(<PriceBreakdown driverSeatPrice={30} currency="EUR" />);
+    render(<PriceBreakdown driverSeatPrice={30} currency="EUR" rates={RATES} />);
     expect(screen.getByTestId('price-breakdown-total')).toHaveTextContent('€35.00');
   });
 
   it('hides the breakdown until tapped', () => {
-    render(<PriceBreakdown driverSeatPrice={30} currency="EUR" />);
+    render(<PriceBreakdown driverSeatPrice={30} currency="EUR" rates={RATES} />);
     expect(screen.queryByTestId('price-breakdown-details')).toBeNull();
   });
 
   it('discloses base fare + service charge + booking fee that sum to the headline', () => {
-    render(<PriceBreakdown driverSeatPrice={30} currency="GBP" />);
+    render(<PriceBreakdown driverSeatPrice={30} currency="GBP" rates={RATES} />);
     fireEvent.press(screen.getByTestId('price-breakdown-toggle'));
     expect(screen.getByTestId('price-breakdown-details')).toBeTruthy();
     expect(screen.getByText('Base fare')).toBeTruthy();
@@ -38,7 +39,7 @@ describe('PriceBreakdown', () => {
   });
 
   it('floors the service charge to the cent (8.36 → 0.83)', () => {
-    render(<PriceBreakdown driverSeatPrice={8.36} currency="EUR" />);
+    render(<PriceBreakdown driverSeatPrice={8.36} currency="EUR" rates={RATES} />);
     expect(screen.getByTestId('price-breakdown-total')).toHaveTextContent('€11.19'); // 8.36 + 0.83 + 2
   });
 });

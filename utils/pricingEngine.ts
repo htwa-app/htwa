@@ -2,8 +2,11 @@
  * utils/pricingEngine.ts
  *
  * Block 4 — the pricing engine. Pure, deterministic, fully unit-tested. NO UI
- * or data-access logic lives here. Everything the app charges flows through
- * these functions so there is exactly one source of truth.
+ * or data-access logic lives here, and — crucially — NO rate DATA lives here
+ * either. The numeric rates/fees are the DB's job (pricing_rates / pricing_config,
+ * fetched by services/pricingRates.ts); every function below receives the rates
+ * as a `PricingRates` parameter so there is exactly ONE source of truth (the DB)
+ * and the engine stays a pure function of (rates, input).
  *
  * Jurisdiction is determined by the DRIVER'S TAX RESIDENCE:
  *   - UK  → miles / GBP / HMRC AMAP rates
@@ -14,16 +17,46 @@
  * cost-share up.
  */
 
-import {
-  ROI_BANDS,
-  UK_BANDS,
-  SERVICE_CHARGE_RATE,
-  BOOKING_FEE,
-  type Jurisdiction,
-  type EngineCcBand,
-} from '../constants/pricingRates';
+// ─── Types (NOT rate data — these are safe to live in code) ────────────────────
 
-export type { Jurisdiction, EngineCcBand };
+export type Jurisdiction = 'UK' | 'ROI';
+
+/** ROI rate columns by vehicle engine capacity. */
+export type EngineCcBand = 'le1200' | 'cc1201to1500' | 'ge1501';
+
+export interface RoiBand {
+  /** Inclusive upper bound of cumulative km for this band. */
+  upperKm: number;
+  /** EUR per km, by engine-capacity column. */
+  rates: Record<EngineCcBand, number>;
+}
+
+export interface UkBand {
+  /** Inclusive upper bound of cumulative miles for this band. */
+  upperMiles: number;
+  /** GBP per mile. */
+  rate: number;
+}
+
+/**
+ * The complete rate set the engine needs, assembled from the DB by
+ * services/pricingRates.ts. Bands are ordered by ascending band index.
+ */
+export interface PricingRates {
+  roiBands: RoiBand[];
+  ukBands: UkBand[];
+  /** Passenger service charge as a fraction of driverSeatPrice (e.g. 0.10). */
+  serviceChargeRate: number;
+  /** Flat passenger booking fee in currency units (e.g. 2). */
+  bookingFee: number;
+}
+
+/** Human-readable labels for the ROI engine-capacity columns (display, not a rate). */
+export const ENGINE_CC_LABELS: Record<EngineCcBand, string> = {
+  le1200:       'Up to 1,200cc',
+  cc1201to1500: '1,201–1,500cc',
+  ge1501:       '1,501cc and over',
+};
 
 /**
  * A standard car seats 5 (driver + 4 passengers). At launch EVERY journey is
@@ -82,33 +115,38 @@ export function floorMoney(value: number): number {
 }
 
 /** Index of the band containing `cumulative` (km for ROI, miles for UK). */
-export function bandIndexFor(jurisdiction: Jurisdiction, cumulative: number): number {
+export function bandIndexFor(
+  rates: PricingRates,
+  jurisdiction: Jurisdiction,
+  cumulative: number,
+): number {
   if (jurisdiction === 'ROI') {
-    for (let i = 0; i < ROI_BANDS.length; i++) {
-      if (cumulative <= ROI_BANDS[i].upperKm) return i;
+    for (let i = 0; i < rates.roiBands.length; i++) {
+      if (cumulative <= rates.roiBands[i].upperKm) return i;
     }
-    return ROI_BANDS.length - 1;
+    return rates.roiBands.length - 1;
   }
-  for (let i = 0; i < UK_BANDS.length; i++) {
+  for (let i = 0; i < rates.ukBands.length; i++) {
     // upperMiles is an INCLUSIVE bound, so a cumulative value exactly equal to
     // the boundary (e.g. exactly 10,000 miles) must land in this band, not the
     // next one. Use <= to match the ROI loop above.
-    if (cumulative <= UK_BANDS[i].upperMiles) return i;
+    if (cumulative <= rates.ukBands[i].upperMiles) return i;
   }
-  return UK_BANDS.length - 1;
+  return rates.ukBands.length - 1;
 }
 
 /** The per-unit rate for a specific band index. */
 export function rateForBand(
+  rates: PricingRates,
   jurisdiction: Jurisdiction,
   bandIndex: number,
   engineCc?: EngineCcBand,
 ): number {
   if (jurisdiction === 'ROI') {
     if (!engineCc) throw new Error('engineCc is required for ROI pricing');
-    return ROI_BANDS[bandIndex].rates[engineCc];
+    return rates.roiBands[bandIndex].rates[engineCc];
   }
-  return UK_BANDS[bandIndex].rate;
+  return rates.ukBands[bandIndex].rate;
 }
 
 /**
@@ -117,16 +155,16 @@ export function rateForBand(
  * LOWER of the applicable numeric rates. ROI bands are non-monotonic, so this
  * compares actual rate values, not band order.
  */
-export function effectiveRate(input: PricingInput): number {
+export function effectiveRate(rates: PricingRates, input: PricingInput): number {
   const { jurisdiction, engineCc, cumulativeBefore, distance } = input;
-  const startIdx = bandIndexFor(jurisdiction, cumulativeBefore);
-  const endIdx = bandIndexFor(jurisdiction, cumulativeBefore + distance);
+  const startIdx = bandIndexFor(rates, jurisdiction, cumulativeBefore);
+  const endIdx = bandIndexFor(rates, jurisdiction, cumulativeBefore + distance);
   const lo = Math.min(startIdx, endIdx);
   const hi = Math.max(startIdx, endIdx);
 
   let min = Infinity;
   for (let i = lo; i <= hi; i++) {
-    min = Math.min(min, rateForBand(jurisdiction, i, engineCc));
+    min = Math.min(min, rateForBand(rates, jurisdiction, i, engineCc));
   }
   return min;
 }
@@ -135,19 +173,19 @@ export function effectiveRate(input: PricingInput): number {
  * Passenger price from a known driver seat price (Block 4E).
  * Worked example: driverSeatPrice 30 → serviceCharge 3 → bookingFee 2 → passenger 35.
  */
-export function passengerPricing(driverSeatPrice: number): {
+export function passengerPricing(rates: PricingRates, driverSeatPrice: number): {
   serviceCharge: number;
   bookingFee: number;
   passengerSeatPrice: number;
 } {
-  const serviceCharge = floorMoney(driverSeatPrice * SERVICE_CHARGE_RATE);
-  const bookingFee = BOOKING_FEE;
+  const serviceCharge = floorMoney(driverSeatPrice * rates.serviceChargeRate);
+  const bookingFee = rates.bookingFee;
   const passengerSeatPrice = floorMoney(driverSeatPrice + serviceCharge + bookingFee);
   return { serviceCharge, bookingFee, passengerSeatPrice };
 }
 
 /** Full pricing for a journey, fixed at posting time. */
-export function calculateJourneyPricing(input: PricingInput): PricingResult {
+export function calculateJourneyPricing(rates: PricingRates, input: PricingInput): PricingResult {
   const { jurisdiction, distance, tolls = 0, seatsOffered } = input;
   if (jurisdiction === 'ROI' && !input.engineCc) {
     throw new Error('engineCc is required for ROI pricing');
@@ -155,7 +193,7 @@ export function calculateJourneyPricing(input: PricingInput): PricingResult {
   if (seatsOffered < 1) throw new Error('seatsOffered must be at least 1');
 
   const currency = jurisdiction === 'UK' ? 'GBP' : 'EUR';
-  const ratePerUnit = effectiveRate(input);
+  const ratePerUnit = effectiveRate(rates, input);
 
   const totalJourneyCost = floorMoney(distance * ratePerUnit + tolls);
 
@@ -165,7 +203,7 @@ export function calculateJourneyPricing(input: PricingInput): PricingResult {
   // because bookable seats are hard-capped at 4 for every vehicle at launch.
   const driverSeatPrice = floorMoney(totalJourneyCost / STANDARD_VEHICLE_CAPACITY);
 
-  const { serviceCharge, bookingFee, passengerSeatPrice } = passengerPricing(driverSeatPrice);
+  const { serviceCharge, bookingFee, passengerSeatPrice } = passengerPricing(rates, driverSeatPrice);
 
   return {
     currency,

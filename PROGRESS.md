@@ -4,6 +4,30 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 13 June 2026 (follow-up 2) — pricing rates: DB is now the SOLE source of truth
+
+Resolved the pricing-rate source-of-truth duplication. Mileage rates/fees previously lived in BOTH the DB (`pricing_rates` / `pricing_config`) AND `constants/pricingRates.ts`, and the app read the constants file — so the "admin-editable" DB table didn't actually drive pricing and the two could drift. Now the DB is the only source. Branch `feat/journey-overhaul`; **not merged to main.** `tsc` 0, full suite **912/912** (was 901; +11 tests, +1 suite).
+
+### What changed ✅
+
+- **NEW `services/pricingRates.ts`** — the only place the app obtains rates. `fetchPricingRates()` reads `pricing_rates` + `pricing_config`, assembles them into a `PricingRates` object, and **caches it in memory for the session** (rates change at most annually; cache populated ONLY from the DB). **Fail-loud contract:** any query error / empty table / incomplete band / missing config key throws `PricingRatesUnavailableError`. It NEVER returns a default/partial/zeroed rate set, so a failed fetch can never silently produce a price. DECIMAL values are coerced (PostgREST may return numerics as strings).
+- **DELETED `constants/pricingRates.ts`** entirely. There is no second copy of the rates anywhere in code. Confirmed: file gone, zero references repo-wide.
+- **`utils/pricingEngine.ts`** — kept pure; functions now take the rates as a parameter (`bandIndexFor`/`rateForBand`/`effectiveRate`/`passengerPricing`/`calculateJourneyPricing` all receive a `PricingRates`). The TYPES (`Jurisdiction`, `EngineCcBand`, `RoiBand`, `UkBand`, `PricingRates`) and the display-only `ENGINE_CC_LABELS` live here now (types/labels are not rate data). No numeric rate data in the engine.
+- **Consumers wired to the DB reader + fail loud:**
+  - `app/offer-ride.tsx` — fetches rates on mount; on failure shows "Pricing unavailable, please try again" (`rates-unavailable`), computes no price, and keeps Review disabled. Passes rates into `calculateJourneyPricing`.
+  - `app/ride/[id].tsx` — fetches rates in the load; a rates failure sets the error state (fail loud). Passes rates into `passengerPricing` + `<PriceBreakdown rates=…>`.
+  - `components/PriceBreakdown.tsx` — now takes a `rates` prop (stays a pure presentational component).
+  - `app/driver-onboarding.tsx` (`ENGINE_CC_LABELS`) + `utils/mileageTracking.ts` (`type Jurisdiction`) — imports repointed from the deleted constants to `utils/pricingEngine`.
+- **Tests:** engine tests unchanged in intent — they pass a rates fixture (`__tests__/fixtures/pricingRates.ts`, test-only, mirrors the DB seed) directly. NEW `__tests__/unit/pricingRatesService.test.ts` proves the reader **throws (never defaults)** on query error, empty table, missing config key, incomplete ROI band, and a rejected call — and that a successful fetch assembles rates that price correctly through the engine, coerces string decimals, and caches. NEW OfferRideScreen test proves the fail-loud UI. Updated PriceBreakdown / RideDetailScreen / OfferRideScreen tests to supply/mock rates.
+
+### Files
+
+Created: `services/pricingRates.ts`, `__tests__/fixtures/pricingRates.ts`, `__tests__/unit/pricingRatesService.test.ts`.
+Deleted: `constants/pricingRates.ts`.
+Modified: `utils/pricingEngine.ts`, `utils/mileageTracking.ts`, `components/PriceBreakdown.tsx`, `app/offer-ride.tsx`, `app/ride/[id].tsx`, `app/driver-onboarding.tsx`, `__tests__/unit/pricingEngine.test.ts`, `__tests__/unit/PriceBreakdown.test.tsx`, `__tests__/unit/OfferRideScreen.test.tsx`, `__tests__/unit/RideDetailScreen.test.tsx`, `PROGRESS.md`.
+
+---
+
 ## 13 June 2026 — CodeRabbit review pass on `feat/journey-overhaul`
 
 Worked through the CodeRabbit review on the `feat/journey-overhaul` PR. Each finding was verified against the current code first; only still-valid issues were fixed. Three commits on `feat/journey-overhaul`; **nothing merged to main, no force-push.** Final state: **`tsc --noEmit` 0 errors, Jest 901/901 passing** (was 894; +7 regression/coverage tests). 2 new migrations applied + verified against the live DB.
