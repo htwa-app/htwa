@@ -77,7 +77,10 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
         driver_id:          user.id,
         from_location:      params.from ?? '',
         to_location:        params.to ?? '',
-        departure_datetime: departureStr,
+        // Store the canonical UTC ISO so the persisted TIMESTAMPTZ matches the
+        // value used by computeWindowEnd / checkDriverOverlap (departureStr is
+        // timezone-less and would drift from the overlap-check logic).
+        departure_datetime: departureISO,
         seats_total:        seats,
         seats_available:    seats,
         cost_per_seat:      pricePerSeat,

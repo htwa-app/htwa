@@ -84,7 +84,11 @@ describe('OfferRideConfirmScreen', () => {
       women_only: false,
       status: 'active',
     });
-    expect(payload.departure_datetime).toBe('2026-06-01T09:00:00');
+    // Regression: the persisted departure must be the canonical UTC ISO, and must
+    // be the SAME value passed to the overlap check (not the timezone-less string).
+    const expectedISO = new Date('2026-06-01T09:00:00').toISOString();
+    expect(payload.departure_datetime).toBe(expectedISO);
+    expect(payload.departure_datetime).toBe(mockCheckOverlap.mock.calls[0][1]);
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/ride-posted'));
   });
 

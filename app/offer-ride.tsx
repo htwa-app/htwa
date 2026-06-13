@@ -55,6 +55,7 @@ const SEATS_MIN = 1;
 const SEATS_CAP_DEFAULT = 4; // hard cap unless the driver's vehicle is evidenced (Block 3)
 const SEATS_CAP_VERIFIED = 7; // raised cap once extra-seat capacity is verified
 const DISTANCE_DEBOUNCE_MS = 500; // wait for the driver to stop typing before calling the Routes API
+const MILES_TO_KM = 1.60934; // convert a UK miles distance to km for storage in distance_km
 const TOGGLE_TRACK_OFF = 'rgba(40,30,20,0.15)'; // §9 switch inactive track — not in palette
 
 type DistanceState = 'idle' | 'calculating' | 'ok' | 'unavailable';
@@ -184,6 +185,14 @@ export default function OfferRideScreen(): React.ReactElement {
     && driverSeatPrice !== null && driverSeatPrice > 0;
 
   const handleReview = () => {
+    // distance is in the driver's display unit (km for ROI, miles for UK). The
+    // confirm screen persists it to distance_km, so convert miles→km here so a
+    // UK journey isn't stored with its mileage value mislabelled as kilometres.
+    const distanceKm = distance == null
+      ? 0
+      : unit === 'miles'
+        ? distance * MILES_TO_KM
+        : distance;
     const params = new URLSearchParams({
       from,
       to,
@@ -192,7 +201,7 @@ export default function OfferRideScreen(): React.ReactElement {
       seats: String(seats),
       pricePerSeat: String(driverSeatPrice ?? 0),
       currency,
-      distanceKm: String(distance ?? 0),
+      distanceKm: String(distanceKm),
       womenOnly: String(womenOnly),
       luggageNote: luggageNote.trim(),
       durationSeconds: durationSeconds != null ? String(durationSeconds) : '',

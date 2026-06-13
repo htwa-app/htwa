@@ -142,6 +142,40 @@ describe('OfferRideScreen — review button', () => {
   });
 });
 
+describe('OfferRideScreen — distanceKm persistence unit (regression)', () => {
+  async function fillAndReview() {
+    await waitFor(() => expect(screen.getByTestId('from-input')).toBeTruthy());
+    fireEvent.changeText(screen.getByTestId('from-input'), 'A');
+    fireEvent.changeText(screen.getByTestId('to-input'), 'B');
+    fireEvent.changeText(screen.getByTestId('date-input'), '2026-06-01');
+    fireEvent.changeText(screen.getByTestId('time-input'), '09:00');
+    await waitFor(
+      () => expect(screen.getByTestId('review-button').props.accessibilityState?.disabled).toBe(false),
+      { timeout: 2000 },
+    );
+    fireEvent.press(screen.getByTestId('review-button'));
+    return new URLSearchParams(String(mockPush.mock.calls[0][0]).split('?')[1]);
+  }
+
+  it('ROI/km journey persists distanceKm unchanged', async () => {
+    // default mock = ROI; computeRouteDistance returns 210 km
+    render(<OfferRideScreen />);
+    const params = await fillAndReview();
+    expect(Number(params.get('distanceKm'))).toBeCloseTo(210, 5);
+  });
+
+  it('UK/miles journey converts miles → km before persisting distanceKm', async () => {
+    // UK drivers still record an engine_cc at onboarding (it just isn't used for
+    // UK pricing), so a real UK profile has a non-null engine_cc.
+    mockProfile.mockResolvedValue({ data: { tax_residence: 'UK', engine_cc: 'ge1501' }, error: null });
+    mockComputeDistance.mockResolvedValue({ ok: true, distance: 100, unit: 'miles' });
+    render(<OfferRideScreen />);
+    const params = await fillAndReview();
+    // 100 miles × 1.60934 = 160.934 km
+    expect(Number(params.get('distanceKm'))).toBeCloseTo(160.934, 3);
+  });
+});
+
 describe('OfferRideScreen — Block 2 auto distance', () => {
   it('shows the calculated distance (driver never types it)', async () => {
     render(<OfferRideScreen />);

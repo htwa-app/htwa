@@ -90,7 +90,10 @@ export function bandIndexFor(jurisdiction: Jurisdiction, cumulative: number): nu
     return ROI_BANDS.length - 1;
   }
   for (let i = 0; i < UK_BANDS.length; i++) {
-    if (cumulative < UK_BANDS[i].upperMiles) return i;
+    // upperMiles is an INCLUSIVE bound, so a cumulative value exactly equal to
+    // the boundary (e.g. exactly 10,000 miles) must land in this band, not the
+    // next one. Use <= to match the ROI loop above.
+    if (cumulative <= UK_BANDS[i].upperMiles) return i;
   }
   return UK_BANDS.length - 1;
 }

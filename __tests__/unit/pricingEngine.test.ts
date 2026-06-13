@@ -41,9 +41,14 @@ describe('bandIndexFor — ROI (cumulative km)', () => {
 describe('bandIndexFor — UK (cumulative miles)', () => {
   it.each([
     [0, 0], [5000, 0], [9999, 0],       // first 10,000
-    [10000, 1], [20000, 1],             // over 10,000
+    [10000, 0],                          // EXACT boundary is INCLUSIVE → band 0 (regression: was misclassified as band 1 with strict <)
+    [10001, 1], [20000, 1],             // over 10,000
   ])('cumulative %i mi → band %i', (cum, idx) => {
     expect(bandIndexFor('UK', cum)).toBe(idx);
+  });
+
+  it('rate at the exact 10,000-mile boundary is the first-band rate (0.55), not the over-10k rate (0.25)', () => {
+    expect(rateForBand('UK', bandIndexFor('UK', 10000))).toBe(0.55);
   });
 });
 
