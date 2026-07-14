@@ -174,4 +174,34 @@ describe('calculateJourneyPricing — full results', () => {
       jurisdiction: 'UK', cumulativeBefore: 0, distance: 10, seatsOffered: 0,
     })).toThrow(/seatsOffered/);
   });
+
+  it('throws when seatsOffered exceeds the max (7)', () => {
+    expect(() => calculateJourneyPricing(RATES, {
+      jurisdiction: 'UK', cumulativeBefore: 0, distance: 10, seatsOffered: 8,
+    })).toThrow(/seatsOffered/);
+  });
+
+  it('throws when distance is negative', () => {
+    expect(() => calculateJourneyPricing(RATES, {
+      jurisdiction: 'UK', cumulativeBefore: 0, distance: -1, seatsOffered: 1,
+    })).toThrow(/distance/);
+  });
+
+  it('throws when distance is not finite', () => {
+    expect(() => calculateJourneyPricing(RATES, {
+      jurisdiction: 'UK', cumulativeBefore: 0, distance: NaN, seatsOffered: 1,
+    })).toThrow(/distance/);
+  });
+
+  it('throws when cumulativeBefore is negative', () => {
+    expect(() => calculateJourneyPricing(RATES, {
+      jurisdiction: 'UK', cumulativeBefore: -5, distance: 10, seatsOffered: 1,
+    })).toThrow(/cumulativeBefore/);
+  });
+
+  it('throws when tolls is negative', () => {
+    expect(() => calculateJourneyPricing(RATES, {
+      jurisdiction: 'UK', cumulativeBefore: 0, distance: 10, tolls: -1, seatsOffered: 1,
+    })).toThrow(/tolls/);
+  });
 });

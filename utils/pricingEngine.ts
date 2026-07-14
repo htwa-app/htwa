@@ -77,6 +77,9 @@ export const ENGINE_CC_LABELS: Record<EngineCcBand, string> = {
  */
 export const STANDARD_VEHICLE_CAPACITY = 5;
 
+/** Upper bound for seatsOffered, matching SEATS_CAP_VERIFIED in app/offer-ride.tsx. */
+const MAX_SEATS_OFFERED = 7;
+
 export interface PricingInput {
   jurisdiction: Jurisdiction;
   /** Required for ROI (drives the rate column); ignored for UK. */
@@ -186,11 +189,15 @@ export function passengerPricing(rates: PricingRates, driverSeatPrice: number): 
 
 /** Full pricing for a journey, fixed at posting time. */
 export function calculateJourneyPricing(rates: PricingRates, input: PricingInput): PricingResult {
-  const { jurisdiction, distance, tolls = 0, seatsOffered } = input;
+  const { jurisdiction, distance, tolls = 0, seatsOffered, cumulativeBefore } = input;
   if (jurisdiction === 'ROI' && !input.engineCc) {
     throw new Error('engineCc is required for ROI pricing');
   }
   if (seatsOffered < 1) throw new Error('seatsOffered must be at least 1');
+  if (seatsOffered > MAX_SEATS_OFFERED) throw new Error(`seatsOffered must be at most ${MAX_SEATS_OFFERED}`);
+  if (!Number.isFinite(distance) || distance < 0) throw new Error('distance must be non-negative');
+  if (!Number.isFinite(cumulativeBefore) || cumulativeBefore < 0) throw new Error('cumulativeBefore must be non-negative');
+  if (!Number.isFinite(tolls) || tolls < 0) throw new Error('tolls must be non-negative');
 
   const currency = jurisdiction === 'UK' ? 'GBP' : 'EUR';
   const ratePerUnit = effectiveRate(rates, input);
