@@ -97,6 +97,20 @@ describe('MyRidesScreen', () => {
     await waitFor(() => expect(screen.getByTestId('rides-error')).toBeTruthy());
   });
 
+  it('shows an error state when the driver-rides query resolves with a Supabase error (not silently empty)', async () => {
+    // A resolved { data: null, error } must NOT be treated as "no rides" —
+    // it must surface the same error state as a rejected promise.
+    mockRidesResult.mockResolvedValue({ data: null, error: { message: 'db down' } });
+    render(<MyRidesScreen />);
+    await waitFor(() => expect(screen.getByTestId('rides-error')).toBeTruthy());
+  });
+
+  it('shows an error state when the bookings query resolves with a Supabase error (not silently empty)', async () => {
+    mockBookingsResult.mockResolvedValue({ data: null, error: { message: 'db down' } });
+    render(<MyRidesScreen />);
+    await waitFor(() => expect(screen.getByTestId('rides-error')).toBeTruthy());
+  });
+
   it('navigates back when the back button is pressed', async () => {
     render(<MyRidesScreen />);
     await waitFor(() => expect(screen.getByTestId('back-button')).toBeTruthy());

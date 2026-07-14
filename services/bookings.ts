@@ -47,21 +47,30 @@ export async function cancelRideAsDriver(
   driverId: string,
 ): Promise<CancellationResult> {
   try {
-    // Mark ride cancelled
-    const { error: rideErr } = await supabase
+    // Mark ride cancelled. .select('id') so a zero-row result (wrong id, or RLS
+    // blocked because driverId doesn't own it) is distinguishable from success.
+    const { data: rideRows, error: rideErr } = await supabase
       .from('rides')
       .update({ status: 'cancelled' })
       .eq('id', rideId)
-      .eq('driver_id', driverId);
+      .eq('driver_id', driverId)
+      .select('id');
 
     if (rideErr) return { success: false, refunded: false, message: rideErr.message };
+    if (!rideRows || rideRows.length === 0) {
+      return { success: false, refunded: false, message: 'Ride not found or not permitted.' };
+    }
 
-    // Cancel all bookings on this ride
-    await supabase
+    // Cancel all bookings on this ride. A query error here must not be reported
+    // as a successful cancellation — passengers would be left thinking their
+    // seat is still booked while the driver believes they were refunded.
+    const { error: bookingsErr } = await supabase
       .from('bookings')
       .update({ status: 'cancelled' })
       .eq('ride_id', rideId)
       .in('status', ['pending', 'confirmed']);
+
+    if (bookingsErr) return { success: false, refunded: false, message: bookingsErr.message };
 
     // TODO (Phase 15): iterate bookings, call create-refund edge function for each confirmed booking
 
@@ -93,35 +102,40 @@ export async function cancelBookingAsPassenger(
   const refundEligible = isFullRefundEligible(departureDateTime);
 
   try {
-    const { error: bookErr } = await supabase
+    const { data: bookingRows, error: bookErr } = await supabase
       .from('bookings')
       .update({ status: 'cancelled' })
       .eq('id', bookingId)
-      .eq('passenger_id', passengerId);
+      .eq('passenger_id', passengerId)
+      .select('seats_booked, ride_id');
 
     if (bookErr) return { success: false, refunded: false, message: bookErr.message };
+    const bookingData = bookingRows?.[0];
+    if (!bookingData) {
+      return { success: false, refunded: false, message: 'Booking not found or not permitted.' };
+    }
 
-    // Restore seats on ride
-    const { data: bookingData } = await supabase
-      .from('bookings')
-      .select('seats_booked, ride_id')
-      .eq('id', bookingId)
+    // Restore seats on ride. The booking is ALREADY cancelled at this point (the
+    // update above committed), so a failure here must NOT flip the overall
+    // result to failure — that would tell the passenger their cancellation
+    // failed (risking a confusing retry) when it actually succeeded. Log it
+    // instead; worst case is a temporarily under-reported seat count, which
+    // never oversells a seat.
+    const { data: rideData, error: rideReadErr } = await supabase
+      .from('rides')
+      .select('seats_available, seats_total, status')
+      .eq('id', bookingData.ride_id)
       .single();
 
-    if (bookingData) {
-      const { data: rideData } = await supabase
-        .from('rides')
-        .select('seats_available, seats_total, status')
-        .eq('id', bookingData.ride_id)
-        .single();
-
-      if (rideData) {
-        const newAvail = Math.min(rideData.seats_total, rideData.seats_available + bookingData.seats_booked);
-        await supabase.from('rides').update({
-          seats_available: newAvail,
-          status: rideData.status === 'full' ? 'active' : rideData.status,
-        }).eq('id', bookingData.ride_id);
-      }
+    if (rideReadErr) {
+      console.error('[Bookings] seat-restore ride read failed:', rideReadErr.message);
+    } else {
+      const newAvail = Math.min(rideData.seats_total, rideData.seats_available + bookingData.seats_booked);
+      const { error: seatErr } = await supabase.from('rides').update({
+        seats_available: newAvail,
+        status: rideData.status === 'full' ? 'active' : rideData.status,
+      }).eq('id', bookingData.ride_id);
+      if (seatErr) console.error('[Bookings] seat-restore update failed:', seatErr.message);
     }
 
     // TODO (Phase 15): if refundEligible, call create-refund edge function

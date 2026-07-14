@@ -100,6 +100,26 @@ describe('RideDetailScreen', () => {
     await waitFor(() => expect(screen.getByTestId('ride-detail-error')).toBeTruthy());
   });
 
+  it('shows the error state (not a false "unverified" driver) when the verification query errors', async () => {
+    // A query error here must never silently render as "not verified" — that
+    // would misrepresent a safety-relevant badge to a passenger.
+    mockVerif.mockResolvedValue({ data: null, error: { message: 'db down' } });
+    render(<RideDetailScreen />);
+    await waitFor(() => expect(screen.getByTestId('ride-detail-error')).toBeTruthy());
+  });
+
+  it('shows the error state (not a silently blank driver name) when the driver-name query errors', async () => {
+    mockUser.mockResolvedValue({ data: null, error: { message: 'db down' } });
+    render(<RideDetailScreen />);
+    await waitFor(() => expect(screen.getByTestId('ride-detail-error')).toBeTruthy());
+  });
+
+  it('shows the error state (not a silently missing vehicle) when the profile query errors', async () => {
+    mockProfile.mockResolvedValue({ data: null, error: { message: 'db down' } });
+    render(<RideDetailScreen />);
+    await waitFor(() => expect(screen.getByTestId('ride-detail-error')).toBeTruthy());
+  });
+
   it('shows the luggage note when present (Block 8)', async () => {
     mockRide.mockResolvedValue({ data: { ...RIDE, luggage_note: 'one small case each' }, error: null });
     render(<RideDetailScreen />);

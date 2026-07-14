@@ -24,6 +24,10 @@ describe('getPaymentAccount', () => {
     mockMaybeSingle.mockResolvedValue({ data: null, error: null });
     expect(await getPaymentAccount('u1')).toEqual({ connect_status: 'none', has_payment_method: false, payment_method_brand: null, payment_method_last4: null });
   });
+  it('throws on a query error rather than treating it as "no account set up"', async () => {
+    mockMaybeSingle.mockResolvedValue({ data: null, error: { message: 'db down' } });
+    await expect(getPaymentAccount('u1')).rejects.toThrow('db down');
+  });
 });
 
 describe('startConnectOnboarding', () => {

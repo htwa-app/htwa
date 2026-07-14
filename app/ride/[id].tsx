@@ -76,18 +76,24 @@ export default function RideDetailScreen(): React.ReactElement {
       if (dbErr || !data) { setError('Ride not found.'); return; }
 
       // Embedded FK relations aren't expressed in the typed schema, so fetch the
-      // driver's name, profile and verification with explicit queries.
-      const { data: driverData } = await supabase
+      // driver's name, profile and verification with explicit queries. A failed
+      // query here must NOT silently render as "unverified"/"no vehicle" — that
+      // would misrepresent a safety-relevant badge, so throw and let the outer
+      // catch surface a retryable error instead of a wrong default.
+      const { data: driverData, error: driverErr } = await supabase
         .from('users').select('full_name').eq('id', data.driver_id).maybeSingle();
+      if (driverErr) throw driverErr;
 
-      const { data: profileData } = await supabase
+      const { data: profileData, error: profileErr } = await supabase
         .from('profiles').select('university, vehicle_details')
         .eq('user_id', data.driver_id).maybeSingle();
+      if (profileErr) throw profileErr;
       const vehicleRaw = (profileData?.vehicle_details as Record<string, unknown> | null) ?? null;
 
-      const { data: vData } = await supabase
+      const { data: vData, error: vErr } = await supabase
         .from('verification').select('id_verified, selfie_verified')
         .eq('user_id', data.driver_id).maybeSingle();
+      if (vErr) throw vErr;
       const isVerified = vData?.id_verified === true && vData?.selfie_verified === true;
 
       setRide({

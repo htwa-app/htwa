@@ -33,13 +33,18 @@ const DEFAULT_ACCOUNT: PaymentAccount = {
   payment_method_last4: null,
 };
 
-/** Load the user's payment account, falling back to a safe default. */
+/**
+ * Load the user's payment account. Falls back to a safe default ONLY when the
+ * user genuinely has no row yet (not set up payments); a query error is
+ * re-thrown so callers don't mistake a failed fetch for "nothing set up".
+ */
 export async function getPaymentAccount(userId: string): Promise<PaymentAccount> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('payment_accounts')
     .select('connect_status, has_payment_method, payment_method_brand, payment_method_last4')
     .eq('user_id', userId)
     .maybeSingle();
+  if (error) throw new Error(error.message);
   return data ?? DEFAULT_ACCOUNT;
 }
 

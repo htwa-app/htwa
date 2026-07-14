@@ -65,18 +65,20 @@ export default function MyRidesScreen(): React.ReactElement {
     setError(null);
     try {
       // Rides as driver
-      const { data: driverRides } = await supabase
+      const { data: driverRides, error: driverError } = await supabase
         .from('rides')
         .select('id, from_location, to_location, departure_datetime, cost_per_seat, currency, status')
         .eq('driver_id', user.id)
         .order('departure_datetime', { ascending: false });
+      if (driverError) throw driverError;
 
       // Bookings as passenger
-      const { data: bookings } = await supabase
+      const { data: bookings, error: bookingsError } = await supabase
         .from('bookings')
         .select('id, status, ride:rides(id, from_location, to_location, departure_datetime, cost_per_seat, currency, status)')
         .eq('passenger_id', user.id)
         .order('created_at', { ascending: false });
+      if (bookingsError) throw bookingsError;
 
       const driverItems: RideItem[] = (driverRides ?? []).map((r: Record<string, unknown>) => ({
         id:                 r.id as string,
