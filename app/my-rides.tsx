@@ -120,6 +120,16 @@ export default function MyRidesScreen(): React.ReactElement {
   const upcoming = rides.filter((r) => new Date(r.departure_datetime) >= now);
   const past     = rides.filter((r) => new Date(r.departure_datetime) <  now);
 
+  // Drivers manage requests on their own journey; ride/[id] is the
+  // passenger-facing "request to join" screen and doesn't make sense there.
+  const navigateToRide = (ride: RideItem) => {
+    if (ride.role === 'driver') {
+      router.push(`/booking-requests/${ride.id}`);
+    } else {
+      router.push(`/ride/${ride.id}`);
+    }
+  };
+
   if (isLoading) return <View style={styles.center} testID="my-rides-loading"><ActivityIndicator size="large" color={Colors.primary} /></View>;
 
   return (
@@ -139,7 +149,7 @@ export default function MyRidesScreen(): React.ReactElement {
       {upcoming.length === 0 ? (
         <Text style={styles.emptyText} testID="upcoming-empty">No upcoming journeys</Text>
       ) : (
-        upcoming.map((ride) => <RideCard key={`${ride.role}-${ride.id}`} ride={ride} onPress={() => router.push(`/ride/${ride.id}`)} />)
+        upcoming.map((ride) => <RideCard key={`${ride.role}-${ride.id}`} ride={ride} onPress={() => navigateToRide(ride)} />)
       )}
 
       {/* Past */}
@@ -147,7 +157,7 @@ export default function MyRidesScreen(): React.ReactElement {
       {past.length === 0 ? (
         <Text style={styles.emptyText} testID="past-empty">No past journeys</Text>
       ) : (
-        past.map((ride) => <RideCard key={`${ride.role}-${ride.id}`} ride={ride} onPress={() => router.push(`/ride/${ride.id}`)} />)
+        past.map((ride) => <RideCard key={`${ride.role}-${ride.id}`} ride={ride} onPress={() => navigateToRide(ride)} />)
       )}
     </ScrollView>
   );

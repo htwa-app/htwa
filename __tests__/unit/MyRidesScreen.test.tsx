@@ -76,11 +76,18 @@ describe('MyRidesScreen', () => {
     expect(screen.getByTestId('ride-item-r2')).toBeTruthy(); // past driver ride
   });
 
-  it('navigates to the ride detail when a card is pressed', async () => {
+  it('navigates a driver-role ride to booking requests, not the passenger-facing ride detail', async () => {
     render(<MyRidesScreen />);
-    await waitFor(() => expect(screen.getByTestId('ride-item-r1')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('ride-item-r1')).toBeTruthy()); // r1 is a driver ride
     fireEvent.press(screen.getByTestId('ride-item-r1'));
-    expect(mockPush).toHaveBeenCalledWith('/ride/r1');
+    expect(mockPush).toHaveBeenCalledWith('/booking-requests/r1');
+  });
+
+  it('navigates a passenger-role booking to the ride detail screen', async () => {
+    render(<MyRidesScreen />);
+    await waitFor(() => expect(screen.getByTestId('ride-item-r3')).toBeTruthy()); // r3 is a passenger booking
+    fireEvent.press(screen.getByTestId('ride-item-r3'));
+    expect(mockPush).toHaveBeenCalledWith('/ride/r3');
   });
 
   it('shows empty states when there are no rides', async () => {
