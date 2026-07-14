@@ -1,43 +1,49 @@
 /**
  * __tests__/unit/stripeForwardRefPatch.test.ts
  *
- * Regression guard for the @stripe/stripe-react-native + React 19 forwardRef bug.
+ * Regression guard for the @stripe/stripe-react-native + React 19 forwardRef bug
+ * (see PROGRESS.md, 13 June 2026). stripe-react-native@0.65.1 shipped
+ * `PaymentMethodMessagingElement` as `forwardRef(function(_ref){…})` — a
+ * SINGLE-parameter render function. React 19 validates forwardRef arity at
+ * `forwardRef()` CALL time (i.e. when the module is imported), so importing the
+ * Stripe barrel (StripeProvider in app/_layout.tsx, useStripe in the payment
+ * screens) logged a console.error and threw up a LogBox red overlay that
+ * covered the signup screen.
  *
- * stripe-react-native@0.65.1 ships `PaymentMethodMessagingElement` as
- * `forwardRef(function(_ref){…})` — a SINGLE-parameter render function. React 19
- * validates forwardRef arity at `forwardRef()` CALL time (i.e. when the module is
- * imported), so importing the Stripe barrel (StripeProvider in app/_layout.tsx,
- * useStripe in the payment screens) logged:
- *   "forwardRef render functions accept exactly two parameters: props and ref.
- *    Did you forget to use the ref parameter?"
- * In React Native dev this surfaced as a LogBox red overlay that covered the
- * signup screen, making the Continue button look like it had vanished.
- *
- * Fix: a patch-package patch rewrites the render fn to `(_ref, ref)`. These tests
- * fail loudly if the patch ever stops applying (e.g. a version bump without a
- * re-generated patch), since that would bring the dev-time error back.
+ * Fixed upstream in @stripe/stripe-react-native@0.68.0 — the component no
+ * longer uses forwardRef at all. The patch-package workaround was removed; this
+ * scans every built file in the package (not just one), so it still catches a
+ * regression if a future Stripe upgrade reintroduces a single-arg forwardRef
+ * anywhere in the package.
  */
 import fs from 'fs';
 import path from 'path';
 
 const stripeRoot = path.dirname(require.resolve('@stripe/stripe-react-native/package.json'));
 
-const BUILT_FILES = [
-  'lib/module/components/PaymentMethodMessagingElement.js',
-  'lib/commonjs/components/PaymentMethodMessagingElement.js',
-];
+function listJsFiles(dir: string): string[] {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) return listJsFiles(full);
+    return entry.name.endsWith('.js') ? [full] : [];
+  });
+}
 
-describe('@stripe/stripe-react-native forwardRef patch (React 19 compat)', () => {
-  it.each(BUILT_FILES)('%s uses a 2-arg forwardRef render fn (no single-arg)', (rel) => {
-    const src = fs.readFileSync(path.join(stripeRoot, rel), 'utf8');
-    // The buggy single-arg form must be gone…
-    expect(src).not.toMatch(/forwardRef\)\(function\(_ref\)\{/);
-    // …and the patched two-arg form must be present.
-    expect(src).toMatch(/forwardRef\)\(function\(_ref,ref\)\{/);
+describe('@stripe/stripe-react-native — no single-arg forwardRef (React 19 compat)', () => {
+  it('no built file uses a single-parameter forwardRef render function', () => {
+    const libDir = path.join(stripeRoot, 'lib');
+    const offenders = listJsFiles(libDir).filter((file) => {
+      const src = fs.readFileSync(file, 'utf8');
+      // A single-arg forwardRef render fn: forwardRef(function(x){ or forwardRef((x)=>{
+      // with no second parameter before the closing paren.
+      return /forwardRef\)?\(function\s*\(\s*[a-zA-Z_$][\w$]*\s*\)\s*\{/.test(src)
+        || /forwardRef\)?\(\s*\(\s*[a-zA-Z_$][\w$]*\s*\)\s*=>/.test(src);
+    });
+    expect(offenders).toEqual([]);
   });
 
-  it('the patch file is committed so the fix re-applies on every install', () => {
-    const patch = path.join(__dirname, '../../patches/@stripe+stripe-react-native+0.65.1.patch');
-    expect(fs.existsSync(patch)).toBe(true);
+  it('no patch-package patch is needed for this fix (removed — fixed upstream in 0.68.0)', () => {
+    const patchesDir = path.join(__dirname, '../../patches');
+    expect(fs.existsSync(patchesDir)).toBe(false);
   });
 });
