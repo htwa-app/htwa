@@ -4,6 +4,97 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 14 July 2026 — Resumption session: repo health, Stripe fix, error hardening, booking-acceptance screen
+
+Resumption after ~3.5 weeks of inactivity. Branch `feat/journey-overhaul` (PR [#27](https://github.com/htwa-app/htwa/pull/27)); **not merged to main** — merging only happens after CodeRabbit is clean and Jordan has done the hands-on cold-start test. `tsc --noEmit`: **0 errors** throughout. Jest: **894 → 972 passing** (start-of-session baseline was actually 921, already ahead of the 894 figure quoted at the start of this session — later commits between sessions had already progressed further than CLAUDE.md's last update reflected).
+
+### Phase 0 — Audit ✅
+
+- `feat/journey-overhaul` is 19 commits ahead of `main`, 0 behind — no drift, no conflicts expected on eventual merge.
+- Triaged the one (stale) CodeRabbit review on PR #27 — it predates the last 5 commits. Verified all ~36 findings against current code: almost everything was already fixed in the 13 June follow-up session. Found and fixed 3 genuine gaps CodeRabbit flagged that were never actually actioned:
+  - No DB `CHECK` constraint on `driver_mileage_increments.amount` (app-level validation existed, DB didn't) — new migration `20260714000001_mileage_increment_check_constraint.sql`.
+  - Missing storage `FOR DELETE` policy on the `student-cards` bucket — the university-verification migration's own comment promised read/insert/update/delete, but delete was never added, which meant `studentCard.ts`'s upload-rollback path (`remove()` on a failed DB write) was silently blocked by RLS. New migration `20260714000002_student_cards_delete_policy.sql`.
+  - `utils/pricingEngine.ts` missing input guardrails (`distance`/`cumulativeBefore`/`tolls` non-negative, `seatsOffered` upper bound) — added.
+- **Blocker found (unresolved):** the `op` (1Password) CLI hangs indefinitely on every command needing network/auth (`op read`, `op vault list`), even under `--debug`. `op --version` works; `curl` to 1Password's servers works fine (confirmed not a network/sandbox issue); removing the stale `~/.config/op/op-daemon.sock` didn't help. **As a result, Supabase project status/migration-application could not be checked or performed this session** (see Human Tasks below). The two new migrations above are written but NOT yet applied to the live DB.
+
+### Phase 1 — Stripe forwardRef red overlay ✅ (code fix verified two ways; simulator screenshot NOT captured — see below)
+
+- Checked whether a newer `@stripe/stripe-react-native` release fixed the bug properly upstream (per the task's preferred approach) rather than relying on the patch-package workaround. Diffed the `PaymentMethodMessagingElement` component's source across 0.65.1 → 0.68.0 on GitHub: **the component was rewritten as a plain function and no longer uses `forwardRef` at all** as of 0.68.0. Confirmed live in `node_modules` after upgrading — zero `forwardRef` occurrences in the built output.
+- Upgraded `@stripe/stripe-react-native` 0.65.1 → 0.68.0 (`npx expo install`). Deleted the now-obsolete `patches/@stripe+stripe-react-native+0.65.1.patch` (patch-package itself refused to apply it against 0.68.0's changed source, confirming the fix). Removed the `"postinstall": "patch-package"` script + `patch-package` devDependency (no patches remain).
+- Rewrote `__tests__/unit/stripeForwardRefPatch.test.ts` to scan the **whole** installed package for any single-arg `forwardRef` render function (broader than the old file-specific check), so a future Stripe upgrade regressing this would still be caught.
+- Triggered a fresh EAS iOS simulator build (`development` profile) — **built successfully** (`https://expo.dev/accounts/htwa-app/projects/htwa/builds/f2577224-3366-4b35-b5fa-cbdd86f4f67d`), installed it on the booted iPhone 17 Pro simulator, and launched it via `eas build:run` — **succeeded**.
+- **Could not complete the final visual check.** The dev-client build needs a one-time "Open in htwa?" system confirmation tapped inside the simulator to connect to the Metro bundler. Both automation paths to do this were blocked: `computer-use`'s `request_access` timed out twice (300s each) waiting for an interactive macOS permission-dialog approval that never came, and `osascript` UI-scripting returned "not allowed assistive access". This is the same category of blocker as the 1Password CLI hang — something in this environment needs a human to approve an interactive system dialog. **The code-level fix is strongly evidenced (upstream source diff + successful build compile) but not device-verified per the instruction not to declare a UI fix done from code inspection alone.** See Human Tasks.
+
+### Phase 2 — Error-path hardening sweep ✅
+
+Swept every file added/modified on this branch against the standing rules now baked into CLAUDE.md §12. Found and fixed real bugs (not just style):
+
+- `app/my-rides.tsx` — driver-rides and passenger-bookings queries didn't check `error`; a failed fetch silently rendered as "you have no rides".
+- `app/ride/[id].tsx` — driver-name/profile/verification lookups didn't check `error`; a failed **verification** query in particular silently fell back to "not verified" and no vehicle chips — misrepresenting a safety-relevant badge to a passenger instead of surfacing a retryable error.
+- `app/search-results.tsx` — the batched driver-verification query didn't check `error`.
+- `services/payments.ts` `getPaymentAccount` — a query error was indistinguishable from "no payment account set up yet".
+- `app/edit-profile.tsx` `loadProfile` — had **no catch at all** and didn't check `error`; a failed fetch rendered a blank form indistinguishable from a genuinely-empty first-time profile. Now checks error (except `PGRST116`, the expected "no row yet" case).
+- `app/offer-ride.tsx` `loadDriverProfile` — **compliance-sensitive**: the `driver_mileage_increments` query didn't check `error`, so a failed query silently computed cumulative mileage as 0 (`increments ?? []`), which could apply a MORE FAVOURABLE tax band than the driver's true cumulative distance warrants. Added a distinct `profile-load-error` banner (separate from "complete your driver setup" — an already-onboarded driver must never be told to redo onboarding for a query failure) and blocked the Review button.
+- `services/bookings.ts` `cancelRideAsDriver` — the ride-cancel UPDATE didn't verify affected rows (a wrong id / non-owning driver reported "Ride cancelled" on a zero-row update); the bookings bulk-cancel UPDATE result was discarded entirely (a failure there still reported "All passengers will receive a full refund"). Both now checked.
+- `services/bookings.ts` `cancelBookingAsPassenger` — same zero-row gap on the booking-cancel UPDATE, now fixed. The seat-restore read/update errors are logged but deliberately do NOT flip the result to failure (the cancellation itself already committed by that point).
+- `__tests__/unit/bookings.test.ts` had **zero test coverage** for `cancelRideAsDriver`/`cancelBookingAsPassenger` before this session (only `isFullRefundEligible` was tested) — added 15 tests.
+- ~26 new tests total across these files covering the error paths.
+
+### Phase 3 — Booking-acceptance screen ✅
+
+New `app/booking-requests/[rideId].tsx` (SCREENS.md #17 "Passenger Request", built as a full screen rather than a modal so a driver can review every request on a journey in one place):
+
+- Driver's own ride card on My Journeys now routes here instead of the passenger-facing `ride/[id]` "request to join" screen (which made no sense for a driver viewing their own posted ride).
+- Loads the ride (scoped to the current driver — a non-owner gets a clear "not found"), all non-cancelled bookings, batched passenger name + verification lookups, and DB pricing rates. Pending requests sort first; decided ones show a status badge for reference.
+- **Fixed pricing model, reused as-is:** `rides.cost_per_seat` (driverSeatPrice) shown to the driver; the passenger's price (driverSeatPrice + 10% + flat booking fee) shown via the existing `PriceBreakdown` component — one headline figure, tappable breakdown, never editable.
+- **Accept** → existing `services/chat.ts acceptBooking` (status → 'confirmed'; chat is already 'open' from booking creation, so this is the only gate the existing chat-lifecycle logic needs — no new chat code required).
+- **Decline** → new `services/bookings.ts declineBooking` (status → 'declined' + seat restoration — `book_ride()` decrements `seats_available` at REQUEST time, not acceptance, so declining must give the seat back or `seats_available` drifts permanently low). Extracted the seat-restore logic into a shared `restoreRideSeats` helper used by both decline and passenger-cancellation (was a straight duplication).
+- Every load query is fail-loud with a retry button; every accept/decline is scoped per-row (its own busy flag + error message) so one request's in-flight action can't affect another row, and the busy flag always clears via try/catch/finally.
+- Doesn't touch `departure_datetime`/`window_end` — the no-overlapping-journeys trigger/check is unaffected.
+- 18 new tests (loading, rendering, price breakdown, empty/decided states, 6 error paths incl. retry, accept/decline success + failure + thrown exception) + 2 updated `MyRidesScreen` navigation tests for the new driver-role routing.
+
+### Phase 4 — Docs & handoff ✅ (this entry + CLAUDE.md §12 + SESSION-SUMMARY.md)
+
+CLAUDE.md gained a permanent **§12 Coding & Workflow Standards** section encoding: the error-handling standard above, the fixed pricing model rules, the standard merge flow (hands-on test incl. cold-start walk when auth/onboarding is touched → push → CodeRabbit review + triage → merge to main only when clean → new branch off updated main), the squash-merge convention, and "never merge to main autonomously".
+
+### Files created / modified this session
+
+Created:
+- `app/booking-requests/[rideId].tsx`
+- `__tests__/unit/BookingRequestsScreen.test.tsx`
+- `supabase/migrations/20260714000001_mileage_increment_check_constraint.sql` (⚠️ **written but NOT applied** — see Human Tasks)
+- `supabase/migrations/20260714000002_student_cards_delete_policy.sql` (⚠️ **written but NOT applied** — see Human Tasks)
+
+Modified (code):
+- `utils/pricingEngine.ts`, `services/bookings.ts`, `services/payments.ts`, `app/my-rides.tsx`, `app/ride/[id].tsx`, `app/edit-profile.tsx`, `app/offer-ride.tsx`, `app/search-results.tsx`, `package.json`
+
+Modified (tests):
+- `__tests__/unit/pricingEngine.test.ts`, `__tests__/unit/bookings.test.ts`, `__tests__/unit/MyRidesScreen.test.tsx`, `__tests__/unit/RideDetailScreen.test.tsx`, `__tests__/unit/payments.test.ts`, `__tests__/unit/EditProfileScreen.test.tsx`, `__tests__/unit/OfferRideScreen.test.tsx`, `__tests__/unit/SearchResultsScreen.test.tsx`, `__tests__/unit/stripeForwardRefPatch.test.ts`
+
+Deleted:
+- `patches/@stripe+stripe-react-native+0.65.1.patch` (fixed upstream in 0.68.0)
+
+Modified (docs):
+- `CLAUDE.md` (new §12 Coding & Workflow Standards)
+- `PROGRESS.md` (this entry)
+
+### ⚠️ Remaining before merge to main
+
+1. **Jordan: unblock 1Password CLI** (see Human Tasks) so the two new migrations above can be applied to the live Supabase DB and project status re-verified.
+2. **Jordan: tap "Open in htwa?"** on the already-running EAS simulator build to confirm the red overlay is genuinely gone (code fix is strong but not device-verified).
+3. Full cold-start hands-on test (this branch touches `offer-ride.tsx` and `edit-profile.tsx`, not auth/onboarding directly, but a full walk is still recommended before merge given the scope of changes).
+4. Fresh `@coderabbitai full review` (triggered this session) — triage any new findings.
+5. All 5 placeholder-legal items from the 1 June overnight run + the 2 added in the 13 June follow-up (GDPR chat retention, account-deletion-as-anonymise) still await adviser sign-off — unchanged this session, listed for continuity:
+   - Driver declaration (`app/driver-onboarding.tsx`, version `v1-placeholder-2026-06`)
+   - Insurance-certificate confirmation checkbox copy
+   - Notify-insurer confirmation checkbox copy
+   - Gender safety disclaimer wording (`app/signup.tsx`)
+   - Capped-rate cost-share basis / honour-system mileage top-up / insurance-attestation wording — non-code confirmations
+   - Permanent chat retention vs GDPR right-to-erasure
+   - Account-deletion-as-anonymise-in-place under GDPR
+
+---
+
 ## 13 June 2026 (follow-up 4) — fix forwardRef error on launch / signup (Stripe + React 19)
 
 Fixed the runtime error thrown on launch / at the signup screen: *"forwardRef render functions accept exactly two parameters: props and ref. Did you forget to use the ref parameter?"*, stack pointing at the `StripeProvider` import in `app/_layout.tsx`. Branch `feat/journey-overhaul`; **not merged to main.** `tsc` 0, full suite **921/921** (was 918; +3).
