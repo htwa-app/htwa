@@ -14,6 +14,7 @@
  */
 
 import { supabase } from '../lib/supabase';
+import type { SimpleResult } from './chat';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -34,6 +35,36 @@ export function isFullRefundEligible(
   const departure = new Date(departureDateTime);
   const msUntil   = departure.getTime() - cancelledAt.getTime();
   return msUntil > TWENTY_FOUR_HOURS_MS;
+}
+
+/**
+ * Restore seats to a ride after a booking that held them is cancelled/declined
+ * (book_ride decrements seats_available at REQUEST time, not at acceptance, so
+ * every exit path — passenger cancels, driver declines — must give them back).
+ * The booking's own status change has already committed by the time this
+ * runs, so a failure here is logged, NOT thrown/returned as a failure — that
+ * would tell the caller their cancellation/decline failed when it actually
+ * succeeded, risking a confusing retry. Worst case is a temporarily
+ * under-reported seat count, which never oversells a seat.
+ */
+async function restoreRideSeats(rideId: string, seatsBooked: number): Promise<void> {
+  const { data: rideData, error: rideReadErr } = await supabase
+    .from('rides')
+    .select('seats_available, seats_total, status')
+    .eq('id', rideId)
+    .single();
+
+  if (rideReadErr) {
+    console.error('[Bookings] seat-restore ride read failed:', rideReadErr.message);
+    return;
+  }
+
+  const newAvail = Math.min(rideData.seats_total, rideData.seats_available + seatsBooked);
+  const { error: seatErr } = await supabase.from('rides').update({
+    seats_available: newAvail,
+    status: rideData.status === 'full' ? 'active' : rideData.status,
+  }).eq('id', rideId);
+  if (seatErr) console.error('[Bookings] seat-restore update failed:', seatErr.message);
 }
 
 // ─── Cancel as driver ─────────────────────────────────────────────────────────
@@ -115,28 +146,7 @@ export async function cancelBookingAsPassenger(
       return { success: false, refunded: false, message: 'Booking not found or not permitted.' };
     }
 
-    // Restore seats on ride. The booking is ALREADY cancelled at this point (the
-    // update above committed), so a failure here must NOT flip the overall
-    // result to failure — that would tell the passenger their cancellation
-    // failed (risking a confusing retry) when it actually succeeded. Log it
-    // instead; worst case is a temporarily under-reported seat count, which
-    // never oversells a seat.
-    const { data: rideData, error: rideReadErr } = await supabase
-      .from('rides')
-      .select('seats_available, seats_total, status')
-      .eq('id', bookingData.ride_id)
-      .single();
-
-    if (rideReadErr) {
-      console.error('[Bookings] seat-restore ride read failed:', rideReadErr.message);
-    } else {
-      const newAvail = Math.min(rideData.seats_total, rideData.seats_available + bookingData.seats_booked);
-      const { error: seatErr } = await supabase.from('rides').update({
-        seats_available: newAvail,
-        status: rideData.status === 'full' ? 'active' : rideData.status,
-      }).eq('id', bookingData.ride_id);
-      if (seatErr) console.error('[Bookings] seat-restore update failed:', seatErr.message);
-    }
+    await restoreRideSeats(bookingData.ride_id, bookingData.seats_booked);
 
     // TODO (Phase 15): if refundEligible, call create-refund edge function
 
@@ -153,5 +163,39 @@ export async function cancelBookingAsPassenger(
       refunded: false,
       message:  e instanceof Error ? e.message : 'Cancellation failed.',
     };
+  }
+}
+
+// ─── Driver accepts/declines a booking request ────────────────────────────────
+
+/**
+ * Driver declines a passenger's PENDING booking request. book_ride() decrements
+ * seats_available at REQUEST time (not at acceptance), so declining must
+ * restore the seat — otherwise seats_available stays permanently understated
+ * and the ride could get stuck showing "full". `.eq('status', 'pending')`
+ * guards against declining a request that's already been accepted/declined
+ * (RLS also scopes this to the driver's own ride — see
+ * "Driver can update bookings on own rides").
+ */
+export async function declineBooking(bookingId: string): Promise<SimpleResult> {
+  try {
+    const { data: bookingRows, error: bookErr } = await supabase
+      .from('bookings')
+      .update({ status: 'declined' })
+      .eq('id', bookingId)
+      .eq('status', 'pending')
+      .select('seats_booked, ride_id');
+
+    if (bookErr) return { ok: false, error: bookErr.message };
+    const bookingData = bookingRows?.[0];
+    if (!bookingData) {
+      return { ok: false, error: 'Booking not found, not permitted, or already decided.' };
+    }
+
+    await restoreRideSeats(bookingData.ride_id, bookingData.seats_booked);
+
+    return { ok: true };
+  } catch (e: unknown) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Could not decline the booking.' };
   }
 }

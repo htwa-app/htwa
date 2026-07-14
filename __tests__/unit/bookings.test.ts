@@ -52,7 +52,7 @@ jest.mock('../../lib/supabase', () => {
   };
 });
 
-import { isFullRefundEligible, cancelRideAsDriver, cancelBookingAsPassenger } from '../../services/bookings';
+import { isFullRefundEligible, cancelRideAsDriver, cancelBookingAsPassenger, declineBooking } from '../../services/bookings';
 
 beforeEach(() => jest.clearAllMocks());
 
@@ -239,5 +239,55 @@ describe('cancelBookingAsPassenger', () => {
     const res = await cancelBookingAsPassenger('b1', 'p1', futureDeparture);
     expect(res.success).toBe(false);
     expect(res.message).toBe('network error');
+  });
+});
+
+describe('declineBooking', () => {
+  it('declines the booking and restores the seat on success', async () => {
+    mockBookingCancelSelect.mockResolvedValue({
+      data: [{ seats_booked: 1, ride_id: 'r1' }],
+      error: null,
+    });
+    mockRideSingle.mockResolvedValue({
+      data: { seats_available: 0, seats_total: 4, status: 'full' },
+      error: null,
+    });
+    mockRideRestoreUpdate.mockResolvedValue({ error: null });
+
+    const res = await declineBooking('b1');
+    expect(res).toEqual({ ok: true });
+  });
+
+  it('fails when the update query errors', async () => {
+    mockBookingCancelSelect.mockResolvedValue({ data: null, error: { message: 'db down' } });
+    const res = await declineBooking('b1');
+    expect(res).toEqual({ ok: false, error: 'db down' });
+  });
+
+  it('fails (does not report success) when zero rows are updated — not found, not permitted, or already decided', async () => {
+    mockBookingCancelSelect.mockResolvedValue({ data: [], error: null });
+    const res = await declineBooking('b1');
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/not found|permitted|decided/i);
+  });
+
+  it('still reports success if the seat-restore fails (logs, does not fail the user-facing result)', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockBookingCancelSelect.mockResolvedValue({
+      data: [{ seats_booked: 1, ride_id: 'r1' }],
+      error: null,
+    });
+    mockRideSingle.mockResolvedValue({ data: null, error: { message: 'ride read failed' } });
+
+    const res = await declineBooking('b1');
+    expect(res).toEqual({ ok: true });
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('[Bookings]'), 'ride read failed');
+    errorSpy.mockRestore();
+  });
+
+  it('catches a thrown exception', async () => {
+    mockBookingCancelSelect.mockRejectedValue(new Error('network error'));
+    const res = await declineBooking('b1');
+    expect(res).toEqual({ ok: false, error: 'network error' });
   });
 });
