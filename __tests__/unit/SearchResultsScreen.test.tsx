@@ -81,6 +81,13 @@ describe('SearchResultsScreen', () => {
     await waitFor(() => expect(screen.getByTestId('empty-state')).toBeTruthy());
   });
 
+  it('shows an error state (not an empty list) when the verification batch query errors', async () => {
+    mockVerifsResult.mockResolvedValue({ data: null, error: { message: 'db down' } });
+    render(<SearchResultsScreen />);
+    await waitFor(() => expect(screen.getByTestId('results-error')).toBeTruthy());
+    expect(screen.queryByTestId('empty-state')).toBeNull();
+  });
+
   it('handles a non-numeric seats param without crashing (NaN guard)', async () => {
     mockParams = { from: 'A', to: 'B', date: '', seats: 'abc', womenOnly: 'false' };
     expect(() => render(<SearchResultsScreen />)).not.toThrow();
