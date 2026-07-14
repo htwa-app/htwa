@@ -79,6 +79,19 @@ describe('EditProfileScreen — pre-fill', () => {
     await waitFor(() => expect(screen.getByTestId('university-input')).toBeTruthy());
     expect(screen.getByDisplayValue('UCD')).toBeTruthy();
   });
+
+  it('shows an error (not a silently blank form) when the initial load query errors', async () => {
+    mockSingleImpl.mockResolvedValue({ data: null, error: { message: 'db down', code: '500' } });
+    render(<EditProfileScreen />);
+    await waitFor(() => expect(screen.getByTestId('save-error')).toHaveTextContent(/could not load/i));
+  });
+
+  it('does not show an error for a first-time profile (PGRST116 — no row yet)', async () => {
+    mockSingleImpl.mockResolvedValue({ data: null, error: { message: 'no rows', code: 'PGRST116' } });
+    render(<EditProfileScreen />);
+    await waitFor(() => expect(screen.getByTestId('edit-profile-screen')).toBeTruthy());
+    expect(screen.queryByTestId('save-error')).toBeNull();
+  });
 });
 
 // ─── Travel preference chips ──────────────────────────────────────────────────

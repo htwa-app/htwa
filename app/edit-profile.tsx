@@ -127,11 +127,17 @@ export default function EditProfileScreen(): React.ReactElement {
   const loadProfile = useCallback(async () => {
     if (!user) { setIsLoading(false); return; }
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('bio, university, travel_preferences, university_verification_status')
         .eq('user_id', user.id)
         .single();
+
+      // PGRST116 = no row yet (first-time profile) — not an error state.
+      if (error && error.code !== 'PGRST116') {
+        setSaveError('Could not load your profile. Please try again.');
+        return;
+      }
 
       if (data) {
         setBio(data.bio ?? '');
@@ -140,6 +146,8 @@ export default function EditProfileScreen(): React.ReactElement {
         const saved = (data.travel_preferences ?? {}) as Partial<TravelPreferences>;
         setPrefs({ ...DEFAULT_PREFS, ...saved });
       }
+    } catch {
+      setSaveError('Could not load your profile. Please try again.');
     } finally {
       setIsLoading(false);
     }

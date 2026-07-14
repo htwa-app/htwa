@@ -91,6 +91,10 @@ export default function OfferRideScreen(): React.ReactElement {
   const [jurisdiction,  setJurisdiction]  = useState<Jurisdiction | null>(null);
   const [engineCc,      setEngineCc]      = useState<EngineCcBand | null>(null);
   const [cumulative,    setCumulative]    = useState(0);
+  // A query error here must NEVER be treated as "cumulative mileage = 0" — an
+  // understated cumulative could apply a more favourable (wrong) tax band.
+  // Distinct from "hasProfile is false" (which means genuinely not set up yet).
+  const [profileLoadError, setProfileLoadError] = useState(false);
 
   // Rates come from the DB (sole source of truth). null until loaded; ratesError
   // when the fetch fails — pricing then FAILS LOUD, never from a hardcoded rate.
@@ -105,21 +109,28 @@ export default function OfferRideScreen(): React.ReactElement {
   const loadDriverProfile = useCallback(async () => {
     if (!user) return;
     try {
-      const { data: profile } = await supabase
+      const { data: profile, error: profileErr } = await supabase
         .from('driver_pricing_profiles')
         .select('tax_residence, engine_cc')
         .eq('user_id', user.id)
         .maybeSingle();
+
+      if (profileErr) { setProfileLoadError(true); return; }
 
       if (profile) {
         const jur = profile.tax_residence as Jurisdiction;
         setJurisdiction(jur);
         setEngineCc(profile.engine_cc as EngineCcBand);
 
-        const { data: increments } = await supabase
+        const { data: increments, error: incrementsErr } = await supabase
           .from('driver_mileage_increments')
           .select('amount, created_at, source')
           .eq('driver_id', user.id);
+
+        // A failed query here must NEVER silently compute as "0 miles so
+        // far" — that could apply a more favourable (wrong) tax band.
+        if (incrementsErr) { setProfileLoadError(true); return; }
+
         const mapped: MileageIncrement[] = (increments ?? []).map((i) => ({
           amount: Number(i.amount),
           at: i.created_at as string,
@@ -215,6 +226,7 @@ export default function OfferRideScreen(): React.ReactElement {
     && date.length > 0
     && time.length > 0
     && hasProfile
+    && !profileLoadError
     && driverSeatPrice !== null && driverSeatPrice > 0;
 
   const handleReview = () => {
@@ -264,8 +276,19 @@ export default function OfferRideScreen(): React.ReactElement {
         <View style={styles.headerSpacer} />
       </View>
 
+      {/* A load failure is NOT the same as "not set up yet" — don't send an
+          already-onboarded driver back through onboarding for a query error. */}
+      {profileLoaded && profileLoadError && (
+        <View style={styles.setupBanner} testID="profile-load-error">
+          <Ionicons name="alert-circle-outline" size={20} color={Colors.sos} />
+          <Text style={styles.setupBannerText}>
+            Could not load your driver pricing details. Please try again.
+          </Text>
+        </View>
+      )}
+
       {/* Driver setup gate — pricing needs the driver's tax residence + engine cc. */}
-      {profileLoaded && !hasProfile && (
+      {profileLoaded && !hasProfile && !profileLoadError && (
         <TouchableOpacity
           style={styles.setupBanner}
           onPress={() => router.push('/driver-onboarding')}

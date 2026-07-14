@@ -273,4 +273,25 @@ describe('OfferRideScreen — Block 4 fixed cost-share pricing', () => {
     await waitFor(() => expect(screen.getByTestId('distance-value')).toBeTruthy(), { timeout: 2000 });
     expect(screen.getByTestId('review-button').props.accessibilityState?.disabled).toBe(true);
   });
+
+  it('shows a load-error banner (not the "complete setup" banner) when the profile query errors', async () => {
+    // A driver who HAS already set up their profile should never be sent back
+    // through onboarding just because a query failed.
+    mockProfile.mockResolvedValue({ data: null, error: { message: 'db down' } });
+    render(<OfferRideScreen />);
+    await waitFor(() => expect(screen.getByTestId('profile-load-error')).toBeTruthy());
+    expect(screen.queryByTestId('complete-setup-banner')).toBeNull();
+  });
+
+  it('blocks review (does not silently price at 0 cumulative mileage) when the increments query errors', async () => {
+    mockIncrements.mockResolvedValue({ data: null, error: { message: 'db down' } });
+    render(<OfferRideScreen />);
+    await waitFor(() => expect(screen.getByTestId('profile-load-error')).toBeTruthy());
+    fireEvent.changeText(screen.getByTestId('from-input'), 'Galway');
+    fireEvent.changeText(screen.getByTestId('to-input'), 'Dublin');
+    fireEvent.changeText(screen.getByTestId('date-input'), '2026-06-01');
+    fireEvent.changeText(screen.getByTestId('time-input'), '09:00');
+    await waitFor(() => expect(screen.getByTestId('distance-value')).toBeTruthy(), { timeout: 2000 });
+    expect(screen.getByTestId('review-button').props.accessibilityState?.disabled).toBe(true);
+  });
 });
