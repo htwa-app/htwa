@@ -8,6 +8,18 @@ Entries are added at the top. Most recent session is always first.
 
 Resumption after ~3.5 weeks of inactivity. Branch `feat/journey-overhaul` (PR [#27](https://github.com/htwa-app/htwa/pull/27)); **not merged to main** — merging only happens after CodeRabbit is clean and Jordan has done the hands-on cold-start test. `tsc --noEmit`: **0 errors** throughout. Jest: **894 → 972 passing** (start-of-session baseline was actually 921, already ahead of the 894 figure quoted at the start of this session — later commits between sessions had already progressed further than CLAUDE.md's last update reflected).
 
+### Follow-up (same day) — Supabase restored, 2 pending migrations applied ✅
+
+Jordan fixed the stuck 1Password CLI. Re-ran the Phase 0 Supabase health check:
+
+- **Project was PAUSED** (`status: INACTIVE`, confirmed via the Management API), exactly as expected from ~5 weeks of inactivity. Restored it via `POST /v1/projects/{ref}/restore` — went `INACTIVE` → `COMING_UP` → `RESTORING` → **`ACTIVE_HEALTHY`** in a few minutes. No dashboard click needed.
+- `supabase db push` doesn't work in this project's setup (no DB password is stored — only the `sb_secret_…` PostgREST key and the `sbp_…` Management token; this is a deliberate 1Password scoping choice, not an oversight). Applied both pending migrations the same way every prior migration in this project was applied: raw SQL via the Management API's `POST /v1/projects/{ref}/database/query` endpoint (authenticated with the Management token). Confirmed there's no `supabase_migrations.schema_migrations` tracking table in this project (consistent with never having used `db push`), so there's nothing to reconcile.
+- **Both migrations applied and verified live:**
+  - `20260714000001_mileage_increment_check_constraint.sql` — checked for existing violating rows first (0 found, safe to add), then applied. Verified: `driver_mileage_increments_amount_check` exists with `CHECK (((amount > (0)::numeric) AND (amount <= 99999999.99)))`.
+  - `20260714000002_student_cards_delete_policy.sql` — applied. Verified: `"Student card owner delete"` policy exists on `storage.objects`, `cmd=DELETE`, scoped to `bucket_id = 'student-cards' AND (storage.foldername(name))[1] = auth.uid()::text`.
+- **Re-verified the rest of the Phase 0 health check now that the DB is reachable:** all 12 expected tables present (`users`, `verification`, `profiles`, `rides`, `bookings`, `messages`, `reviews`, `pricing_rates`, `pricing_config`, `driver_pricing_profiles`, `driver_mileage_increments`, `payment_accounts`); `pricing_config`/`pricing_rates` write access is still `service_role`-only (no stray authenticated-write policy); the journey-overlap trigger still fires `BEFORE INSERT OR UPDATE` (`tgtype=23`).
+- All 15 migrations in `supabase/migrations/` are now fully reflected in the live schema.
+
 ### Phase 0 — Audit ✅
 
 - `feat/journey-overhaul` is 19 commits ahead of `main`, 0 behind — no drift, no conflicts expected on eventual merge.

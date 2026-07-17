@@ -2,6 +2,8 @@
 
 This was a "get things healthy again" session after about 3.5 weeks away. Everything below is on the `feat/journey-overhaul` branch — **nothing was merged to `main`**. That only happens after you've done your hands-on test and CodeRabbit comes back clean.
 
+**Update (same day):** you fixed the 1Password CLI. I re-ran the Supabase check and applied the 2 pending migrations — see the new section at the end. Two of the original open items are now closed; two remain (the visual Stripe check, and your hands-on test).
+
 ---
 
 ## a. WHAT WAS DONE
@@ -39,8 +41,8 @@ This was a "get things healthy again" session after about 3.5 weeks away. Everyt
 
 ## b. WHAT I COULD NOT DO
 
-**1. Could not check on your Supabase database, or apply 2 new small safety fixes to it.**
-The tool I use to fetch your stored passwords/keys (1Password, via something called the `op` command) got stuck and never responded — not once, but every time I tried, across the whole session. I tried several fixes (clearing a leftover connection file, checking my internet access was fine — it was) but couldn't get it working. This means I couldn't confirm your database is awake, and I couldn't apply two small new safety rules I wrote for it. They're ready and waiting — see Human Tasks below.
+**1. ~~Could not check on your Supabase database, or apply 2 new small safety fixes to it.~~ RESOLVED.**
+Once you fixed the 1Password CLI, I checked: your database was indeed paused (as expected after ~5 weeks idle). I woke it back up automatically — no dashboard click needed, it just took a few minutes to come back online. Then I applied both pending safety fixes and double-checked each one is really there. Full detail in the new section at the end of this doc.
 
 **2. Could not do the final "look at it running" check on the Stripe fix.**
 I built a working test version of the app and got it installed onto your iPhone simulator successfully. The very last step — tapping a one-time "Open in htwa?" confirmation button inside the simulator — needs me to control your screen, which requires a permission popup that nobody was available to click "Allow" on (it waited 5 minutes, twice, then gave up). I'm confident the fix is correct (I compared Stripe's old and new code directly and the bug is structurally gone), but per your own rule about not trusting anything visual without actually seeing it, I'm flagging this clearly rather than claiming it's confirmed.
@@ -51,11 +53,11 @@ Both of the above are the same *type* of problem — something in this Mac's set
 
 ## c. HUMAN TASKS
 
-1. **Investigate the stuck 1Password command-line tool.** *(Terminal)* Why: I can't reach your Supabase database or apply new fixes to it until this works again. What it unblocks: checking your database is awake, applying 2 pending safety updates, and any future session doing the same kind of work. Quick things to try: open a Terminal and run `op vault list` yourself — if it also hangs for you, it's likely a stuck permission/login state that needs `op signin` run fresh, or possibly needs 1Password reinstalled.
+1. ~~Investigate the stuck 1Password command-line tool.~~ **DONE — thank you.**
 
 2. **Confirm the red error screen is actually gone.** *(Simulator)* Why: this was the #1 priority bug for this session, and I could build the fix but not watch it happen. What to do: your iPhone 17 Pro simulator should still be running with the "htwa Development Build" launcher screen open. Tap the `http://localhost:8081` row (or if it's closed, run `npx eas build:run --platform ios --latest` from Terminal to reinstall it, then open it). Confirm you see the login/signup screen with **no red error banner**, and the "Continue" button is visible. What it unblocks: closing out the top-priority bug from this session with real confidence.
 
-3. **Apply the 2 new database migrations once 1Password is working again.** *(Terminal)* Why: they're written and tested but were never sent to your live database this session. What to do: once `op` works, run `op run --env-file=.secrets.env -- npx supabase db push` (or however you've applied migrations before). What it unblocks: the 2 small extra safety checks in the database (they don't change any behaviour you'd notice — just extra safety nets).
+3. ~~Apply the 2 new database migrations.~~ **DONE** — both applied and verified live against the database (see the new section at the end for exactly what was checked).
 
 4. **Do your hands-on test of this branch.** *(Simulator)* Why: your own standing rule — Claude can't run code, so nothing gets merged until you've actually used it. What to do: try posting a journey as a driver, then (as a different test account) request to join it, then go back to the driver account and try the new Accept/Decline screen. What it unblocks: this is the last gate before this branch can be merged into `main`.
 
@@ -74,8 +76,22 @@ Both of the above are the same *type* of problem — something in this Mac's set
 
 ## d. INFO I NEED FROM YOU TO CONTINUE
 
-1. **Whether the 1Password issue is fixed, or what's causing it.** Why: I can't touch your live database or your credentials vault until this works. Unblocks: Supabase health checks, applying migrations, any task needing a stored key.
+1. ~~Whether the 1Password issue is fixed.~~ **Answered — it's fixed.**
 2. **Confirmation the red-overlay fix actually works on your screen.** Why: I can't declare the #1 priority bug closed without you (or me, once unblocked) actually seeing it. Unblocks: closing Phase 1 with full confidence, and merging this branch.
 3. **The result of your hands-on test walk.** Why: nothing merges without it, per your own standing rule. Unblocks: merge to `main`.
 4. **Your decision on the fresh CodeRabbit review findings**, once it posts. Unblocks: final pre-merge triage.
 5. **Adviser feedback on the 7 legal items above.** Unblocks: launch readiness (not urgent for this branch, but needed before going live).
+
+---
+
+## e. FOLLOW-UP (same day) — Supabase database woken up, 2 migrations applied
+
+**What happened, in plain terms:** Your database goes to sleep automatically after a few weeks with no activity (this is a Supabase free-tier thing, not something wrong with your project). It was indeed asleep. I sent it a "wake up" request through Supabase's own API and it came back online on its own within a few minutes — I didn't need you to click anything in a dashboard.
+
+**The 2 pending safety fixes are now live and I double-checked each one directly against the database:**
+1. A rule that stops a mileage entry from ever being saved as zero, negative, or absurdly large — confirmed present.
+2. A rule that lets a user delete their own uploaded student ID card photo (a gap where "delete" was promised but never actually built) — confirmed present.
+
+**I also re-ran the rest of the original health check now that the database was reachable:** every expected table is there, the pricing tables are still locked down so only the system (not any individual user) can change rates or fees, and the safety rule that stops a driver posting two overlapping journeys is still working correctly. Everything matches what's in the code.
+
+**Nothing else needed your input for this part** — it was all covered by your standing rule that I can operate project services (Supabase, Stripe, GitHub, MailerLite) freely using the stored credentials.
