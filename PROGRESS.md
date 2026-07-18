@@ -20,6 +20,27 @@ Jordan fixed the stuck 1Password CLI. Re-ran the Phase 0 Supabase health check:
 - **Re-verified the rest of the Phase 0 health check now that the DB is reachable:** all 12 expected tables present (`users`, `verification`, `profiles`, `rides`, `bookings`, `messages`, `reviews`, `pricing_rates`, `pricing_config`, `driver_pricing_profiles`, `driver_mileage_increments`, `payment_accounts`); `pricing_config`/`pricing_rates` write access is still `service_role`-only (no stray authenticated-write policy); the journey-overlap trigger still fires `BEFORE INSERT OR UPDATE` (`tgtype=23`).
 - All 15 migrations in `supabase/migrations/` are now fully reflected in the live schema.
 
+### Follow-up (same day) — 2 fixes from hands-on testing: returning-user sign-in + idempotent post-verify writes ✅
+
+Jordan hands-on tested and found two real bugs. Both fixed on this branch.
+
+**1. Returning-user sign-in.** There was no way back in for an existing user — `login.tsx`'s "Continue with email" and all other buttons routed to `/signup` regardless, and the email button had a literal `// Returning user sign-in: TODO Phase 15` comment.
+- New `app/login-email.tsx` — email-only entry step. Calls `signInWithOtp` with `shouldCreateUser: false`, so an unregistered email fails immediately (before any OTP is sent) with a "Sign up instead" link, instead of sending a code and only discovering the problem later.
+- `login.tsx`'s "Continue with email" now goes here (resolving the TODO); `signup.tsx` gained an "Already have an account? Log in" link to the same screen.
+- On success, routes to `/verify?mode=login`. **No new `public.users` row is ever written on this path.**
+
+**2. Idempotent post-verify writes (`app/verify.tsx`).** The screen previously did a plain `.insert()` into `users`, unconditionally — a retry after an interrupted signup (the same already-authenticated user verifying a second time) hit `duplicate key value violates unique constraint "users_pkey"`, shown raw in the UI.
+- `users` write changed to `.upsert(..., { onConflict: 'id' })`.
+- `verification` write changed to `.upsert(..., { onConflict: 'user_id', ignoreDuplicates: true })` — deliberately stronger than a plain upsert: a fixed `{id_verified:false, selfie_verified:false}` payload on a normal upsert would have silently **reset an already-verified user back to unverified** on any retry through this code path. `ignoreDuplicates` leaves an existing row completely untouched, so the routing decision below always reflects the real state.
+- **Confirmed (no new migration needed):** RLS `UPDATE` policies already exist on all three tables this touches — `"Users can update own record"` (users), `"Users can update own verification"` (verification, migration `20260530000001`), `"Users can update own profile"` (profiles) — all required for `ON CONFLICT DO UPDATE` to work under RLS.
+- New `utils/authRouting.ts` (`resolvePostAuthDestination`) — a shared, pure, unit-tested routing decision (verified+profile → tabs, verified-no-profile → profile-setup, unverified → id-verify; mirrors `SplashScreen`'s own precedence). Used by **both** the signup and login paths through `verify.tsx`, replacing the old hardcoded `router.replace('/id-verify')`, so a user lands in the same place regardless of which flow brought them here.
+- Login mode never writes to `users`/`verification` — it only reads. If no `users` row exists at all (e.g. an interrupted signup retried via login instead of signup), it shows a friendly "couldn't find an account" message with a link to `/signup`, rather than risking an FK-violation trying to write dependent rows for a nonexistent user.
+- Raw Postgres error messages are no longer shown for any of these queries — replaced with friendly, generic copy. `verifyOtp`'s own error message is left as-is (already a reasonably friendly Supabase Auth message).
+
+**Regression tests:** fresh signup, interrupted-signup retry (incl. the already-verified-user-not-reset-to-false case), and returning user via login (verified / unverified / no-profile / no-account, each with its own error-path test). 71 new/changed tests across `VerifyScreen`, `LoginEmailScreen`, `SignupScreen`, `LoginScreen`, `validators`, and the new `authRouting` unit. `tsc --noEmit`: 0 errors. Jest: **972 → 1013 passing**.
+
+**Files:** created `app/login-email.tsx`, `utils/authRouting.ts`, `__tests__/unit/LoginEmailScreen.test.tsx`, `__tests__/unit/authRouting.test.ts`; modified `app/verify.tsx`, `app/login.tsx`, `app/signup.tsx`, `utils/validators.ts` (added `validateEmail`), `__tests__/unit/VerifyScreen.test.tsx`, `__tests__/unit/SignupScreen.test.tsx`, `__tests__/unit/LoginScreen.test.tsx`, `__tests__/unit/validators.test.ts`.
+
 ### Phase 0 — Audit ✅
 
 - `feat/journey-overhaul` is 19 commits ahead of `main`, 0 behind — no drift, no conflicts expected on eventual merge.
