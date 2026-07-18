@@ -100,6 +100,15 @@ describe('RideDetailScreen', () => {
     await waitFor(() => expect(screen.getByTestId('ride-detail-error')).toBeTruthy());
   });
 
+  it('retries the load when "Try again" is pressed on the error state', async () => {
+    mockRide.mockResolvedValueOnce({ data: null, error: { message: 'nope' } });
+    render(<RideDetailScreen />);
+    await waitFor(() => expect(screen.getByTestId('ride-detail-error')).toBeTruthy());
+    mockRide.mockResolvedValue({ data: RIDE, error: null });
+    fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(screen.getByTestId('driver-name')).toBeTruthy());
+  });
+
   it('shows the error state (not a false "unverified" driver) when the verification query errors', async () => {
     // A query error here must never silently render as "not verified" — that
     // would misrepresent a safety-relevant badge to a passenger.

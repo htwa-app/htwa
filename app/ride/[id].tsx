@@ -129,7 +129,14 @@ export default function RideDetailScreen(): React.ReactElement {
   useEffect(() => { void fetchRide(); }, [fetchRide]);
 
   if (isLoading) return <View style={styles.center} testID="ride-detail-loading"><ActivityIndicator size="large" color={Colors.primary} /></View>;
-  if (error || !ride || !rates) return <View style={styles.center} testID="ride-detail-error"><Text style={styles.errorText}>{error ?? 'Not found'}</Text></View>;
+  if (error || !ride || !rates) return (
+    <View style={styles.center} testID="ride-detail-error">
+      <Text style={styles.errorText}>{error ?? 'Not found'}</Text>
+      <TouchableOpacity onPress={fetchRide} style={styles.retryBtn} accessibilityRole="button">
+        <Text style={styles.retryText}>Try again</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   const initials = ride.driver.full_name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('');
   const depTime  = new Date(ride.departure_datetime).toLocaleTimeString('en-IE', { hour: '2-digit', minute: '2-digit' });
@@ -277,6 +284,8 @@ const styles = StyleSheet.create({
   totalValue: { ...Typography.headingMedium, color: Colors.primary },
   bookBtn: {},
   errorText: { ...Typography.bodyMedium, color: Colors.textSecondary },
+  retryBtn: { marginTop: Spacing.md, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md },
+  retryText: { ...Typography.buttonSmall, color: Colors.primary },
   ownRideNote: { backgroundColor: Colors.primaryLight, borderRadius: BorderRadius.medium, padding: Spacing.cardPadding, alignItems: 'center' },
   ownRideText: { ...Typography.bodyMedium, color: Colors.primary },
   fullNote: { backgroundColor: Colors.amberLight, borderRadius: BorderRadius.medium, padding: Spacing.cardPadding, alignItems: 'center' },

@@ -220,22 +220,26 @@ export default function VerifyScreen() {
     if (cooldown > 0) return;
     setVerifyError(null);
     setNoAccount(false);
-    const { error: resendError } = await supabase.auth.resend({ email, type: 'signup' });
-    if (resendError) {
-      setVerifyError(resendError.message ?? 'Unable to resend code. Please try again.');
-      return;
+    try {
+      const { error: resendError } = await supabase.auth.resend({ email, type: 'signup' });
+      if (resendError) {
+        setVerifyError(resendError.message ?? 'Unable to resend code. Please try again.');
+        return;
+      }
+      // Only start the countdown after a confirmed successful resend
+      setCooldown(RESEND_COOLDOWN_SECONDS);
+      intervalRef.current = setInterval(() => {
+        setCooldown(prev => {
+          if (prev <= 1) {
+            if (intervalRef.current) clearInterval(intervalRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } catch {
+      setVerifyError('Unable to resend code. Please try again.');
     }
-    // Only start the countdown after a confirmed successful resend
-    setCooldown(RESEND_COOLDOWN_SECONDS);
-    intervalRef.current = setInterval(() => {
-      setCooldown(prev => {
-        if (prev <= 1) {
-          if (intervalRef.current) clearInterval(intervalRef.current);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
   };
 
   const formatCooldown = (s: number) =>

@@ -179,6 +179,13 @@ describe('VerifyScreen — resend supabase call', () => {
       type:  'signup',
     });
   });
+
+  it('shows an error (does not crash) when resend throws', async () => {
+    mockResend.mockRejectedValue(new Error('network'));
+    render(<VerifyScreen />);
+    fireEvent.press(screen.getByRole('button', { name: 'Resend code' }));
+    await waitFor(() => expect(screen.getByTestId('verify-error')).toHaveTextContent(/unable to resend/i));
+  });
 });
 
 // ─── Fresh signup (mode: signup, default) ──────────────────────────────────────

@@ -118,6 +118,23 @@ describe('MyRidesScreen', () => {
     await waitFor(() => expect(screen.getByTestId('rides-error')).toBeTruthy());
   });
 
+  it('hides the Upcoming/Past sections while an error is showing (not a misleading "no journeys" alongside it)', async () => {
+    mockRidesResult.mockResolvedValue({ data: null, error: { message: 'db down' } });
+    render(<MyRidesScreen />);
+    await waitFor(() => expect(screen.getByTestId('rides-error')).toBeTruthy());
+    expect(screen.queryByTestId('upcoming-empty')).toBeNull();
+    expect(screen.queryByTestId('past-empty')).toBeNull();
+  });
+
+  it('retries the load when "Try again" is pressed on the error state', async () => {
+    mockRidesResult.mockResolvedValueOnce({ data: null, error: { message: 'db down' } });
+    render(<MyRidesScreen />);
+    await waitFor(() => expect(screen.getByTestId('rides-error')).toBeTruthy());
+    mockRidesResult.mockResolvedValue({ data: driverRides, error: null });
+    fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(screen.getByTestId('ride-item-r1')).toBeTruthy());
+  });
+
   it('navigates back when the back button is pressed', async () => {
     render(<MyRidesScreen />);
     await waitFor(() => expect(screen.getByTestId('back-button')).toBeTruthy());
