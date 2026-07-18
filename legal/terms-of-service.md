@@ -1,7 +1,7 @@
 
 # htwa Terms of Service
 
-**Last updated:** 29 April 2026  
+**Last updated:** 17 July 2026 (PLACEHOLDER — PENDING ADVISER REVIEW)  
 **Effective date:** To be confirmed on launch
 
 ---
@@ -81,7 +81,13 @@ All users must complete ID and selfie verification before accessing the platform
 - You are who you say you are
 - You are over 18
 
-Your verified status is displayed as a green "Verified" tick on your profile. Users who are not verified cannot offer or book rides.
+Your verified status is displayed as a green "Verified" tick on your profile. Users who are not verified cannot offer or book journeys.
+
+### 5.1 Driver identity and vehicle disclosure
+
+Drivers must upload a verified photo of themselves and register their vehicle's make, model, colour and registration number before offering journeys. When a passenger books a journey, htwa shows them the driver's verified photo, full name and gender, and the registered vehicle details, so the passenger can confirm at pickup that the person and vehicle match. By offering journeys on htwa, drivers consent to this disclosure to their booked passengers.
+
+Drivers must keep these details accurate and current. Driving a vehicle other than the one registered for the journey, or allowing any other person to drive a journey booked under your identity, is a serious breach of these Terms and will result in permanent removal from the platform.
 
 ---
 
@@ -95,10 +101,15 @@ All payments are processed through Stripe. By using htwa you agree to Stripe's t
 - Receipts are available in the app
 
 **Cancellations:**
-- Driver cancels: full refund to passenger, no platform fee charged
+- Driver cancels: full refund to all passengers, no platform fee charged
 - Passenger cancels more than 24 hours before departure: full refund
-- Passenger cancels less than 24 hours before departure: 50% refund (to compensate the driver for lost seat)
+- Passenger cancels 24 hours or less before departure: no refund (the driver has reserved the seat and priced the journey around it)
 - No-show by passenger: no refund
+- Passenger declines to start a journey because the driver or vehicle does not match the verified details shown in the app (see §7A): full refund
+
+<!-- ADVISER NOTE: the ≤24h no-refund term matches the app's implemented behaviour (services/bookings.ts). The previous draft said 50% — confirm the harder line is acceptable under ROI/UK consumer law before launch. -->
+
+**Payment failures:** if a payment or refund fails, we will tell you what happened and what to do next. Contact hello@htwa-app.com if a payment issue is not resolved in the app.
 
 ---
 
@@ -111,6 +122,16 @@ By using the platform you acknowledge that:
 - htwa does not employ drivers or control how journeys are conducted
 - You travel at your own risk and are responsible for your own safety decisions
 - You should use the safety features provided and inform your nominated contact of your plans
+
+### 7A. Your verification and nominated-contact responsibilities
+
+This section is presented in-app as the Journey Verification & Safety Responsibility Acknowledgment and must be accepted before each booking.
+
+**7A.1 Verifying your driver is your responsibility.** Before each journey, htwa shows the booking passenger the driver's verified photo, full name and gender, and the vehicle's make, model, colour and registration. You must check that the person and vehicle that arrive match these details before getting in. If they do not match, do not travel: cancel in the app and report it to us. Journeys declined at pickup because the driver or vehicle did not match the verified details are refunded in full.
+
+**7A.2 Your nominated contact must be available.** Every journey requires a nominated contact who can follow your live journey and receive safety alerts (including Silent SOS and route-deviation alerts) while it takes place. By booking or starting a journey you confirm your nominated contact knows they are nominated, is able to receive and act on alerts at the time of the journey, and that their details are current. Your nominated contact defaults to the one used for your last journey and can be changed per journey before departure.
+
+**7A.3 Safety tools support your judgment; they do not replace it.** Live tracking, route-deviation alerts and Silent SOS are support tools and do not transfer responsibility for your safety to htwa. In an emergency always contact 999 (ROI) or 999/112 (NI).
 
 ### 7.1 Women-only journeys
 
@@ -130,6 +151,16 @@ After each journey, both driver and passenger are invited to rate each other. Re
 - Not posted by fake or duplicate accounts
 
 htwa reserves the right to remove reviews that violate these standards.
+
+---
+
+## 8A. In-App Messages and Records
+
+In-app messages between drivers and passengers are retained by htwa as a permanent safeguarding and dispute record, and cannot be deleted by users. Chats close when a journey completes and remain visible to participants read-only. See the Privacy Policy for the lawful basis and your rights.
+
+If you delete your account, your personal details are erased or anonymised (see Privacy Policy §7A), but journey, payment and message records are retained in anonymised or pseudonymised form where we are legally required to keep them or where they form part of the safeguarding record.
+
+<!-- ADVISER NOTE: permanent message retention vs right-to-erasure, and anonymise-in-place deletion, both need sign-off — see ADVISER-BRIEFING.md items 6 and 7. -->
 
 ---
 
@@ -173,7 +204,9 @@ htwa does not provide insurance to drivers or passengers.
 ## 12. Governing Law
 
 - For users in the **Republic of Ireland:** these Terms are governed by the laws of Ireland and subject to the exclusive jurisdiction of the Irish courts.
-- For users in **Northern Ireland:** these Terms are governed by the laws of England and Wales and subject to the exclusive jurisdiction of the courts of England and Wales.
+- For users in **Northern Ireland:** these Terms are governed by the laws of Northern Ireland and subject to the exclusive jurisdiction of the courts of Northern Ireland.
+
+Nothing in this clause deprives a consumer of the protection of mandatory consumer-law provisions of their country of residence.
 
 ---
 
