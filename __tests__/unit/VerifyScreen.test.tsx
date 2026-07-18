@@ -6,34 +6,58 @@ import VerifyScreen from '../../app/verify';
 
 const mockPush    = jest.fn();
 const mockReplace = jest.fn();
+let mockParams: { email?: string; mode?: string } = { email: 'test@ucd.ie' };
 jest.mock('expo-router', () => ({
   useRouter:            () => ({ push: mockPush, replace: mockReplace }),
-  useLocalSearchParams: () => ({ email: 'test@ucd.ie' }),
+  useLocalSearchParams:  () => mockParams,
 }));
 
-const mockVerifyOtp = jest.fn();
-const mockResend    = jest.fn();
-const mockInsert    = jest.fn();
+const mockVerifyOtp          = jest.fn();
+const mockResend             = jest.fn();
+const mockUsersUpsert        = jest.fn();
+const mockUsersSelect        = jest.fn();
+const mockVerificationUpsert = jest.fn();
+const mockVerificationSelect = jest.fn();
+const mockProfilesSelect     = jest.fn();
+
 jest.mock('../../lib/supabase', () => ({
   supabase: {
     auth: {
       verifyOtp: (...args: unknown[]) => mockVerifyOtp(...args),
       resend:    (...args: unknown[]) => mockResend(...args),
     },
-    from: () => ({
-      insert: (...args: unknown[]) => mockInsert(...args),
-      upsert: (...args: unknown[]) => mockInsert(...args), // verification row uses upsert
-    }),
+    from: (table: string) => {
+      if (table === 'users') {
+        return {
+          upsert: (...args: unknown[]) => mockUsersUpsert(...args),
+          select: () => ({ eq: () => ({ maybeSingle: () => mockUsersSelect() }) }),
+        };
+      }
+      if (table === 'verification') {
+        return {
+          upsert: (...args: unknown[]) => mockVerificationUpsert(...args),
+          select: () => ({ eq: () => ({ maybeSingle: () => mockVerificationSelect() }) }),
+        };
+      }
+      // profiles
+      return {
+        select: () => ({ eq: () => ({ maybeSingle: () => mockProfilesSelect() }) }),
+      };
+    },
   },
 }));
 
 beforeEach(() => {
   jest.clearAllMocks();
-  // Default: verifyOtp succeeds
+  mockParams = { email: 'test@ucd.ie' }; // no mode -> defaults to 'signup'
+
+  // Happy path defaults: a fresh signup, not yet verified, no profile.
   mockVerifyOtp.mockResolvedValue({ data: { user: { id: 'user-123' } }, error: null });
-  // Default: inserts succeed
-  mockInsert.mockResolvedValue({ error: null });
-  // Default: resend succeeds
+  mockUsersUpsert.mockResolvedValue({ error: null });
+  mockUsersSelect.mockResolvedValue({ data: { id: 'user-123' }, error: null });
+  mockVerificationUpsert.mockResolvedValue({ error: null });
+  mockVerificationSelect.mockResolvedValue({ data: { id_verified: false, selfie_verified: false }, error: null });
+  mockProfilesSelect.mockResolvedValue({ data: null, error: null });
   mockResend.mockResolvedValue({ error: null });
 });
 
@@ -128,32 +152,6 @@ describe('VerifyScreen — resend cooldown', () => {
   });
 });
 
-// ─── Navigation ───────────────────────────────────────────────────────────────
-
-describe('VerifyScreen — navigation', () => {
-  beforeEach(() => render(<VerifyScreen />));
-
-  it('"Wrong email? Go back" navigates to /signup', () => {
-    fireEvent.press(screen.getByRole('button', { name: 'Wrong email? Go back' }));
-    expect(mockPush).toHaveBeenCalledWith('/signup');
-  });
-
-  it('auto-submits to /id-verify when the 6th digit is entered', async () => {
-    fillDigits(6);
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/id-verify'));
-  });
-
-  it('Verify button navigates to /id-verify when pressed with all 6 digits', async () => {
-    fillDigits(6);
-    // Wait for auto-submit to finish so isSubmittingRef resets to false
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/id-verify'));
-    jest.clearAllMocks();
-    fireEvent.press(screen.getByRole('button', { name: 'Verify' }));
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/id-verify'));
-    expect(mockReplace).toHaveBeenCalledTimes(1);
-  });
-});
-
 // ─── Verify errors ────────────────────────────────────────────────────────────
 
 describe('VerifyScreen — verify errors', () => {
@@ -170,17 +168,6 @@ describe('VerifyScreen — verify errors', () => {
   });
 });
 
-// ─── DB inserts ───────────────────────────────────────────────────────────────
-
-describe('VerifyScreen — DB inserts', () => {
-  beforeEach(() => render(<VerifyScreen />));
-
-  it('inserts into public.users and public.verification on successful verify', async () => {
-    fillDigits(6);
-    await waitFor(() => expect(mockInsert).toHaveBeenCalledTimes(2));
-  });
-});
-
 // ─── Resend ───────────────────────────────────────────────────────────────────
 
 describe('VerifyScreen — resend supabase call', () => {
@@ -191,5 +178,208 @@ describe('VerifyScreen — resend supabase call', () => {
       email: 'test@ucd.ie',
       type:  'signup',
     });
+  });
+});
+
+// ─── Fresh signup (mode: signup, default) ──────────────────────────────────────
+
+describe('VerifyScreen — fresh signup', () => {
+  it('upserts users with onConflict "id" (not a raw insert)', async () => {
+    render(<VerifyScreen />);
+    fillDigits(6);
+    await waitFor(() => expect(mockUsersUpsert).toHaveBeenCalledTimes(1));
+    expect(mockUsersUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'user-123' }),
+      { onConflict: 'id' },
+    );
+  });
+
+  it('upserts verification with onConflict "user_id" and ignoreDuplicates so an existing row is never clobbered', async () => {
+    render(<VerifyScreen />);
+    fillDigits(6);
+    await waitFor(() => expect(mockVerificationUpsert).toHaveBeenCalledTimes(1));
+    expect(mockVerificationUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({ user_id: 'user-123', id_verified: false, selfie_verified: false }),
+      { onConflict: 'user_id', ignoreDuplicates: true },
+    );
+  });
+
+  it('routes to /id-verify when not yet verified (the normal fresh-signup case)', async () => {
+    render(<VerifyScreen />);
+    fillDigits(6);
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/id-verify'));
+  });
+
+  it('does not call the login-only users existence check', async () => {
+    render(<VerifyScreen />);
+    fillDigits(6);
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/id-verify'));
+    expect(mockUsersSelect).not.toHaveBeenCalled();
+  });
+
+  it('shows a friendly message (not the raw DB error) when the users upsert fails', async () => {
+    mockUsersUpsert.mockResolvedValueOnce({ error: { message: 'duplicate key value violates unique constraint "users_pkey"' } });
+    render(<VerifyScreen />);
+    fillDigits(6);
+    await waitFor(() => expect(screen.getByTestId('verify-error')).toBeTruthy());
+    expect(screen.queryByText(/duplicate key/i)).toBeNull();
+    expect(screen.getByTestId('verify-error')).toHaveTextContent(/went wrong/i);
+  });
+
+  it('shows a friendly message (not the raw DB error) when the verification upsert fails', async () => {
+    mockVerificationUpsert.mockResolvedValueOnce({ error: { message: 'permission denied for table verification' } });
+    render(<VerifyScreen />);
+    fillDigits(6);
+    await waitFor(() => expect(screen.getByTestId('verify-error')).toBeTruthy());
+    expect(screen.queryByText(/permission denied/i)).toBeNull();
+  });
+
+  it('Verify button navigates to /id-verify when pressed with all 6 digits', async () => {
+    render(<VerifyScreen />);
+    fillDigits(6);
+    // Wait for auto-submit to finish so isSubmittingRef resets to false
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/id-verify'));
+    jest.clearAllMocks();
+    mockUsersUpsert.mockResolvedValue({ error: null });
+    mockVerificationUpsert.mockResolvedValue({ error: null });
+    mockVerificationSelect.mockResolvedValue({ data: { id_verified: false, selfie_verified: false }, error: null });
+    mockProfilesSelect.mockResolvedValue({ data: null, error: null });
+    fireEvent.press(screen.getByRole('button', { name: 'Verify' }));
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/id-verify'));
+    expect(mockReplace).toHaveBeenCalledTimes(1);
+  });
+
+  it('"Wrong email? Go back" navigates to /signup', () => {
+    render(<VerifyScreen />);
+    fireEvent.press(screen.getByRole('button', { name: 'Wrong email? Go back' }));
+    expect(mockPush).toHaveBeenCalledWith('/signup');
+  });
+});
+
+// ─── Interrupted-signup retry (idempotency regression) ─────────────────────────
+
+describe('VerifyScreen — interrupted-signup retry', () => {
+  it('succeeds (no duplicate-key error) and routes correctly when the account already partially exists', async () => {
+    // Simulates: a first signup attempt got as far as creating the users row
+    // (and maybe the verification row too) but the app was closed before
+    // routing away. The user retries via /signup -> a fresh OTP -> this
+    // screen again, with the SAME auth user id. The old code's plain
+    // .insert() would throw "duplicate key value violates unique constraint
+    // users_pkey" here; upsert must succeed instead.
+    render(<VerifyScreen />);
+    fillDigits(6);
+    await waitFor(() => expect(mockUsersUpsert).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId('verify-error')).toBeNull();
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/id-verify'));
+  });
+
+  it('does not reset an already-verified user back to unverified on retry', async () => {
+    // The verification row already exists and is fully verified from a
+    // PRIOR run of this exact flow (e.g. the user got all the way to
+    // id-verify before, then somehow ended up back on /verify). Because the
+    // upsert uses ignoreDuplicates, the existing true/true row is left
+    // alone, and the routing read below reflects that real state.
+    mockVerificationSelect.mockResolvedValue({ data: { id_verified: true, selfie_verified: true }, error: null });
+    mockProfilesSelect.mockResolvedValue({ data: { user_id: 'user-123' }, error: null });
+    render(<VerifyScreen />);
+    fillDigits(6);
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/(tabs)'));
+  });
+
+  it('routes to /profile-setup when the retry finds the user verified but without a profile yet', async () => {
+    mockVerificationSelect.mockResolvedValue({ data: { id_verified: true, selfie_verified: true }, error: null });
+    mockProfilesSelect.mockResolvedValue({ data: null, error: null });
+    render(<VerifyScreen />);
+    fillDigits(6);
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/profile-setup'));
+  });
+});
+
+// ─── Returning user via log in (mode: login) ───────────────────────────────────
+
+describe('VerifyScreen — returning user (mode: login)', () => {
+  beforeEach(() => {
+    mockParams = { email: 'returning@ucd.ie', mode: 'login' };
+  });
+
+  it('never writes to public.users on this path', async () => {
+    render(<VerifyScreen />);
+    fillDigits(6);
+    await waitFor(() => expect(mockReplace).toHaveBeenCalled());
+    expect(mockUsersUpsert).not.toHaveBeenCalled();
+  });
+
+  it('never writes to public.verification on this path', async () => {
+    render(<VerifyScreen />);
+    fillDigits(6);
+    await waitFor(() => expect(mockReplace).toHaveBeenCalled());
+    expect(mockVerificationUpsert).not.toHaveBeenCalled();
+  });
+
+  it('routes a fully verified, fully set-up returning user straight to /(tabs)', async () => {
+    mockVerificationSelect.mockResolvedValue({ data: { id_verified: true, selfie_verified: true }, error: null });
+    mockProfilesSelect.mockResolvedValue({ data: { user_id: 'user-123' }, error: null });
+    render(<VerifyScreen />);
+    fillDigits(6);
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/(tabs)'));
+  });
+
+  it('routes an unverified returning user to /id-verify', async () => {
+    mockVerificationSelect.mockResolvedValue({ data: { id_verified: false, selfie_verified: false }, error: null });
+    render(<VerifyScreen />);
+    fillDigits(6);
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/id-verify'));
+  });
+
+  it('routes a verified returning user with no profile to /profile-setup', async () => {
+    mockVerificationSelect.mockResolvedValue({ data: { id_verified: true, selfie_verified: true }, error: null });
+    mockProfilesSelect.mockResolvedValue({ data: null, error: null });
+    render(<VerifyScreen />);
+    fillDigits(6);
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/profile-setup'));
+  });
+
+  it('shows "no account found" with a sign-up link, and does not route, when no users row exists', async () => {
+    mockUsersSelect.mockResolvedValue({ data: null, error: null });
+    render(<VerifyScreen />);
+    fillDigits(6);
+    await waitFor(() => expect(screen.getByTestId('verify-error')).toHaveTextContent(/couldn't find an account/i));
+    expect(screen.getByRole('button', { name: 'Sign up instead' })).toBeTruthy();
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('pressing "Sign up instead" navigates to /signup', async () => {
+    mockUsersSelect.mockResolvedValue({ data: null, error: null });
+    render(<VerifyScreen />);
+    fillDigits(6);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Sign up instead' })).toBeTruthy());
+    fireEvent.press(screen.getByRole('button', { name: 'Sign up instead' }));
+    expect(mockPush).toHaveBeenCalledWith('/signup');
+  });
+
+  it('shows a friendly message (not a raw DB error) when the users existence check fails', async () => {
+    mockUsersSelect.mockResolvedValue({ data: null, error: { message: 'connection reset' } });
+    render(<VerifyScreen />);
+    fillDigits(6);
+    await waitFor(() => expect(screen.getByTestId('verify-error')).toBeTruthy());
+    expect(screen.queryByText(/connection reset/i)).toBeNull();
+    // A query failure must not be treated as "no account" (which requires a
+    // real Sign-up link) — different UI, different message.
+    expect(screen.queryByRole('button', { name: 'Sign up instead' })).toBeNull();
+  });
+
+  it('shows a friendly message when the state-check (verification/profile) queries fail', async () => {
+    mockVerificationSelect.mockResolvedValue({ data: null, error: { message: 'db down' } });
+    render(<VerifyScreen />);
+    fillDigits(6);
+    await waitFor(() => expect(screen.getByTestId('verify-error')).toBeTruthy());
+    expect(screen.queryByText(/db down/i)).toBeNull();
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('"Wrong email? Go back" navigates to /login-email (not /signup)', () => {
+    render(<VerifyScreen />);
+    fireEvent.press(screen.getByRole('button', { name: 'Wrong email? Go back' }));
+    expect(mockPush).toHaveBeenCalledWith('/login-email');
   });
 });

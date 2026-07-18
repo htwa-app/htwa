@@ -258,6 +258,18 @@ export default function SignupScreen() {
         <Text style={styles.errorText}>{signupError}</Text>
       )}
 
+      {/* ── Returning user ─────────────────────────────────────────────────── */}
+      <TouchableOpacity
+        onPress={() => router.push('/login-email')}
+        accessibilityRole="button"
+        accessibilityLabel="Already have an account? Log in"
+        style={styles.loginLink}
+      >
+        <Text style={styles.loginLinkText}>
+          Already have an account? <Text style={styles.loginLinkTextBold}>Log in</Text>
+        </Text>
+      </TouchableOpacity>
+
     </ScrollView>
   );
 }
@@ -373,5 +385,19 @@ const styles = StyleSheet.create({
     color: Colors.sos,
     marginTop: Spacing.sm,
     textAlign: 'center',
+  },
+
+  // Returning-user link
+  loginLink: {
+    marginTop: Spacing.xl,
+    alignSelf: 'center',
+  },
+  loginLinkText: {
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
+  },
+  loginLinkTextBold: {
+    color: Colors.primary,
+    fontFamily: FontFamily.medium,
   },
 });
