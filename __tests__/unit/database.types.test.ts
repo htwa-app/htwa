@@ -74,6 +74,8 @@ const _profileRow: ProfileRow = {
   nominated_contact:  null,
   vehicle_details:    null,
   women_only_mode:    false,
+  university_verification_status: 'unverified',
+  student_card_url:   null,
 };
 
 const _profileInsert: ProfileInsert = {
@@ -277,6 +279,9 @@ const _rideRow: RideRow = {
   currency:           'EUR',
   distance_km:        208.4,
   women_only:         false,
+  luggage_note:       null,
+  estimated_duration_seconds: null,
+  window_end:         null,
   status:             'active',
   created_at:         null,
 };
@@ -287,6 +292,9 @@ const _bookingRow: BookingRow = {
   passenger_id: 'uuid-2',
   seats_booked: 1,
   status:       'pending',
+  chat_status:    'open',
+  chat_closed_at: null,
+  chat_closed_by: null,
   created_at:   null,
 };
 

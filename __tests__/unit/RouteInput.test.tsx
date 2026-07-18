@@ -48,6 +48,21 @@ describe('RouteInput', () => {
     expect(onToChange).toHaveBeenCalledWith('Galway');
   });
 
+  it('renders prominent field labels when provided', () => {
+    render(
+      <RouteInput
+        from=""
+        to=""
+        onFromChange={jest.fn()}
+        onToChange={jest.fn()}
+        fromLabel="Departing from"
+        toLabel="Destination"
+      />,
+    );
+    expect(screen.getByText('Departing from')).toBeTruthy();
+    expect(screen.getByText('Destination')).toBeTruthy();
+  });
+
   it('shows custom placeholders', () => {
     render(
       <RouteInput

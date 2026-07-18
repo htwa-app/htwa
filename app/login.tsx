@@ -17,8 +17,10 @@ export default function LoginScreen() {
   const handleGoogle = () => router.push('/signup');
   // TODO Phase 15: implement mobile OTP via supabase.auth.signInWithOtp({ phone })
   const handleMobile = () => router.push('/signup');
-  // Email → /signup (new users). Returning user sign-in: TODO Phase 15
-  const handleEmail  = () => router.push('/signup');
+  // Email → returning-user sign-in (email OTP, no new account created).
+  // New users go via signup.tsx's own "Continue with email" flow, but this
+  // button on the LOGIN screen is specifically for existing accounts.
+  const handleEmail  = () => router.push('/login-email');
 
   const handleOpenTerms         = () => console.log('TODO: navigate to terms');
   const handleOpenSafetyPledge  = () => console.log('TODO: navigate to safety pledge');

@@ -15,7 +15,7 @@
  */
 
 import React from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
   Colors,
@@ -36,6 +36,10 @@ export interface RouteInputProps {
   onToChange: (value: string) => void;
   fromPlaceholder?: string;
   toPlaceholder?: string;
+  /** Prominent label rendered above the origin field (e.g. "Departing from"). */
+  fromLabel?: string;
+  /** Prominent label rendered above the destination field (e.g. "Destination"). */
+  toLabel?: string;
   testID?: string;
 }
 
@@ -46,6 +50,8 @@ export function RouteInput({
   onToChange,
   fromPlaceholder = 'From',
   toPlaceholder = 'To',
+  fromLabel,
+  toLabel,
   testID = 'route-input',
 }: RouteInputProps): React.ReactElement {
   const handleSwap = () => {
@@ -57,32 +63,38 @@ export function RouteInput({
   return (
     <View style={styles.card} testID={testID}>
       <View style={styles.fields}>
-        <View style={styles.row}>
-          <View style={[styles.dot, styles.dotFrom]} />
-          <TextInput
-            style={styles.input}
-            value={from}
-            onChangeText={onFromChange}
-            placeholder={fromPlaceholder}
-            placeholderTextColor={Colors.textTertiary}
-            accessibilityLabel="Journey start location"
-            testID={`${testID}-from`}
-          />
+        <View style={styles.fieldCol}>
+          {fromLabel ? <Text style={styles.fieldLabel}>{fromLabel}</Text> : null}
+          <View style={styles.inputLine}>
+            <View style={[styles.dot, styles.dotFrom]} />
+            <TextInput
+              style={styles.input}
+              value={from}
+              onChangeText={onFromChange}
+              placeholder={fromPlaceholder}
+              placeholderTextColor={Colors.textTertiary}
+              accessibilityLabel={fromLabel ?? 'Journey start location'}
+              testID={`${testID}-from`}
+            />
+          </View>
         </View>
 
         <View style={styles.divider} />
 
-        <View style={styles.row}>
-          <View style={[styles.dot, styles.dotTo]} />
-          <TextInput
-            style={styles.input}
-            value={to}
-            onChangeText={onToChange}
-            placeholder={toPlaceholder}
-            placeholderTextColor={Colors.textTertiary}
-            accessibilityLabel="Journey destination"
-            testID={`${testID}-to`}
-          />
+        <View style={styles.fieldCol}>
+          {toLabel ? <Text style={styles.fieldLabel}>{toLabel}</Text> : null}
+          <View style={styles.inputLine}>
+            <View style={[styles.dot, styles.dotTo]} />
+            <TextInput
+              style={styles.input}
+              value={to}
+              onChangeText={onToChange}
+              placeholder={toPlaceholder}
+              placeholderTextColor={Colors.textTertiary}
+              accessibilityLabel={toLabel ?? 'Journey destination'}
+              testID={`${testID}-to`}
+            />
+          </View>
         </View>
       </View>
 
@@ -117,10 +129,18 @@ const styles = StyleSheet.create({
   fields: {
     flex: 1,
   },
-  row: {
+  fieldCol: {
+    paddingVertical: Spacing.sm,
+  },
+  fieldLabel: {
+    ...Typography.label,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.xs,
+    marginLeft: ROUTE_DOT_SIZE + Spacing.md,
+  },
+  inputLine: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: Spacing.inputHeight - Spacing.sm,
   },
   dot: {
     width: ROUTE_DOT_SIZE,

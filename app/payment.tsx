@@ -116,7 +116,7 @@ export default function PaymentScreen(): React.ReactElement {
 
       <View style={styles.breakdownCard}>
         <View style={styles.breakdownRow}>
-          <Text style={styles.breakdownLabel}>Ride cost</Text>
+          <Text style={styles.breakdownLabel}>Journey cost</Text>
           <Text style={styles.breakdownValue} testID="ride-cost">
             {formatCurrency(amount - platformFee, currency)}
           </Text>

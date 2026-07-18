@@ -31,6 +31,11 @@ const STORAGE_FULL_NAME     = 'htwa:fullName';
 const STORAGE_PHONE         = 'htwa:phone';
 const STORAGE_HOME_LOCATION = 'htwa:homeLocation';
 const STORAGE_CURRENCY      = 'htwa:currency';
+const STORAGE_GENDER        = 'htwa:gender';
+
+// Block 5 — registration captures exactly TWO gender options. This drives the
+// women-only journeys filter (women-only mode works both ways).
+type RegistrationGender = 'female' | 'male';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -43,6 +48,7 @@ export default function SignupScreen() {
   const [phone,        setPhone]        = useState('');
   const [university,   setUniversity]   = useState('');
   const [homeLocation, setHomeLocation] = useState<HomeLocation | null>(null);
+  const [gender,       setGender]       = useState<RegistrationGender | null>(null);
   // currency is derived from homeLocation — persisted to AsyncStorage on continue
   const [currency, setCurrency]         = useState<Currency | null>(null);
 
@@ -58,8 +64,8 @@ export default function SignupScreen() {
 
   // ── Validation ────────────────────────────────────────────────────────────────
   const isValid = useMemo(
-    () => validateSignupForm({ fullName, email, phone, university, homeLocation }),
-    [fullName, email, phone, university, homeLocation],
+    () => validateSignupForm({ fullName, email, phone, university, homeLocation }) && gender !== null,
+    [fullName, email, phone, university, homeLocation, gender],
   );
 
   const handleContinue = async () => {
@@ -83,6 +89,7 @@ export default function SignupScreen() {
         AsyncStorage.setItem(STORAGE_PHONE,         phone),
         AsyncStorage.setItem(STORAGE_HOME_LOCATION, homeLocation ?? ''),
         AsyncStorage.setItem(STORAGE_CURRENCY,      currency      ?? ''),
+        AsyncStorage.setItem(STORAGE_GENDER,        gender        ?? ''),
       ]);
       router.push({ pathname: '/verify', params: { email } });
     } catch (e: unknown) {
@@ -198,6 +205,46 @@ export default function SignupScreen() {
         </Text>
       </View>
 
+      {/* ── Gender (Block 5) ───────────────────────────────────────────────── */}
+      <View style={styles.locationSection}>
+        <Text style={styles.locationLabel}>Gender</Text>
+        <View style={styles.pillRow}>
+          <TouchableOpacity
+            style={[styles.pill, gender === 'female' && styles.pillSelected]}
+            onPress={() => setGender('female')}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Female"
+            accessibilityState={{ selected: gender === 'female' }}
+            testID="gender-female"
+          >
+            <Text style={[styles.pillText, gender === 'female' && styles.pillTextSelected]}>
+              Female
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.pill, gender === 'male' && styles.pillSelected]}
+            onPress={() => setGender('male')}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Male"
+            accessibilityState={{ selected: gender === 'male' }}
+            testID="gender-male"
+          >
+            <Text style={[styles.pillText, gender === 'male' && styles.pillTextSelected]}>
+              Male
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.locationHint} testID="gender-disclaimer">
+          Everyone is free to identify however they wish. For the safety and protection of our
+          users, we record the gender shown on your government-issued ID, for consistency and
+          safety. This also enables our women-only journeys feature.
+        </Text>
+      </View>
+
       {/* ── Continue button ────────────────────────────────────────────────── */}
       <Button
         title="Continue"
@@ -210,6 +257,18 @@ export default function SignupScreen() {
       {signupError && (
         <Text style={styles.errorText}>{signupError}</Text>
       )}
+
+      {/* ── Returning user ─────────────────────────────────────────────────── */}
+      <TouchableOpacity
+        onPress={() => router.push('/login-email')}
+        accessibilityRole="button"
+        accessibilityLabel="Already have an account? Log in"
+        style={styles.loginLink}
+      >
+        <Text style={styles.loginLinkText}>
+          Already have an account? <Text style={styles.loginLinkTextBold}>Log in</Text>
+        </Text>
+      </TouchableOpacity>
 
     </ScrollView>
   );
@@ -326,5 +385,19 @@ const styles = StyleSheet.create({
     color: Colors.sos,
     marginTop: Spacing.sm,
     textAlign: 'center',
+  },
+
+  // Returning-user link
+  loginLink: {
+    marginTop: Spacing.xl,
+    alignSelf: 'center',
+  },
+  loginLinkText: {
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
+  },
+  loginLinkTextBold: {
+    color: Colors.primary,
+    fontFamily: FontFamily.medium,
   },
 });

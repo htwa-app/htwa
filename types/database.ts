@@ -86,7 +86,11 @@ export type ProfileRow = {
   nominated_contact:    Record<string, unknown> | null;  // jsonb
   vehicle_details:      Record<string, unknown> | null;  // jsonb — migration 20260531000001
   women_only_mode:      boolean;                          // migration 20260531000001
+  university_verification_status: UniversityVerificationStatus; // migration 20260601000002
+  student_card_url:     string | null;                    // migration 20260601000002
 }
+
+export type UniversityVerificationStatus = 'unverified' | 'pending' | 'verified' | 'rejected';
 
 export type ProfileInsert = {
   id?:                   string;       // defaults to gen_random_uuid()
@@ -97,6 +101,8 @@ export type ProfileInsert = {
   nominated_contact?:    Record<string, unknown> | null;
   vehicle_details?:      Record<string, unknown> | null;
   women_only_mode?:      boolean;      // defaults to false
+  university_verification_status?: UniversityVerificationStatus;
+  student_card_url?:     string | null;
 }
 
 export type ProfileUpdate = {
@@ -106,6 +112,8 @@ export type ProfileUpdate = {
   nominated_contact?:    Record<string, unknown> | null;
   vehicle_details?:      Record<string, unknown> | null;
   women_only_mode?:      boolean;
+  university_verification_status?: UniversityVerificationStatus;
+  student_card_url?:     string | null;
 }
 
 // ─── rides ────────────────────────────────────────────────────────────────────
@@ -129,6 +137,9 @@ export type RideRow = {
   currency:           Currency;
   distance_km:        number | null; // numeric(10,2)
   women_only:         boolean;
+  luggage_note:       string | null;  // migration 20260601000004 (Block 8)
+  estimated_duration_seconds: number | null; // migration 20260601000005 (Change 2)
+  window_end:         string | null;  // migration 20260601000005 — overlap guard
   status:             RideStatus;
   created_at:         string | null;
 }
@@ -147,6 +158,9 @@ export type RideInsert = {
   currency:            Currency;
   distance_km?:        number | null;
   women_only?:         boolean;       // defaults to false
+  luggage_note?:       string | null;
+  estimated_duration_seconds?: number | null;
+  window_end?:         string | null;
   status?:             RideStatus;    // defaults to 'active'
   created_at?:         string | null;
 }
@@ -163,12 +177,14 @@ export type RideUpdate = {
   currency?:           Currency;
   distance_km?:        number | null;
   women_only?:         boolean;
+  luggage_note?:       string | null;
   status?:             RideStatus;
 }
 
 // ─── bookings ─────────────────────────────────────────────────────────────────
 
 export type BookingStatus = 'pending' | 'confirmed' | 'declined' | 'cancelled';
+export type ChatStatus = 'open' | 'closed'; // migration 20260601000006 (Change 3)
 
 export type BookingRow = {
   id:           string;        // uuid
@@ -176,6 +192,9 @@ export type BookingRow = {
   passenger_id: string;        // uuid → public.users.id
   seats_booked: number;
   status:       BookingStatus;
+  chat_status:    ChatStatus;
+  chat_closed_at: string | null;
+  chat_closed_by: string | null;
   created_at:   string | null;
 }
 
@@ -185,12 +204,18 @@ export type BookingInsert = {
   passenger_id:  string;
   seats_booked?: number;        // defaults to 1
   status?:       BookingStatus; // defaults to 'pending'
+  chat_status?:    ChatStatus;  // defaults to 'open'
+  chat_closed_at?: string | null;
+  chat_closed_by?: string | null;
   created_at?:   string | null;
 }
 
 export type BookingUpdate = {
   seats_booked?: number;
   status?:       BookingStatus;
+  chat_status?:    ChatStatus;
+  chat_closed_at?: string | null;
+  chat_closed_by?: string | null;
 }
 
 // ─── messages ─────────────────────────────────────────────────────────────────
@@ -242,6 +267,102 @@ export type ReviewUpdate = {
   comment?: string | null;
 }
 
+// ─── driver pricing + mileage (migration 20260601000001) ──────────────────────
+
+export type TaxResidence = 'ROI' | 'UK';
+export type EngineCcBand  = 'le1200' | 'cc1201to1500' | 'ge1501';
+export type DistanceUnitDb = 'km' | 'mile';
+export type MileageSource = 'journey' | 'manual';
+
+export type DriverPricingProfileRow = {
+  user_id:                  string;
+  tax_residence:            TaxResidence;
+  engine_cc:                EngineCcBand;
+  insurance_cert_confirmed: boolean;
+  notify_insurer_confirmed: boolean;
+  declaration_version:      string | null;
+  declaration_accepted_at:  string | null;
+  created_at:               string;
+  updated_at:               string;
+}
+
+export type DriverPricingProfileInsert = {
+  user_id:                   string;
+  tax_residence:             TaxResidence;
+  engine_cc:                 EngineCcBand;
+  insurance_cert_confirmed?: boolean;
+  notify_insurer_confirmed?: boolean;
+  declaration_version?:      string | null;
+  declaration_accepted_at?:  string | null;
+}
+
+export type DriverPricingProfileUpdate = Partial<DriverPricingProfileInsert>;
+
+export type MileageIncrementRow = {
+  id:         string;
+  driver_id:  string;
+  journey_id: string | null;
+  amount:     number;
+  unit:       DistanceUnitDb;
+  source:     MileageSource;
+  created_at: string;
+}
+
+export type MileageIncrementInsert = {
+  driver_id:   string;
+  journey_id?: string | null;
+  amount:      number;
+  unit:        DistanceUnitDb;
+  source:      MileageSource;
+}
+
+export type PricingRateRow = {
+  id:           string;
+  jurisdiction: TaxResidence;
+  band_index:   number;
+  engine_cc:    EngineCcBand | null;
+  upper_bound:  number;
+  rate:         number;
+  unit:         DistanceUnitDb;
+  currency:     Currency;
+  effective_from: string;
+  created_at:   string;
+}
+
+export type PricingConfigRow = {
+  key:         string;
+  value:       number;
+  description: string | null;
+}
+
+// ─── payment_accounts (migration 20260601000003) ──────────────────────────────
+
+export type ConnectStatus = 'none' | 'pending' | 'active' | 'restricted';
+
+export type PaymentAccountRow = {
+  user_id:                   string;
+  stripe_connect_account_id: string | null;
+  connect_status:            ConnectStatus;
+  stripe_customer_id:        string | null;
+  has_payment_method:        boolean;
+  payment_method_brand:      string | null;
+  payment_method_last4:      string | null;
+  created_at:                string;
+  updated_at:                string;
+}
+
+export type PaymentAccountInsert = {
+  user_id:                    string;
+  stripe_connect_account_id?: string | null;
+  connect_status?:            ConnectStatus;
+  stripe_customer_id?:        string | null;
+  has_payment_method?:        boolean;
+  payment_method_brand?:      string | null;
+  payment_method_last4?:      string | null;
+}
+
+export type PaymentAccountUpdate = Partial<PaymentAccountInsert>;
+
 // ─── Database (Supabase client generic) ───────────────────────────────────────
 
 export type Database = {
@@ -289,11 +410,49 @@ export type Database = {
         Update: ReviewUpdate;
         Relationships: [];
       };
+      driver_pricing_profiles: {
+        Row:    DriverPricingProfileRow;
+        Insert: DriverPricingProfileInsert;
+        Update: DriverPricingProfileUpdate;
+        Relationships: [];
+      };
+      driver_mileage_increments: {
+        Row:    MileageIncrementRow;
+        Insert: MileageIncrementInsert;
+        Update: Partial<MileageIncrementInsert>;
+        Relationships: [];
+      };
+      pricing_rates: {
+        Row:    PricingRateRow;
+        Insert: Partial<PricingRateRow>;
+        Update: Partial<PricingRateRow>;
+        Relationships: [];
+      };
+      pricing_config: {
+        Row:    PricingConfigRow;
+        Insert: PricingConfigRow;
+        Update: Partial<PricingConfigRow>;
+        Relationships: [];
+      };
+      payment_accounts: {
+        Row:    PaymentAccountRow;
+        Insert: PaymentAccountInsert;
+        Update: PaymentAccountUpdate;
+        Relationships: [];
+      };
     };
     Views: { [_ in never]: never };
     Functions: {
       book_ride: {
         Args: { p_ride_id: string; p_passenger_id: string; p_seats: number };
+        Returns: undefined;
+      };
+      close_chat: {
+        Args: { p_booking_id: string };
+        Returns: undefined;
+      };
+      restore_ride_seats: {
+        Args: { p_ride_id: string; p_seats: number };
         Returns: undefined;
       };
     };

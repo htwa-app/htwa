@@ -23,6 +23,12 @@ jest.mock('../../lib/supabase', () => ({
   supabase: { from: () => ({ insert: (...args: unknown[]) => mockInsert(...args) }) },
 }));
 
+// Change 2 — client-side overlap check (isolated here; its own unit test covers logic)
+const mockCheckOverlap = jest.fn();
+jest.mock('../../services/journeyConflicts', () => ({
+  checkDriverOverlap: (...a: unknown[]) => mockCheckOverlap(...a),
+}));
+
 const mockUseAuth = jest.fn();
 jest.mock('../../context/AuthContext', () => ({ useAuth: () => mockUseAuth() }));
 
@@ -38,6 +44,7 @@ beforeEach(() => {
   mockParams = { ...BASE_PARAMS };
   mockUseAuth.mockReturnValue({ user: { id: 'u1' } });
   mockInsert.mockResolvedValue({ error: null });
+  mockCheckOverlap.mockResolvedValue({ ok: true });
 });
 
 describe('OfferRideConfirmScreen', () => {
@@ -77,7 +84,11 @@ describe('OfferRideConfirmScreen', () => {
       women_only: false,
       status: 'active',
     });
-    expect(payload.departure_datetime).toBe('2026-06-01T09:00:00');
+    // Regression: the persisted departure must be the canonical UTC ISO, and must
+    // be the SAME value passed to the overlap check (not the timezone-less string).
+    const expectedISO = new Date('2026-06-01T09:00:00').toISOString();
+    expect(payload.departure_datetime).toBe(expectedISO);
+    expect(payload.departure_datetime).toBe(mockCheckOverlap.mock.calls[0][1]);
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/ride-posted'));
   });
 
@@ -86,6 +97,26 @@ describe('OfferRideConfirmScreen', () => {
     render(<OfferRideConfirmScreen />);
     fireEvent.press(screen.getByTestId('post-button'));
     await waitFor(() => expect(screen.getByTestId('post-error')).toHaveTextContent('DB down'));
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('includes window_end + duration in the payload (Change 2)', async () => {
+    mockParams = { ...BASE_PARAMS, durationSeconds: '3600' };
+    render(<OfferRideConfirmScreen />);
+    fireEvent.press(screen.getByTestId('post-button'));
+    await waitFor(() => expect(mockInsert).toHaveBeenCalled());
+    const payload = mockInsert.mock.calls[0][0];
+    expect(payload.estimated_duration_seconds).toBe(3600);
+    // 09:00 + 1h drive + 30m buffer = 10:30 (departure parsed as local → ISO)
+    expect(typeof payload.window_end).toBe('string');
+  });
+
+  it('blocks posting and shows the conflict message when journeys overlap (Change 2)', async () => {
+    mockCheckOverlap.mockResolvedValue({ ok: false, message: 'This overlaps your Derry → Dublin journey at 11:00.' });
+    render(<OfferRideConfirmScreen />);
+    fireEvent.press(screen.getByTestId('post-button'));
+    await waitFor(() => expect(screen.getByTestId('post-error')).toHaveTextContent(/overlaps your Derry/));
+    expect(mockInsert).not.toHaveBeenCalled();
     expect(mockReplace).not.toHaveBeenCalled();
   });
 });

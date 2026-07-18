@@ -65,18 +65,20 @@ export default function MyRidesScreen(): React.ReactElement {
     setError(null);
     try {
       // Rides as driver
-      const { data: driverRides } = await supabase
+      const { data: driverRides, error: driverError } = await supabase
         .from('rides')
         .select('id, from_location, to_location, departure_datetime, cost_per_seat, currency, status')
         .eq('driver_id', user.id)
         .order('departure_datetime', { ascending: false });
+      if (driverError) throw driverError;
 
       // Bookings as passenger
-      const { data: bookings } = await supabase
+      const { data: bookings, error: bookingsError } = await supabase
         .from('bookings')
         .select('id, status, ride:rides(id, from_location, to_location, departure_datetime, cost_per_seat, currency, status)')
         .eq('passenger_id', user.id)
         .order('created_at', { ascending: false });
+      if (bookingsError) throw bookingsError;
 
       const driverItems: RideItem[] = (driverRides ?? []).map((r: Record<string, unknown>) => ({
         id:                 r.id as string,
@@ -118,6 +120,16 @@ export default function MyRidesScreen(): React.ReactElement {
   const upcoming = rides.filter((r) => new Date(r.departure_datetime) >= now);
   const past     = rides.filter((r) => new Date(r.departure_datetime) <  now);
 
+  // Drivers manage requests on their own journey; ride/[id] is the
+  // passenger-facing "request to join" screen and doesn't make sense there.
+  const navigateToRide = (ride: RideItem) => {
+    if (ride.role === 'driver') {
+      router.push(`/booking-requests/${ride.id}`);
+    } else {
+      router.push(`/ride/${ride.id}`);
+    }
+  };
+
   if (isLoading) return <View style={styles.center} testID="my-rides-loading"><ActivityIndicator size="large" color={Colors.primary} /></View>;
 
   return (
@@ -126,7 +138,7 @@ export default function MyRidesScreen(): React.ReactElement {
         <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back" testID="back-button" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Ionicons name="chevron-back" size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.screenTitle}>My rides</Text>
+        <Text style={styles.screenTitle}>My journeys</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -135,17 +147,17 @@ export default function MyRidesScreen(): React.ReactElement {
       {/* Upcoming */}
       <Text style={styles.sectionLabel}>Upcoming</Text>
       {upcoming.length === 0 ? (
-        <Text style={styles.emptyText} testID="upcoming-empty">No upcoming rides</Text>
+        <Text style={styles.emptyText} testID="upcoming-empty">No upcoming journeys</Text>
       ) : (
-        upcoming.map((ride) => <RideCard key={`${ride.role}-${ride.id}`} ride={ride} onPress={() => router.push(`/ride/${ride.id}`)} />)
+        upcoming.map((ride) => <RideCard key={`${ride.role}-${ride.id}`} ride={ride} onPress={() => navigateToRide(ride)} />)
       )}
 
       {/* Past */}
       <Text style={styles.sectionLabel}>Past</Text>
       {past.length === 0 ? (
-        <Text style={styles.emptyText} testID="past-empty">No past rides</Text>
+        <Text style={styles.emptyText} testID="past-empty">No past journeys</Text>
       ) : (
-        past.map((ride) => <RideCard key={`${ride.role}-${ride.id}`} ride={ride} onPress={() => router.push(`/ride/${ride.id}`)} />)
+        past.map((ride) => <RideCard key={`${ride.role}-${ride.id}`} ride={ride} onPress={() => navigateToRide(ride)} />)
       )}
     </ScrollView>
   );
