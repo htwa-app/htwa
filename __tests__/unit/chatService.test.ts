@@ -10,11 +10,13 @@ const mockMaybeSingle = jest.fn();
 jest.mock('../../lib/supabase', () => ({
   supabase: {
     from: () => ({
-      // acceptBooking now chains .update().eq().select('id') so it can verify a
-      // row was actually affected.
+      // acceptBooking now chains .update().eq('id',...).eq('status','pending')
+      // .select('id') so it can verify a row was actually affected AND that it
+      // was still pending (not already declined/cancelled).
       update: (arg: unknown) => {
         mockUpdate(arg);
-        return { eq: (col: string, val: string) => { mockUpdateEq(col, val); return { select: () => mockUpdateSelect() }; } };
+        const chain = { eq: (col: string, val: string) => { mockUpdateEq(col, val); return chain; }, select: () => mockUpdateSelect() };
+        return chain;
       },
       select: () => ({ eq: () => ({ maybeSingle: () => mockMaybeSingle() }) }),
     }),
@@ -34,15 +36,20 @@ describe('acceptBooking', () => {
     expect(mockUpdate).toHaveBeenCalledWith({ status: 'confirmed' });
     expect(mockUpdateEq).toHaveBeenCalledWith('id', 'b1');
   });
+  it('guards the update with status = pending, so an already-declined/cancelled booking cannot be re-confirmed', async () => {
+    mockUpdateSelect.mockResolvedValue({ data: [{ id: 'b1' }], error: null });
+    await acceptBooking('b1');
+    expect(mockUpdateEq).toHaveBeenCalledWith('status', 'pending');
+  });
   it('reports an error on failure', async () => {
     mockUpdateSelect.mockResolvedValue({ data: null, error: { message: 'nope' } });
     expect((await acceptBooking('b1')).ok).toBe(false);
   });
-  it('reports failure when zero rows are updated (not found / RLS-blocked)', async () => {
+  it('reports failure when zero rows are updated (not found, RLS-blocked, or no longer pending)', async () => {
     mockUpdateSelect.mockResolvedValue({ data: [], error: null });
     const res = await acceptBooking('b1');
     expect(res.ok).toBe(false);
-    expect(res.error).toMatch(/not found|permitted/i);
+    expect(res.error).toMatch(/not found|permitted|decided/i);
   });
 });
 
@@ -79,6 +86,10 @@ describe('getChatMeta', () => {
   it('returns null when the booking is missing', async () => {
     mockMaybeSingle.mockResolvedValue({ data: null, error: null });
     expect(await getChatMeta('b1')).toBeNull();
+  });
+  it('defaults chatStatus to open and rideStatus to null when those fields are missing', async () => {
+    mockMaybeSingle.mockResolvedValue({ data: { chat_status: undefined, ride: null }, error: null });
+    expect(await getChatMeta('b1')).toEqual({ chatStatus: 'open', rideStatus: null });
   });
   it('throws on a query error (distinguishes failure from "not found")', async () => {
     mockMaybeSingle.mockResolvedValue({ data: null, error: { message: 'boom' } });

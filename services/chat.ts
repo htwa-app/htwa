@@ -22,16 +22,21 @@ export interface SimpleResult {
  * which makes the (already 'open') chat available to both parties.
  */
 export async function acceptBooking(bookingId: string): Promise<SimpleResult> {
+  // .eq('status', 'pending') guards against accepting a booking that's already
+  // been declined/cancelled — without it, a stale retry could flip a declined
+  // booking's status back to 'confirmed' (and reopen its chat) after the
+  // passenger has already been told it was declined.
   const { data, error } = await supabase
     .from('bookings')
     .update({ status: 'confirmed' })
     .eq('id', bookingId)
+    .eq('status', 'pending')
     .select('id');
   if (error) return { ok: false, error: error.message };
-  // A non-error response with zero rows updated (e.g. blocked by RLS, or the
-  // booking no longer exists) must NOT read as success.
+  // A non-error response with zero rows updated (e.g. blocked by RLS, the
+  // booking no longer exists, or it's no longer pending) must NOT read as success.
   if (!data || data.length === 0) {
-    return { ok: false, error: 'Booking could not be accepted (not found or not permitted).' };
+    return { ok: false, error: 'Booking could not be accepted (not found, not permitted, or already decided).' };
   }
   return { ok: true };
 }

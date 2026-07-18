@@ -451,6 +451,10 @@ export type Database = {
         Args: { p_booking_id: string };
         Returns: undefined;
       };
+      restore_ride_seats: {
+        Args: { p_ride_id: string; p_seats: number };
+        Returns: undefined;
+      };
     };
     Enums:          { [_ in never]: never };
     CompositeTypes: { [_ in never]: never };
