@@ -1,46 +1,60 @@
 /**
  * app/(tabs)/live-trip.tsx
  *
- * Stage 48 — Live Trip screen (tab 3). Per DESIGN-SPEC §9.4 and SCREENS.md #18.
+ * Live Trip screen (tab 3) — the safety suite's home.
  *
- * Shows:
- *   - Map with route polyline and live driver dot (when trip active)
- *   - "LIVE" badge top-right
- *   - Bottom sheet: driver info, sharing panel (lavender), Silent SOS
- *   - Idle message "You don't have an active journey right now" when no trip in progress
+ * Three modes:
+ *  1. Own active journey (driver): start/complete lifecycle, live location
+ *     publishing to trip_locations, off-course corridor monitoring, silent SOS,
+ *     per-journey nominated contact panel, tokenised tracking link.
+ *  2. Own active journey (passenger): journey status, silent SOS, nominated
+ *     contact panel, tracking link, "Verify your driver" disclosure panel.
+ *  3. Nominated contact (htwa user): "watch live" cards for journeys the user
+ *     is the nominated contact of.
  *
- * Stubs react-native-maps until it's installed in Phase 8.
- * react-native-maps is not yet in package.json so we guard with a try/catch
- * and render a placeholder map view instead.
- *
- * Spec-local constants:
- *   LIVE_BADGE_BG     — teal pill (Colors.primary with opacity)
- *   SHARING_BG        — lavender background for sharing panel
+ * Map is stubbed until the Google Maps key lands (BLOCKERS-FOR-JORDAN.md):
+ * shows live coordinates + last-update age meaningfully instead.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
-  Linking,
+  Share,
   StyleSheet,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
+import { NominatedContactCard } from '../../components/NominatedContactCard';
+import { DriverVerifyPanel } from '../../components/DriverVerifyPanel';
 import {
-  Colors, Typography, Spacing, BorderRadius, Shadows, FontFamily,
+  Colors, Typography, Spacing, BorderRadius, FontFamily,
 } from '../../constants/theme';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import {
+  classifyFeed,
+  getLatestLocation,
+  raiseAlert,
+  sendSOS,
+  startPublishing,
+  stopPublishing,
+  subscribeToLocations,
+} from '../../services/tracking';
+import { createCorridorMonitor, type CorridorMonitor } from '../../utils/routeCorridor';
+import type { JourneyContactRow, RideStatus, TripLocationRow } from '../../types/database';
 
 // ─── Spec-local constants ─────────────────────────────────────────────────────
 
-const LIVE_BADGE_BG  = Colors.primary;
-const SHARING_BG     = Colors.lavenderLight;
-/** Tracking URL base — real hosted page TBD */
-const TRACKING_BASE  = 'https://htwa-app.com/track';
+const LIVE_BADGE_BG = Colors.primary;
+const SHARING_BG    = Colors.lavenderLight;
+/** Public tracking page base — the token goes in the fragment (never a query param). */
+const TRACKING_BASE = 'https://htwa-app.com/track';
+/** How early a driver can start the journey (ms before departure). */
+const START_WINDOW_BEFORE_MS = 60 * 60 * 1000;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -48,104 +62,276 @@ interface ActiveTrip {
   id:            string;
   from_location: string;
   to_location:   string;
+  from_coords:   { lat: number; lng: number } | null;
+  to_coords:     { lat: number; lng: number } | null;
+  departure:     string;
+  status:        RideStatus;
   role:          'driver' | 'passenger';
   driverName:    string;
-  trackingUrl:   string;
+}
+
+interface WatchedJourney {
+  token:      string;
+  rideId:     string;
+  traveller:  string;
+  from:       string;
+  to:         string;
+  status:     string;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function LiveTripScreen(): React.ReactElement {
   const { user } = useAuth();
+  const router = useRouter();
   const [activeTrip, setActiveTrip] = useState<ActiveTrip | null>(null);
-  const [sosPressed,  setSosPressed]  = useState(false);
+  const [watched, setWatched] = useState<WatchedJourney[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [contact, setContact] = useState<JourneyContactRow | null>(null);
+  const [lastLocation, setLastLocation] = useState<TripLocationRow | null>(null);
+  const [sosState, setSosState] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
+  const [lifecycleBusy, setLifecycleBusy] = useState(false);
+  const [lifecycleError, setLifecycleError] = useState<string | null>(null);
+  const corridorRef = useRef<CorridorMonitor | null>(null);
 
-  const fetchActiveTrip = useCallback(async () => {
-    if (!user) return;
-
-    // Check if user is a driver with an active/in-progress ride
-    const { data: driverRide, error: driverErr } = await supabase
-      .from('rides')
-      .select('id, from_location, to_location')
-      .eq('driver_id', user.id)
-      .eq('status', 'active')
-      .order('departure_datetime', { ascending: true })
-      .limit(1)
-      .single();
-    if (driverErr && driverErr.code !== 'PGRST116') {
-      console.error('[LiveTrip] driver ride fetch error:', driverErr.message);
-    }
-
-    if (driverRide) {
-      setActiveTrip({
-        id:            driverRide.id,
-        from_location: driverRide.from_location,
-        to_location:   driverRide.to_location,
-        role:          'driver',
-        driverName:    'You (driver)',
-        trackingUrl:   `${TRACKING_BASE}/${driverRide.id}`,
-      });
-      return;
-    }
-
-    // Check if user is a passenger with a confirmed booking
-    const { data: booking, error: bookingErr } = await supabase
-      .from('bookings')
-      .select('id, ride_id')
-      .eq('passenger_id', user.id)
-      .eq('status', 'confirmed')
-      .limit(1)
-      .maybeSingle();
-    if (bookingErr && bookingErr.code !== 'PGRST116') {
-      console.error('[LiveTrip] booking fetch error:', bookingErr.message);
-    }
-
-    if (booking) {
-      // Fetch the ride and driver name explicitly — embedded FK relations aren't
-      // expressed in the typed schema.
-      const { data: ride } = await supabase
+  const fetchState = useCallback(async () => {
+    if (!user) { setIsLoading(false); return; }
+    setIsLoading(true);
+    setLoadError(false);
+    try {
+      // Own journey as driver — soonest active/full/in-progress ride.
+      const { data: driverRides, error: driverErr } = await supabase
         .from('rides')
-        .select('id, from_location, to_location, driver_id')
-        .eq('id', booking.ride_id)
-        .maybeSingle();
-      let driverName = 'Driver';
-      if (ride?.driver_id) {
-        const { data: driver } = await supabase
-          .from('users').select('full_name').eq('id', ride.driver_id).maybeSingle();
-        driverName = driver?.full_name ?? 'Driver';
-      }
-      const rideId = ride?.id ?? booking.id;
-      setActiveTrip({
-        id:            rideId,
-        from_location: ride?.from_location ?? '',
-        to_location:   ride?.to_location ?? '',
-        role:          'passenger',
-        driverName,
-        trackingUrl:   `${TRACKING_BASE}/${rideId}`,
-      });
-      return;
-    }
+        .select('id, from_location, to_location, from_coords, to_coords, departure_datetime, status')
+        .eq('driver_id', user.id)
+        .in('status', ['active', 'full', 'in_progress'])
+        .order('departure_datetime', { ascending: true })
+        .limit(1);
+      if (driverErr) throw driverErr;
+      const driverRide = driverRides?.[0] ?? null;
 
-    setActiveTrip(null);
+      if (driverRide) {
+        setActiveTrip({
+          id:            driverRide.id,
+          from_location: driverRide.from_location,
+          to_location:   driverRide.to_location,
+          from_coords:   driverRide.from_coords,
+          to_coords:     driverRide.to_coords,
+          departure:     driverRide.departure_datetime,
+          status:        driverRide.status,
+          role:          'driver',
+          driverName:    'You (driver)',
+        });
+      } else {
+        // Own journey as passenger — confirmed booking on a live ride.
+        const { data: bookings, error: bookingErr } = await supabase
+          .from('bookings')
+          .select('id, ride_id')
+          .eq('passenger_id', user.id)
+          .eq('status', 'confirmed');
+        if (bookingErr) throw bookingErr;
+
+        let passengerTrip: ActiveTrip | null = null;
+        if (bookings && bookings.length > 0) {
+          const { data: rides, error: ridesErr } = await supabase
+            .from('rides')
+            .select('id, from_location, to_location, from_coords, to_coords, departure_datetime, status, driver_id')
+            .in('id', bookings.map((b) => b.ride_id))
+            .in('status', ['active', 'full', 'in_progress'])
+            .order('departure_datetime', { ascending: true })
+            .limit(1);
+          if (ridesErr) throw ridesErr;
+          const ride = rides?.[0] ?? null;
+          if (ride) {
+            let driverName = 'Driver';
+            const { data: driver, error: driverNameErr } = await supabase
+              .from('users').select('full_name').eq('id', ride.driver_id).maybeSingle();
+            if (driverNameErr) throw driverNameErr;
+            driverName = driver?.full_name ?? 'Driver';
+            passengerTrip = {
+              id:            ride.id,
+              from_location: ride.from_location,
+              to_location:   ride.to_location,
+              from_coords:   ride.from_coords,
+              to_coords:     ride.to_coords,
+              departure:     ride.departure_datetime,
+              status:        ride.status,
+              role:          'passenger',
+              driverName,
+            };
+          }
+        }
+        setActiveTrip(passengerTrip);
+      }
+
+      // Journeys the user is the nominated contact of (in-app live view).
+      const { data: contactRows, error: contactErr } = await supabase
+        .from('journey_contacts')
+        .select('tracking_token, ride_id, user_id, token_expires_at')
+        .eq('contact_user_id', user.id);
+      if (contactErr) throw contactErr;
+
+      const validRows = (contactRows ?? []).filter(
+        (c) => !c.token_expires_at || new Date(c.token_expires_at).getTime() > Date.now(),
+      );
+      if (validRows.length > 0) {
+        const [{ data: rides, error: ridesErr }, { data: travellers, error: travErr }] = await Promise.all([
+          supabase.from('rides')
+            .select('id, from_location, to_location, status')
+            .in('id', validRows.map((c) => c.ride_id))
+            .in('status', ['active', 'full', 'in_progress']),
+          supabase.from('users')
+            .select('id, full_name')
+            .in('id', validRows.map((c) => c.user_id)),
+        ]);
+        if (ridesErr) throw ridesErr;
+        if (travErr) throw travErr;
+        const nameById = new Map((travellers ?? []).map((t) => [t.id, t.full_name]));
+        setWatched(
+          validRows.flatMap((c) => {
+            const ride = (rides ?? []).find((r) => r.id === c.ride_id);
+            if (!ride) return [];
+            return [{
+              token:     c.tracking_token,
+              rideId:    c.ride_id,
+              traveller: nameById.get(c.user_id) ?? 'A traveller',
+              from:      ride.from_location,
+              to:        ride.to_location,
+              status:    ride.status,
+            }];
+          }),
+        );
+      } else {
+        setWatched([]);
+      }
+    } catch (e) {
+      console.error('[LiveTrip] load failed:', e instanceof Error ? e.message : e);
+      setLoadError(true);
+    } finally {
+      setIsLoading(false);
+    }
   }, [user]);
 
-  useEffect(() => { void fetchActiveTrip(); }, [fetchActiveTrip]);
+  useEffect(() => { void fetchState(); }, [fetchState]);
 
-  const handleSOS = () => {
-    // Silent SOS — in Phase 8 this sends to nominated contact
-    // For now flag it locally; no UI changes visible to driver
-    setSosPressed(true);
-    // TODO (Stage 51): send silent alert to nominated contact with live location
-  };
+  // ── Location publishing + off-course monitoring (driver, in-progress) ─────
+  useEffect(() => {
+    if (!activeTrip || !user) return;
+    if (activeTrip.role !== 'driver' || activeTrip.status !== 'in_progress') return;
 
-  const handleShareLink = () => {
+    const route = [activeTrip.from_coords, activeTrip.to_coords]
+      .filter((c): c is { lat: number; lng: number } => !!c);
+    corridorRef.current = route.length >= 2 ? createCorridorMonitor(route) : null;
+
+    let cancelled = false;
+    startPublishing(activeTrip.id, (point) => {
+      if (cancelled) return;
+      const monitor = corridorRef.current;
+      if (monitor && monitor.addSample(point)) {
+        // Sustained deviation — flag the trip and alert the nominated contact.
+        void raiseAlert({
+          rideId: activeTrip.id,
+          raisedBy: user.id,
+          alertType: 'off_course',
+          location: point,
+          detail: `Sustained deviation ~${monitor.lastDistanceKm()?.toFixed(1)}km from planned route`,
+        });
+      }
+    }).catch((e) => {
+      console.error('[LiveTrip] startPublishing failed:', e instanceof Error ? e.message : e);
+    });
+
+    return () => { cancelled = true; stopPublishing(); };
+  }, [activeTrip, user]);
+
+  // ── Live feed for the passenger view ──────────────────────────────────────
+  useEffect(() => {
+    if (!activeTrip || activeTrip.role !== 'passenger' || activeTrip.status !== 'in_progress') return;
+    let mounted = true;
+    void getLatestLocation(activeTrip.id).then((res) => {
+      if (mounted && res.ok) setLastLocation(res.snapshot.last);
+    });
+    const unsubscribe = subscribeToLocations(activeTrip.id, (row) => {
+      if (mounted) setLastLocation(row);
+    });
+    return () => { mounted = false; unsubscribe(); };
+  }, [activeTrip]);
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
+
+  const updateRideStatus = async (to: RideStatus) => {
     if (!activeTrip) return;
-    void Linking.openURL(activeTrip.trackingUrl);
+    setLifecycleBusy(true);
+    setLifecycleError(null);
+    try {
+      const { data, error } = await supabase
+        .from('rides')
+        .update({ status: to })
+        .eq('id', activeTrip.id)
+        .in('status', to === 'in_progress' ? ['active', 'full'] : ['in_progress'])
+        .select('id');
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        setLifecycleError('The journey state changed — pull to refresh and try again.');
+        return;
+      }
+      if (to === 'completed') stopPublishing();
+      await fetchState();
+    } catch (e) {
+      console.error('[LiveTrip] status update failed:', e instanceof Error ? e.message : e);
+      setLifecycleError(to === 'in_progress'
+        ? 'Could not start the journey. Please try again.'
+        : 'Could not complete the journey. Please try again.');
+    } finally {
+      setLifecycleBusy(false);
+    }
   };
 
-  // ── Idle state ────────────────────────────────────────────────────────────
+  const handleSOS = async () => {
+    if (!activeTrip || !user || sosState === 'sending') return;
+    setSosState('sending');
+    try {
+      const res = await sendSOS(activeTrip.id, user.id);
+      setSosState(res.ok ? 'sent' : 'failed');
+    } catch {
+      setSosState('failed');
+    }
+  };
 
-  if (!activeTrip) {
+  const handleShareLink = async () => {
+    if (!contact) return;
+    try {
+      await Share.share({
+        message: `Follow my htwa journey live: ${TRACKING_BASE}#${contact.tracking_token}`,
+      });
+    } catch (e) {
+      console.error('[LiveTrip] share failed:', e instanceof Error ? e.message : e);
+    }
+  };
+
+  // ── Render ────────────────────────────────────────────────────────────────
+
+  if (isLoading) {
+    return (
+      <View style={[styles.screen, styles.center]} testID="live-trip-screen">
+        <Text style={styles.idleSubtitle}>Loading…</Text>
+      </View>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <View style={[styles.screen, styles.center]} testID="live-trip-screen">
+        <Text style={styles.idleTitle}>Couldn't load your journeys</Text>
+        <TouchableOpacity onPress={fetchState} accessibilityRole="button" testID="live-trip-retry">
+          <Text style={styles.retryText}>Try again</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!activeTrip && watched.length === 0) {
     return (
       <View style={styles.screen} testID="live-trip-screen">
         <View style={styles.idleContainer} testID="idle-state">
@@ -160,83 +346,161 @@ export default function LiveTripScreen(): React.ReactElement {
     );
   }
 
-  // ── Active trip ───────────────────────────────────────────────────────────
+  const isInProgress = activeTrip?.status === 'in_progress';
+  const canStart = activeTrip?.role === 'driver'
+    && (activeTrip.status === 'active' || activeTrip.status === 'full')
+    && new Date(activeTrip.departure).getTime() - Date.now() <= START_WINDOW_BEFORE_MS;
+  const feed = classifyFeed(lastLocation);
 
   return (
     <View style={styles.screen} testID="live-trip-screen">
-
-      {/* Map placeholder */}
+      {/* Map stub — meaningful live data until the Maps key lands */}
       <View style={styles.mapPlaceholder} testID="map-placeholder">
         <Ionicons name="map-outline" size={48} color={Colors.textTertiary} />
-        <Text style={styles.mapPlaceholderText}>Live map</Text>
-
-        {/* LIVE badge */}
-        <View style={styles.liveBadge} testID="live-badge">
-          <View style={styles.liveDot} />
-          <Text style={styles.liveBadgeText}>LIVE</Text>
-        </View>
+        {isInProgress && activeTrip?.role === 'passenger' ? (
+          feed.state === 'live' && feed.last ? (
+            <Text style={styles.mapPlaceholderText} testID="live-coords">
+              Live: {feed.last.lat.toFixed(4)}, {feed.last.lng.toFixed(4)}
+            </Text>
+          ) : (
+            <Text style={styles.signalLostText} testID="signal-lost">
+              Signal lost{feed.last ? ` — last seen ${new Date(feed.last.recorded_at).toLocaleTimeString('en-IE', { hour: '2-digit', minute: '2-digit' })} at ${feed.last.lat.toFixed(4)}, ${feed.last.lng.toFixed(4)}` : ''}
+            </Text>
+          )
+        ) : (
+          <Text style={styles.mapPlaceholderText}>Live map</Text>
+        )}
+        {isInProgress && (
+          <View style={styles.liveBadge} testID="live-badge">
+            <View style={styles.liveDot} />
+            <Text style={styles.liveBadgeText}>LIVE</Text>
+          </View>
+        )}
       </View>
 
-      {/* Bottom sheet */}
       <ScrollView
         style={styles.bottomSheet}
         contentContainerStyle={styles.bottomSheetContent}
         testID="trip-bottom-sheet"
       >
-        {/* Route summary */}
-        <View style={styles.routeCard}>
-          <Text style={styles.routeTitle} testID="trip-from">{activeTrip.from_location}</Text>
-          <Ionicons name="arrow-forward" size={16} color={Colors.textTertiary} />
-          <Text style={styles.routeTitle} testID="trip-to">{activeTrip.to_location}</Text>
-        </View>
-
-        {/* Driver info */}
-        <View style={styles.infoRow}>
-          <Ionicons name="person-circle-outline" size={20} color={Colors.primary} />
-          <Text style={styles.driverLabel} testID="trip-driver">{activeTrip.driverName}</Text>
-        </View>
-
-        {/* Sharing panel */}
-        <View style={[styles.sharingPanel]} testID="sharing-panel">
-          <Text style={styles.sharingTitle}>Sharing my journey live 🔒</Text>
-          <Text style={styles.sharingSubtitle}>
-            Your nominated contact receives live updates.
-          </Text>
+        {/* Watching cards (nominated-contact mode) */}
+        {watched.map((w) => (
           <TouchableOpacity
-            style={styles.trackingLinkRow}
-            onPress={handleShareLink}
+            key={w.token}
+            style={styles.watchCard}
+            onPress={() => router.push({ pathname: '/track/[token]', params: { token: w.token } })}
             accessibilityRole="button"
-            accessibilityLabel="Open tracking link"
-            testID="tracking-link"
+            testID={`watch-card-${w.rideId}`}
           >
-            <Ionicons name="link-outline" size={16} color={Colors.primary} />
-            <Text style={styles.trackingUrl} numberOfLines={1}>{activeTrip.trackingUrl}</Text>
+            <Ionicons name="eye-outline" size={20} color={Colors.primary} />
+            <View style={styles.flex}>
+              <Text style={styles.watchTitle}>{w.traveller}'s journey</Text>
+              <Text style={styles.watchSubtitle}>{w.from} → {w.to} · {w.status === 'in_progress' ? 'On the road' : 'Not started yet'}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
           </TouchableOpacity>
-        </View>
+        ))}
 
-        {/* Action row */}
-        <View style={styles.actionRow}>
-          <Button
-            title="Message driver"
-            variant="secondary"
-            onPress={() => {}}
-            style={styles.messageBtn}
-            testID="message-driver-button"
-          />
-          <TouchableOpacity
-            style={[styles.sosButton, sosPressed && styles.sosButtonPressed]}
-            onPress={handleSOS}
-            accessibilityRole="button"
-            accessibilityLabel="Silent SOS"
-            testID="sos-button"
-          >
-            <Text style={styles.sosText}>Silent SOS</Text>
-          </TouchableOpacity>
-        </View>
+        {activeTrip && (
+          <>
+            {/* Route summary */}
+            <View style={styles.routeCard}>
+              <Text style={styles.routeTitle} testID="trip-from">{activeTrip.from_location}</Text>
+              <Ionicons name="arrow-forward" size={16} color={Colors.textTertiary} />
+              <Text style={styles.routeTitle} testID="trip-to">{activeTrip.to_location}</Text>
+            </View>
 
-        <Text style={styles.checkInNote}>
-          Your contact will be notified when your journey completes.
-        </Text>
+            {/* Driver info */}
+            <View style={styles.infoRow}>
+              <Ionicons name="person-circle-outline" size={20} color={Colors.primary} />
+              <Text style={styles.driverLabel} testID="trip-driver">{activeTrip.driverName}</Text>
+            </View>
+
+            {/* Verify your driver (passenger only, booked) */}
+            {activeTrip.role === 'passenger' && (
+              <DriverVerifyPanel rideId={activeTrip.id} testID="driver-verify-panel" />
+            )}
+
+            {/* Journey lifecycle (driver) */}
+            {activeTrip.role === 'driver' && !isInProgress && (
+              <Button
+                title={canStart ? 'Start journey' : `Starts ${new Date(activeTrip.departure).toLocaleString('en-IE', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}`}
+                onPress={() => void updateRideStatus('in_progress')}
+                disabled={!canStart || lifecycleBusy}
+                testID="start-journey-button"
+              />
+            )}
+            {activeTrip.role === 'driver' && isInProgress && (
+              <Button
+                title="Complete journey"
+                variant="secondary"
+                onPress={() => void updateRideStatus('completed')}
+                disabled={lifecycleBusy}
+                testID="complete-journey-button"
+              />
+            )}
+            {lifecycleError && <Text style={styles.errorText} testID="lifecycle-error">{lifecycleError}</Text>}
+
+            {/* Nominated contact (per-journey) */}
+            {user && (
+              <NominatedContactCard
+                rideId={activeTrip.id}
+                userId={user.id}
+                editable={!isInProgress}
+                onContact={setContact}
+                testID="nominated-contact-card"
+              />
+            )}
+
+            {/* Sharing panel */}
+            <View style={styles.sharingPanel} testID="sharing-panel">
+              <Text style={styles.sharingTitle}>
+                {isInProgress ? 'Sharing my journey live 🔒' : 'Journey sharing'}
+              </Text>
+              <Text style={styles.sharingSubtitle}>
+                {contact
+                  ? `${contact.contact_name} ${isInProgress ? 'is receiving' : 'will receive'} live updates for this journey.`
+                  : 'Add a nominated contact above to enable live journey sharing.'}
+              </Text>
+              {contact && (
+                <TouchableOpacity
+                  style={styles.trackingLinkRow}
+                  onPress={handleShareLink}
+                  accessibilityRole="button"
+                  accessibilityLabel="Share tracking link"
+                  testID="tracking-link"
+                >
+                  <Ionicons name="share-outline" size={16} color={Colors.primary} />
+                  <Text style={styles.trackingUrl} numberOfLines={1}>Share the live tracking link</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* SOS — silent: no journey-visible side effects, subtle confirmation only */}
+            {isInProgress && (
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  style={[styles.sosButton, sosState !== 'idle' && styles.sosButtonPressed]}
+                  onPress={handleSOS}
+                  accessibilityRole="button"
+                  accessibilityLabel="Silent SOS"
+                  testID="sos-button"
+                >
+                  <Text style={styles.sosText}>
+                    {sosState === 'sending' ? '…'
+                      : sosState === 'sent' ? 'Contact alerted'
+                      : sosState === 'failed' ? 'Retry SOS'
+                      : 'Silent SOS'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <Text style={styles.checkInNote}>
+              Your contact will be notified when your journey completes.
+            </Text>
+          </>
+        )}
       </ScrollView>
     </View>
   );
@@ -246,6 +510,8 @@ export default function LiveTripScreen(): React.ReactElement {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.background },
+  center: { alignItems: 'center', justifyContent: 'center', gap: Spacing.md },
+  flex: { flex: 1 },
 
   idleContainer: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
@@ -253,6 +519,7 @@ const styles = StyleSheet.create({
   },
   idleTitle: { ...Typography.headingLarge, color: Colors.textPrimary, textAlign: 'center' },
   idleSubtitle: { ...Typography.bodyMedium, color: Colors.textSecondary, textAlign: 'center' },
+  retryText: { ...Typography.bodyMedium, color: Colors.primary },
 
   mapPlaceholder: {
     flex: 1, backgroundColor: Colors.primaryLight,
@@ -260,6 +527,10 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   mapPlaceholderText: { ...Typography.bodySmall, color: Colors.textTertiary, marginTop: Spacing.sm },
+  signalLostText: {
+    ...Typography.bodySmall, color: Colors.sos, marginTop: Spacing.sm,
+    textAlign: 'center', paddingHorizontal: Spacing.xl,
+  },
 
   liveBadge: {
     position: 'absolute', top: Spacing.lg, right: Spacing.lg,
@@ -274,15 +545,19 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderTopLeftRadius:  BorderRadius.xl,
     borderTopRightRadius: BorderRadius.xl,
-    maxHeight: 380,
+    maxHeight: 460,
   },
-  bottomSheetContent: {
-    padding: Spacing.xxl, gap: Spacing.md,
-  },
+  bottomSheetContent: { padding: Spacing.xxl, gap: Spacing.md },
 
-  routeCard: {
+  watchCard: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    backgroundColor: Colors.primaryLight, borderRadius: BorderRadius.large,
+    padding: Spacing.cardPadding,
   },
+  watchTitle: { ...Typography.headingSmall, color: Colors.textPrimary },
+  watchSubtitle: { ...Typography.bodySmall, color: Colors.textSecondary },
+
+  routeCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   routeTitle: { ...Typography.headingSmall, color: Colors.textPrimary },
 
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
@@ -297,8 +572,7 @@ const styles = StyleSheet.create({
   trackingLinkRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
   trackingUrl: { ...Typography.bodySmall, color: Colors.primary, flex: 1 },
 
-  actionRow: { flexDirection: 'row', gap: Spacing.md, alignItems: 'center' },
-  messageBtn: { flex: 1 },
+  actionRow: { flexDirection: 'row', gap: Spacing.md, alignItems: 'center', justifyContent: 'center' },
   sosButton: {
     backgroundColor: Colors.sos, borderRadius: BorderRadius.full,
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm,
@@ -307,5 +581,6 @@ const styles = StyleSheet.create({
   sosButtonPressed: { opacity: 0.7 },
   sosText: { fontSize: 13, fontFamily: FontFamily.semiBold, color: Colors.surface },
 
+  errorText: { ...Typography.bodySmall, color: Colors.sos },
   checkInNote: { ...Typography.bodySmall, color: Colors.textTertiary, textAlign: 'center' },
 });
