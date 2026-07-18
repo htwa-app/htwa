@@ -14,6 +14,11 @@ jest.mock('@expo/vector-icons', () => {
   const { View } = require('react-native');
   return { Ionicons: (p: { name: string }) => <View testID={`icon-${p.name}`} /> };
 });
+// The disclosure panel has its own suite; stub it (it imports lib/supabase).
+jest.mock('../../components/DriverVerifyPanel', () => {
+  const { View } = require('react-native');
+  return { DriverVerifyPanel: (p: { testID?: string }) => <View testID={p.testID ?? 'driver-verify-panel'} /> };
+});
 
 import BookingSuccessScreen from '../../app/booking-success';
 

@@ -9,9 +9,10 @@
 // (no trailing .select()) via a thenable, matching how the real Postgrest
 // query builder works.
 const mockRideCancelSelect = jest.fn();  // cancelRideAsDriver: ride update ...select('id')
-const mockBookingsBulkCancel = jest.fn(); // cancelRideAsDriver: bookings bulk update (no select)
-const mockBookingCancelSelect = jest.fn(); // cancelBookingAsPassenger/declineBooking: booking update ...select(...)
+const mockBookingsBulkCancel = jest.fn(); // cancelRideAsDriver: bookings bulk update ...select('id')
+const mockBookingCancelSelect = jest.fn(); // cancelBookingAsPassenger/declineBooking: booking update ...select('seats_booked, ride_id')
 const mockRpc = jest.fn(); // restore_ride_seats / book_ride / close_chat
+const mockInvoke = jest.fn(); // create-refund Edge Function
 
 jest.mock('../../lib/supabase', () => {
   function ridesUpdateBuilder(): Record<string, unknown> {
@@ -26,9 +27,9 @@ jest.mock('../../lib/supabase', () => {
     const builder: Record<string, unknown> = {
       eq: () => builder,
       in: () => builder,
-      select: () => mockBookingCancelSelect(),
-      then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
-        mockBookingsBulkCancel().then(resolve, reject),
+      // The bulk cancel selects 'id'; the single-booking paths select
+      // 'seats_booked, ride_id' — distinguish by the requested columns.
+      select: (cols: string) => (cols === 'id' ? mockBookingsBulkCancel() : mockBookingCancelSelect()),
     };
     return builder;
   }
@@ -42,13 +43,17 @@ jest.mock('../../lib/supabase', () => {
         return { update: () => bookingsUpdateBuilder() }; // table === 'bookings'
       },
       rpc: (...args: unknown[]) => mockRpc(...args),
+      functions: { invoke: (...args: unknown[]) => mockInvoke(...args) },
     },
   };
 });
 
 import { isFullRefundEligible, cancelRideAsDriver, cancelBookingAsPassenger, declineBooking } from '../../services/bookings';
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockInvoke.mockResolvedValue({ data: { refundId: 're_1', status: 'succeeded' }, error: null });
+});
 
 describe('isFullRefundEligible', () => {
   it('returns true when > 24h before departure', () => {
@@ -96,15 +101,38 @@ describe('isFullRefundEligible', () => {
 });
 
 describe('cancelRideAsDriver', () => {
-  it('cancels the ride and its bookings on success', async () => {
+  it('cancels the ride, its bookings, and refunds each booking', async () => {
     mockRideCancelSelect.mockResolvedValue({ data: [{ id: 'r1' }], error: null });
-    mockBookingsBulkCancel.mockResolvedValue({ error: null });
+    mockBookingsBulkCancel.mockResolvedValue({ data: [{ id: 'b1' }, { id: 'b2' }], error: null });
     const res = await cancelRideAsDriver('r1', 'd1');
     expect(res).toEqual({
       success: true,
       refunded: true,
-      message: 'Ride cancelled. All passengers will receive a full refund.',
+      message: 'Journey cancelled. All passengers will receive a full refund.',
     });
+    expect(mockInvoke).toHaveBeenCalledTimes(2);
+    expect(mockInvoke).toHaveBeenCalledWith('create-refund', { body: { bookingId: 'b1', reason: 'driver_cancelled' } });
+  });
+
+  it('an unpaid booking (refund 404) still counts as a clean cancellation', async () => {
+    mockRideCancelSelect.mockResolvedValue({ data: [{ id: 'r1' }], error: null });
+    mockBookingsBulkCancel.mockResolvedValue({ data: [{ id: 'b1' }], error: null });
+    mockInvoke.mockResolvedValue({ data: null, error: { message: 'not found', context: { status: 404 } } });
+    const res = await cancelRideAsDriver('r1', 'd1');
+    expect(res.success).toBe(true);
+    expect(res.refunded).toBe(true);
+  });
+
+  it('a genuinely failed refund is surfaced (cancellation still succeeds)', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockRideCancelSelect.mockResolvedValue({ data: [{ id: 'r1' }], error: null });
+    mockBookingsBulkCancel.mockResolvedValue({ data: [{ id: 'b1' }], error: null });
+    mockInvoke.mockResolvedValue({ data: null, error: { message: 'stripe down', context: { status: 502 } } });
+    const res = await cancelRideAsDriver('r1', 'd1');
+    expect(res.success).toBe(true);
+    expect(res.refunded).toBe(false);
+    expect(res.message).toMatch(/support/i);
+    errorSpy.mockRestore();
   });
 
   it('fails when the ride update query errors', async () => {
@@ -122,7 +150,7 @@ describe('cancelRideAsDriver', () => {
 
   it('fails when the ride is cancelled but the bookings bulk-update errors', async () => {
     mockRideCancelSelect.mockResolvedValue({ data: [{ id: 'r1' }], error: null });
-    mockBookingsBulkCancel.mockResolvedValue({ error: { message: 'bookings update failed' } });
+    mockBookingsBulkCancel.mockResolvedValue({ data: null, error: { message: 'bookings update failed' } });
     const res = await cancelRideAsDriver('r1', 'd1');
     expect(res).toEqual({ success: false, refunded: false, message: 'bookings update failed' });
   });
@@ -152,6 +180,50 @@ describe('cancelBookingAsPassenger', () => {
       message: 'Booking cancelled. Full refund issued within 3–5 business days.',
     });
     expect(mockRpc).toHaveBeenCalledWith('restore_ride_seats', { p_ride_id: 'r1', p_seats: 2 });
+    expect(mockInvoke).toHaveBeenCalledWith('create-refund', { body: { bookingId: 'b1', reason: 'passenger_cancelled' } });
+  });
+
+  it('driver_mismatch refunds in full even within 24h of departure (2A-e)', async () => {
+    const soon = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+    mockBookingCancelSelect.mockResolvedValue({
+      data: [{ seats_booked: 1, ride_id: 'r1' }],
+      error: null,
+    });
+    mockRpc.mockResolvedValue({ error: null });
+
+    const res = await cancelBookingAsPassenger('b1', 'p1', soon, 'driver_mismatch');
+    expect(res.success).toBe(true);
+    expect(res.refunded).toBe(true);
+    expect(res.message).toMatch(/driver reported/i);
+    expect(mockInvoke).toHaveBeenCalledWith('create-refund', { body: { bookingId: 'b1', reason: 'driver_mismatch' } });
+  });
+
+  it('a failed refund does not undo the cancellation but points at support', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockBookingCancelSelect.mockResolvedValue({
+      data: [{ seats_booked: 1, ride_id: 'r1' }],
+      error: null,
+    });
+    mockRpc.mockResolvedValue({ error: null });
+    mockInvoke.mockResolvedValue({ data: null, error: { message: 'stripe down', context: { status: 502 } } });
+
+    const res = await cancelBookingAsPassenger('b1', 'p1', futureDeparture);
+    expect(res.success).toBe(true);
+    expect(res.refunded).toBe(false);
+    expect(res.message).toMatch(/support/i);
+    errorSpy.mockRestore();
+  });
+
+  it('within 24h (standard reason) no refund call is made at all', async () => {
+    const soon = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+    mockBookingCancelSelect.mockResolvedValue({
+      data: [{ seats_booked: 1, ride_id: 'r1' }],
+      error: null,
+    });
+    mockRpc.mockResolvedValue({ error: null });
+
+    await cancelBookingAsPassenger('b1', 'p1', soon);
+    expect(mockInvoke).not.toHaveBeenCalled();
   });
 
   it('fails when the booking update query errors', async () => {

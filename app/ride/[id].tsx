@@ -3,11 +3,17 @@
  *
  * Stage 35 — Ride Detail screen.
  * Shows full ride info and allows booking request.
+ *
+ * Booked state (2A-b/e): once the viewer has a live booking on this journey,
+ * the booking card is replaced by their booking status, the "Verify your
+ * driver" disclosure panel, a chat link, and cancellation — including the
+ * "driver/vehicle did not match verified details" reason, which refunds in
+ * full regardless of the 24h window and flags the driver for review.
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet,
+  View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, StyleSheet,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,8 +21,10 @@ import { Avatar } from '../../components/Avatar';
 import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { PriceBreakdown } from '../../components/PriceBreakdown';
+import { DriverVerifyPanel } from '../../components/DriverVerifyPanel';
 import { passengerPricing, type PricingRates } from '../../utils/pricingEngine';
 import { fetchPricingRates } from '../../services/pricingRates';
+import { cancelBookingAsPassenger } from '../../services/bookings';
 import { formatCurrency } from '../../utils/currency';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../constants/theme';
 import { supabase } from '../../lib/supabase';
@@ -50,6 +58,9 @@ export default function RideDetailScreen(): React.ReactElement {
   const [seatsWant, setSeatsWant] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error,     setError]     = useState<string | null>(null);
+  const [myBooking, setMyBooking] = useState<{ id: string; status: string } | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelMessage, setCancelMessage] = useState<string | null>(null);
 
   const fetchRide = useCallback(async () => {
     if (!id) return;
@@ -96,6 +107,19 @@ export default function RideDetailScreen(): React.ReactElement {
       if (vErr) throw vErr;
       const isVerified = vData?.id_verified === true && vData?.selfie_verified === true;
 
+      // The viewer's own booking on this journey (drives the booked-state UI).
+      if (user) {
+        const { data: bookingData, error: bookingErr } = await supabase
+          .from('bookings')
+          .select('id, status')
+          .eq('ride_id', data.id)
+          .eq('passenger_id', user.id)
+          .in('status', ['pending', 'confirmed'])
+          .maybeSingle();
+        if (bookingErr) throw bookingErr;
+        setMyBooking(bookingData ?? null);
+      }
+
       setRide({
         id: data.id,
         from_location: data.from_location,
@@ -124,7 +148,7 @@ export default function RideDetailScreen(): React.ReactElement {
       });
     } catch { setError('Could not load ride details.'); }
     finally  { setIsLoading(false); }
-  }, [id]);
+  }, [id, user]);
 
   useEffect(() => { void fetchRide(); }, [fetchRide]);
 
@@ -149,6 +173,40 @@ export default function RideDetailScreen(): React.ReactElement {
 
   const handleBook = () => {
     router.push(`/booking-request?rideId=${ride.id}&seats=${seatsWant}&pricePerSeat=${passengerSeatPrice}&currency=${ride.currency}`);
+  };
+
+  const runCancellation = async (reason: 'standard' | 'driver_mismatch') => {
+    if (!user || !myBooking) return;
+    setIsCancelling(true);
+    setCancelMessage(null);
+    try {
+      const res = await cancelBookingAsPassenger(myBooking.id, user.id, ride.departure_datetime, reason);
+      setCancelMessage(res.message);
+      if (res.success) setMyBooking(null);
+    } catch {
+      setCancelMessage('Cancellation failed. Please try again.');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  const handleCancelBooking = () => {
+    Alert.alert(
+      'Cancel booking',
+      'Why are you cancelling?',
+      [
+        { text: 'Keep my booking', style: 'cancel' },
+        {
+          text: "Driver/vehicle didn't match verified details",
+          style: 'destructive',
+          onPress: () => void runCancellation('driver_mismatch'),
+        },
+        {
+          text: 'Other reason',
+          onPress: () => void runCancellation('standard'),
+        },
+      ],
+    );
   };
 
   return (
@@ -215,8 +273,44 @@ export default function RideDetailScreen(): React.ReactElement {
         <Text style={styles.metaText}>Need to bring something specific? Message the driver in chat after booking.</Text>
       </View>
 
+      {/* Booked state: status, driver disclosure, chat, cancellation (2A) */}
+      {myBooking && (
+        <View style={styles.bookedSection} testID="booked-section">
+          <View style={styles.bookedStatusRow}>
+            <Ionicons
+              name={myBooking.status === 'confirmed' ? 'checkmark-circle' : 'time-outline'}
+              size={18}
+              color={myBooking.status === 'confirmed' ? Colors.primary : Colors.amber}
+            />
+            <Text style={styles.bookedStatusText} testID="booking-status">
+              {myBooking.status === 'confirmed'
+                ? 'Your booking is confirmed'
+                : 'Your request is waiting for the driver'}
+            </Text>
+          </View>
+
+          <DriverVerifyPanel rideId={ride.id} testID="ride-driver-verify" />
+
+          <Button
+            title="Message driver"
+            variant="secondary"
+            onPress={() => router.push(`/chat/${myBooking.id}`)}
+            testID="chat-button"
+          />
+          <TouchableOpacity
+            onPress={handleCancelBooking}
+            disabled={isCancelling}
+            accessibilityRole="button"
+            testID="cancel-booking-button"
+          >
+            <Text style={styles.cancelText}>{isCancelling ? 'Cancelling…' : 'Cancel booking'}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      {cancelMessage && <Text style={styles.cancelMessage} testID="cancel-message">{cancelMessage}</Text>}
+
       {/* Seat selector + booking */}
-      {!isOwnRide && ride.seats_available > 0 && (
+      {!isOwnRide && !myBooking && ride.seats_available > 0 && (
         <View style={styles.bookingCard}>
           <PriceBreakdown driverSeatPrice={ride.cost_per_seat} currency={ride.currency} rates={rates} testID="ride-price-breakdown" />
           <View style={styles.seatRow}>
@@ -245,7 +339,7 @@ export default function RideDetailScreen(): React.ReactElement {
         </View>
       )}
 
-      {ride.seats_available === 0 && !isOwnRide && (
+      {ride.seats_available === 0 && !isOwnRide && !myBooking && (
         <View style={styles.fullNote} testID="ride-full-note">
           <Text style={styles.fullText}>This ride is full.</Text>
         </View>
@@ -284,6 +378,15 @@ const styles = StyleSheet.create({
   totalValue: { ...Typography.headingMedium, color: Colors.primary },
   bookBtn: {},
   errorText: { ...Typography.bodyMedium, color: Colors.textSecondary },
+  bookedSection: { gap: Spacing.md },
+  bookedStatusRow: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    backgroundColor: Colors.primaryLight, borderRadius: BorderRadius.medium,
+    padding: Spacing.cardPadding,
+  },
+  bookedStatusText: { ...Typography.bodyMedium, color: Colors.textPrimary, flex: 1 },
+  cancelText: { ...Typography.bodyMedium, color: Colors.sos, textAlign: 'center' },
+  cancelMessage: { ...Typography.bodySmall, color: Colors.textSecondary, textAlign: 'center' },
   retryBtn: { marginTop: Spacing.md, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md },
   retryText: { ...Typography.buttonSmall, color: Colors.primary },
   ownRideNote: { backgroundColor: Colors.primaryLight, borderRadius: BorderRadius.medium, padding: Spacing.cardPadding, alignItems: 'center' },

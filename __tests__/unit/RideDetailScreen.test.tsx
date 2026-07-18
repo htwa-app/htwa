@@ -24,22 +24,37 @@ const mockRide   = jest.fn();
 const mockUser   = jest.fn();
 const mockProfile = jest.fn();
 const mockVerif  = jest.fn();
+const mockMyBooking = jest.fn();
 jest.mock('../../lib/supabase', () => ({
   supabase: {
-    from: (table: string) => ({
-      select: () => ({
-        eq: () => ({
-          single: () => mockRide(),
-          maybeSingle: () => {
-            if (table === 'users')        return mockUser();
-            if (table === 'profiles')     return mockProfile();
-            if (table === 'verification') return mockVerif();
-            return Promise.resolve({ data: null });
-          },
-        }),
-      }),
-    }),
+    from: (table: string) => {
+      // Fully chainable builder: any eq/in sequence, terminated by
+      // single/maybeSingle, dispatched by table.
+      const builder: Record<string, unknown> = {};
+      builder.select = () => builder;
+      builder.eq = () => builder;
+      builder.in = () => builder;
+      builder.single = () => mockRide();
+      builder.maybeSingle = () => {
+        if (table === 'users')        return mockUser();
+        if (table === 'profiles')     return mockProfile();
+        if (table === 'verification') return mockVerif();
+        if (table === 'bookings')     return mockMyBooking();
+        return Promise.resolve({ data: null, error: null });
+      };
+      return builder;
+    },
   },
+}));
+
+// Booked-state panels/services have their own suites — stub them here.
+jest.mock('../../components/DriverVerifyPanel', () => {
+  const { View } = require('react-native');
+  return { DriverVerifyPanel: (p: { testID?: string }) => <View testID={p.testID ?? 'driver-verify-panel'} /> };
+});
+const mockCancelBooking = jest.fn();
+jest.mock('../../services/bookings', () => ({
+  cancelBookingAsPassenger: (...a: unknown[]) => mockCancelBooking(...a),
 }));
 
 const mockUseAuth = jest.fn();
@@ -67,6 +82,8 @@ beforeEach(() => {
   mockUser.mockResolvedValue({ data: { full_name: 'Aoife Murphy' }, error: null });
   mockProfile.mockResolvedValue({ data: { university: 'NUIG', vehicle_details: { make: 'Toyota', model: 'Yaris', seats: 4, hasAC: true, dashcam: false } }, error: null });
   mockVerif.mockResolvedValue({ data: { id_verified: true, selfie_verified: true }, error: null });
+  mockMyBooking.mockResolvedValue({ data: null, error: null }); // not booked
+  mockCancelBooking.mockResolvedValue({ success: true, refunded: true, message: 'Booking cancelled. Full refund issued within 3–5 business days.' });
   mockFetchRates.mockResolvedValue(TEST_PRICING_RATES);
 });
 
@@ -138,5 +155,77 @@ describe('RideDetailScreen', () => {
   it('shows a no-luggage placeholder when absent (Block 8)', async () => {
     render(<RideDetailScreen />);
     await waitFor(() => expect(screen.getByTestId('ride-luggage-none')).toBeTruthy());
+  });
+});
+
+// ─── Booked state (2A-b/e) ────────────────────────────────────────────────────
+
+describe('RideDetailScreen — booked state', () => {
+  const { Alert } = require('react-native');
+
+  beforeEach(() => {
+    mockMyBooking.mockResolvedValue({ data: { id: 'b1', status: 'confirmed' }, error: null });
+  });
+
+  it('shows booking status, driver-verify panel and chat instead of the booking card', async () => {
+    render(<RideDetailScreen />);
+    await waitFor(() => expect(screen.getByTestId('booked-section')).toBeTruthy());
+    expect(screen.getByTestId('booking-status')).toHaveTextContent(/confirmed/);
+    expect(screen.getByTestId('ride-driver-verify')).toBeTruthy();
+    expect(screen.queryByTestId('book-button')).toBeNull();
+
+    fireEvent.press(screen.getByTestId('chat-button'));
+    expect(mockPush).toHaveBeenCalledWith('/chat/b1');
+  });
+
+  it('pending booking shows the waiting state', async () => {
+    mockMyBooking.mockResolvedValue({ data: { id: 'b1', status: 'pending' }, error: null });
+    render(<RideDetailScreen />);
+    await waitFor(() => expect(screen.getByTestId('booking-status')).toHaveTextContent(/waiting/));
+  });
+
+  it('driver-mismatch cancellation passes the reason through (full refund + report)', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((...args: unknown[]) => {
+      const buttons = args[2] as Array<{ text: string; onPress?: () => void }>;
+      buttons.find((b) => /didn't match/.test(b.text))?.onPress?.();
+    });
+    render(<RideDetailScreen />);
+    await waitFor(() => expect(screen.getByTestId('cancel-booking-button')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('cancel-booking-button'));
+    await waitFor(() => expect(mockCancelBooking).toHaveBeenCalledWith('b1', 'u1', RIDE.departure_datetime, 'driver_mismatch'));
+    alertSpy.mockRestore();
+  });
+
+  it('standard cancellation shows the result message and clears the booked state', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((...args: unknown[]) => {
+      const buttons = args[2] as Array<{ text: string; onPress?: () => void }>;
+      buttons.find((b) => b.text === 'Other reason')?.onPress?.();
+    });
+    render(<RideDetailScreen />);
+    await waitFor(() => expect(screen.getByTestId('cancel-booking-button')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('cancel-booking-button'));
+    await waitFor(() => expect(screen.getByTestId('cancel-message')).toHaveTextContent(/Full refund/));
+    expect(screen.queryByTestId('booked-section')).toBeNull();
+    alertSpy.mockRestore();
+  });
+
+  it('a failed cancellation keeps the booked state and shows the failure message', async () => {
+    mockCancelBooking.mockResolvedValue({ success: false, refunded: false, message: 'Booking not found, not permitted, or already cancelled.' });
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((...args: unknown[]) => {
+      const buttons = args[2] as Array<{ text: string; onPress?: () => void }>;
+      buttons.find((b) => b.text === 'Other reason')?.onPress?.();
+    });
+    render(<RideDetailScreen />);
+    await waitFor(() => expect(screen.getByTestId('cancel-booking-button')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('cancel-booking-button'));
+    await waitFor(() => expect(screen.getByTestId('cancel-message')).toHaveTextContent(/not permitted|not found/));
+    expect(screen.getByTestId('booked-section')).toBeTruthy();
+    alertSpy.mockRestore();
+  });
+
+  it('a failed my-booking query surfaces the error state, not a bookable ride', async () => {
+    mockMyBooking.mockResolvedValue({ data: null, error: { message: 'db down' } });
+    render(<RideDetailScreen />);
+    await waitFor(() => expect(screen.getByTestId('ride-detail-error')).toBeTruthy());
   });
 });
