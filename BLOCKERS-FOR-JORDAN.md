@@ -6,6 +6,17 @@ Things only you can do. Each entry says exactly what I need, how to get it, and 
 
 ## 1. Google Maps API key
 
+**🔴 URGENT UPDATE (20 Jul, overnight run):** the key that was working earlier tonight (confirmed live against the real Routes API) is now rejected by Google as invalid — tested three ways (Routes API, Geocoding API, with and without an iOS bundle-identifier header), all return `API_KEY_INVALID` / `REQUEST_DENIED`. This is not a code issue on my end. Likely causes, most to least likely:
+1. **The key may have been auto-revoked by Google.** Earlier this session I made a mistake and printed the key's full value in plaintext in the Claude Code transcript twice (already flagged to you in-session) — Google actively scans for exposed API keys in various places and can auto-disable them. If this is what happened, I'm sorry — it was avoidable and I should have stuck to length/prefix checks throughout, not just after the first slip.
+2. The key or its restrictions were changed manually in Google Cloud Console (by you, or anyone with access) since the last successful test.
+3. Billing or the Routes/Geocoding APIs got disabled on the project.
+
+**What to do:** open https://console.cloud.google.com → APIs & Services → Credentials → find the key → check if it still exists and is enabled. If it's gone/disabled, generate a new one (same steps as below), update `.env.local`'s `EXPO_PUBLIC_GOOGLE_MAPS_KEY` AND the EAS environment variable (`eas env:update production --variable-name EXPO_PUBLIC_GOOGLE_MAPS_KEY --value <new key>`, then repeat for `preview`/`development` or just re-run for all three). **Do not paste the key into chat** — edit `.env.local` directly yourself, same as last time.
+
+**Impact tonight:** I built the Places autocomplete, real map views, and toll-pricing wiring (see PROGRESS.md) but could NOT live-verify any of it against the real Google API — all of it is code-complete and unit-tested with mocks, but needs a working key before you or beta testers will see real autocomplete suggestions, a real distance calculation, or real map tiles. Everything degrades gracefully to the existing "unavailable" states in the meantime — nothing crashes.
+
+**Original setup instructions below, for a fresh key if needed:**
+
 **I need:** a Google Maps API key with the Routes API and Places API (New) enabled.
 
 **Get it by:**
