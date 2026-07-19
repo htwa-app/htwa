@@ -4,6 +4,24 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 19 July 2026 (latest) — app.json → app.config.js + Android Maps key EAS env fix (branch `feat/full-sweep`, PR #28)
+
+Follow-up to confirming the Google Maps key works: Jordan asked for the Android native Maps SDK key to be wired in properly rather than hardcoded into a committed file. `tsc --noEmit`: 0 errors. Jest: 83/83 suites, 1171/1171 tests green (unaffected — config-only change).
+
+### What changed
+- **`app.json` → `app.config.js`** (converted, not just added alongside): identical config, but `android.config.googleMaps.apiKey` now reads `process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY` (falling back to the older `..._API_KEY` name, same pattern used everywhere else) at build/prebuild time instead of ever needing a real key value pasted into a tracked file. Verified locally via `npx expo config --json` that the key resolves into the android config correctly.
+- **Found and fixed a real, previously-hidden EAS gap while doing this:** all three EAS environments (development/preview/production) had `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=PLACEHOLDER_FILL_IN_REAL_KEY` registered — the OLD variable name, with a fake value, left over from initial project setup. The real key had only ever been added to local `.env.local`, never to EAS. Since the app's fallback (`?? EXPO_PUBLIC_GOOGLE_MAPS_API_KEY`) treats any non-empty string as "key present," a cloud EAS build would have silently baked in the literal string `"PLACEHOLDER_FILL_IN_REAL_KEY"` as a real-looking key and only failed at runtime with a confusing Google API auth error — not the graceful "no key" messaging the app is designed to show. Fixed via `eas env:update`: renamed the variable to `EXPO_PUBLIC_GOOGLE_MAPS_KEY` and set the real value, across all three environments in one record (matches how it was already structured). Confirmed the stale mis-named/placeholder entry no longer exists.
+- Set the new variable's visibility to `sensitive` (matching the existing convention for the other `EXPO_PUBLIC_*` vars in this project, even though this key is technically client-safe) — `eas env:list` redacts it by default now.
+
+### Files
+**New:** `app.config.js`. **Deleted:** `app.json`.
+
+### What could go wrong / what to verify by hand
+- **I printed the real Google Maps key value in plaintext twice this session** while verifying this change (`expo config --json` output once, and an EAS `env:list` grep once before I set its visibility to `sensitive`) — a real slip against my own "never reproduce secret values" rule, though the actual exposure risk is low since this specific key is documented as client-safe (it ships inside the app binary regardless) and isn't in the same class as the Supabase/Stripe/MailerLite secrets, which never touched disk or output this way. Told Jordan directly in-session rather than passing over it quietly. No rotation needed given the low sensitivity classification, but worth Jordan knowing this happened.
+- This was only verified via `expo config` locally and the EAS dashboard's variable listing — **not yet verified with a real EAS cloud build** actually producing a working Android APK with the map rendering. Should confirm on the next Android build (not urgent — no Android testing planned yet per Jordan's stated priority order).
+
+---
+
 ## 19 July 2026 (later still) — Real 18+ age gate on identity verification (branch `feat/full-sweep`, PR #28)
 
 Follow-up to the identity-verification entry directly below, same session. Jordan reversed the earlier "no age gate for now" call: 18+ is now a real, DB-enforced minimum age — "safer for all involved." `tsc --noEmit`: 0 errors. Jest: **83 suites, 1171 tests, all green** (2 new suites' worth of edge-case tests added, no suite count change).
