@@ -244,28 +244,50 @@ describe('IdVerifyScreen — photo tiles', () => {
   });
 });
 
-// ─── Date of birth plausibility ───────────────────────────────────────────────
+// ─── Date of birth: 18+ age gate ──────────────────────────────────────────────
 
-describe('IdVerifyScreen — date of birth plausibility', () => {
-  it('flags an implausible DOB (younger than the sanity floor) and disables submit', async () => {
+describe('IdVerifyScreen — 18+ age gate', () => {
+  it('blocks a DOB under 18 with a dedicated message and disables submit', async () => {
     render(<IdVerifyScreen />);
     await addAllPhotos();
     const tooYoung = new Date();
     tooYoung.setFullYear(tooYoung.getFullYear() - 5);
     await fillDob(tooYoung.toISOString().slice(0, 10));
-    await waitFor(() => expect(screen.getByTestId('dob-implausible')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('dob-underage')).toHaveTextContent(/18 or older/i));
+    expect(screen.queryByTestId('dob-implausible')).toBeNull();
     expect(screen.getByTestId('id-verify-submit').props.accessibilityState?.disabled).toBe(true);
   });
 
-  it('accepts a plausible DOB and does not show the implausible warning', async () => {
+  it('blocks a DOB exactly one day short of the 18th birthday', async () => {
     render(<IdVerifyScreen />);
-    await fillDob();
+    await addAllPhotos();
+    const almost18 = new Date();
+    almost18.setFullYear(almost18.getFullYear() - 18);
+    almost18.setDate(almost18.getDate() + 1); // turns 18 tomorrow, not yet today
+    await fillDob(almost18.toISOString().slice(0, 10));
+    await waitFor(() => expect(screen.getByTestId('dob-underage')).toBeTruthy());
+  });
+
+  it('accepts a DOB exactly at the 18th birthday', async () => {
+    render(<IdVerifyScreen />);
+    const exactly18 = new Date();
+    exactly18.setFullYear(exactly18.getFullYear() - 18);
+    await fillDob(exactly18.toISOString().slice(0, 10));
+    expect(screen.queryByTestId('dob-underage')).toBeNull();
     expect(screen.queryByTestId('dob-implausible')).toBeNull();
   });
 
-  it('shows no implausible warning before the field has been touched', async () => {
+  it('accepts a plausible adult DOB and shows no warning', async () => {
+    render(<IdVerifyScreen />);
+    await fillDob();
+    expect(screen.queryByTestId('dob-underage')).toBeNull();
+    expect(screen.queryByTestId('dob-implausible')).toBeNull();
+  });
+
+  it('shows no warning before the field has been touched', async () => {
     render(<IdVerifyScreen />);
     await waitFor(() => expect(screen.getByTestId('dob-field')).toBeTruthy());
+    expect(screen.queryByTestId('dob-underage')).toBeNull();
     expect(screen.queryByTestId('dob-implausible')).toBeNull();
   });
 });

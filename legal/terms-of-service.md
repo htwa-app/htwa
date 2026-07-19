@@ -77,7 +77,7 @@ The applicable rate is determined by the driver's home jurisdiction regardless o
 
 ## 5. Verification
 
-Every user — passenger or driver — must submit identity verification: a government-issued photo ID (passport, driving licence, or national ID card), date of birth, and a live-captured selfie. This is mandatory and non-negotiable, and applies equally to all users, not only drivers. Submissions are manually reviewed. <!-- ADVISER NOTE: item 2 (age eligibility) requires the app to actually confirm the user is 18+; verification currently confirms identity (photo ID matched against a live selfie) and records date of birth, but does not itself gate access on the DOB meeting an age threshold — flagged for review, ADVISER-BRIEFING.md item 11. -->
+Every user — passenger or driver — must submit identity verification: a government-issued photo ID (passport, driving licence, or national ID card), date of birth, and a live-captured selfie. This is mandatory and non-negotiable, and applies equally to all users, not only drivers. You must be 18 or older — a date of birth indicating otherwise is rejected automatically and cannot be submitted. Submissions are manually reviewed, including cross-checking your stated date of birth against your photo ID. <!-- ADVISER NOTE: age eligibility is now enforced both client-side (app/id-verify.tsx) and at the database layer (CHECK constraint, migration 20260719210001) against the user's self-reported date of birth; the ID-document cross-check itself remains a manual step during review, not automated OCR — ADVISER-BRIEFING.md item 11. -->
 
 While your submission is under review, you can browse and search for journeys. **Booking a seat or posting a journey requires your verification to be approved.**
 

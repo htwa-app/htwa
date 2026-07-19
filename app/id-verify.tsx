@@ -20,9 +20,15 @@
  * Note on the DOB field: DateTimeField's generic "Done always commits the
  * wheel's current value" is correct for a journey date/time (today/now is a
  * legitimate answer), but nobody's real birthdate is sensibly "today" — the
- * field opens defaulting there if never touched. A light plausibility check
- * (age ≥ 13) catches an accidental untouched-Done without implementing an
- * actual minimum-age policy, which Jordan explicitly deferred.
+ * field opens defaulting there if never touched. Since MIN_AGE below is a
+ * real eligibility gate (not just a sanity check), an untouched-Done DOB of
+ * "today" simply fails it and blocks submission with the standard message —
+ * no separate plausibility floor is needed.
+ *
+ * 19 Jul (age-gate follow-up): self-reported DOB is enforced here AND at the
+ * DB layer (see the CHECK constraint added in the age-gate migration); Jordan
+ * additionally cross-checks the submitted DOB against the photo ID by hand
+ * during manual review, same as every other verification field.
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -57,7 +63,7 @@ const PHOTO_TILES: Array<{ key: PhotoKey; icon: string; title: string; hint: str
   },
 ];
 
-const MIN_PLAUSIBLE_AGE = 13; // sanity check only, NOT a minimum-age policy (deferred)
+const MIN_AGE = 18; // real eligibility gate (19 Jul) — also enforced by a DB CHECK constraint
 
 function ageFromDOB(dob: string): number {
   const birth = new Date(`${dob}T00:00:00`);
@@ -127,8 +133,10 @@ export default function IdVerifyScreen(): React.ReactElement {
   const photoDone = (key: PhotoKey): boolean =>
     !!photos[key] || (key === 'idDocument' ? !!existing?.id_document_path : !!existing?.selfie_url);
 
-  const dobPlausible = dob.length > 0 && !Number.isNaN(new Date(`${dob}T00:00:00`).getTime())
-    && ageFromDOB(dob) >= MIN_PLAUSIBLE_AGE && new Date(`${dob}T00:00:00`) <= new Date();
+  const dobParsed = dob.length > 0 ? new Date(`${dob}T00:00:00`) : null;
+  const dobFormatValid = dobParsed !== null && !Number.isNaN(dobParsed.getTime()) && dobParsed <= new Date();
+  const dobUnderage = dobFormatValid && ageFromDOB(dob) < MIN_AGE;
+  const dobPlausible = dobFormatValid && !dobUnderage;
   const photosComplete = (['idDocument', 'selfie'] as PhotoKey[]).every(photoDone);
   const canSubmit = dobPlausible && photosComplete && !isSubmitting;
 
@@ -268,7 +276,12 @@ export default function IdVerifyScreen(): React.ReactElement {
           maximumDate={maxDob}
           testID="dob-field"
         />
-        {dob.length > 0 && !dobPlausible && (
+        {dob.length > 0 && dobUnderage && (
+          <Text style={styles.errorText} testID="dob-underage">
+            You must be 18 or older to use htwa.
+          </Text>
+        )}
+        {dob.length > 0 && !dobFormatValid && (
           <Text style={styles.errorText} testID="dob-implausible">
             That doesn't look like a valid date of birth — please check it.
           </Text>

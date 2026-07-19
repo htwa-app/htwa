@@ -4,6 +4,28 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 19 July 2026 (later still) — Real 18+ age gate on identity verification (branch `feat/full-sweep`, PR #28)
+
+Follow-up to the identity-verification entry directly below, same session. Jordan reversed the earlier "no age gate for now" call: 18+ is now a real, DB-enforced minimum age — "safer for all involved." `tsc --noEmit`: 0 errors. Jest: **83 suites, 1171 tests, all green** (2 new suites' worth of edge-case tests added, no suite count change).
+
+### What changed
+- **`app/id-verify.tsx`:** the old `MIN_PLAUSIBLE_AGE = 13` "don't accept an accidental untouched-Done default" sanity check is now a real `MIN_AGE = 18` eligibility gate. Split the DOB validity check in two so the UI can say the right thing: `dobUnderage` (valid date, real age < 18 → "You must be 18 or older to use htwa.", `testID="dob-underage"`) vs `dobFormatValid` (unparseable or future date → the existing generic message, `testID="dob-implausible"`). `canSubmit` still requires both checks to pass alongside photos.
+- **New migration `20260719210001_identity_verification_age_gate.sql`** (applied + live-verified): `CHECK (date_of_birth IS NULL OR date_of_birth <= (CURRENT_DATE - INTERVAL '18 years')::date)` on `public.verification`. `NULL` is exempted so the two accounts already grandfathered to `approved` before the `date_of_birth` column existed aren't retroactively invalidated. This is the real wall — the app-side check is convenience, matching every other gate in this codebase (women-only, waiver, seats, driver/identity approval).
+- **Live-verified against the real Supabase project** (not just Jest): re-authenticated as the `claude-e2e-passenger` test fixture (same account used for the identity-verification gate test) and attempted a real `verification` upsert with a DOB implying age 10 — rejected with Postgres error `23514` (`violates check constraint "verification_min_age_18"`), confirming the constraint is live and actually blocks the write, not just present in the migration file. No row was written, so no cleanup was needed.
+- **Legal docs:** `terms-of-service.md` §5 now states the 18+ eligibility is enforced (was previously softened to avoid an inaccurate claim — the earlier commit's ADVISER NOTE flagged this exact gap as needing a decision). `legal/ADVISER-BRIEFING.md` item 11(d) updated from "flagged gap, needs a decision" to "resolved — please confirm self-report + manual human cross-check of the DOB against the ID document is adequate evidence of age" (the DOB itself is still self-reported and manually cross-checked by Jordan against the uploaded document during review, not automated OCR — that distinction is now explicit in both documents so the adviser question is about evidentiary adequacy, not about whether anything is enforced at all). `constants/legalDocs.ts` regenerated again from the edited markdown.
+- **`CLAUDE.md`** Key Decisions Log: added one entry for the final state (universal verification + 18+ DB-enforced) rather than logging the reversed "no age gate" call and then a second entry undoing it — that would just be noise for future sessions to read through.
+- **Tests:** `__tests__/unit/IdVerifyScreen.test.tsx`'s DOB describe block rewritten as "18+ age gate" with 5 cases including the boundary: a DOB exactly on the 18th birthday is accepted, one day short is rejected.
+
+### Files
+**New:** `supabase/migrations/20260719210001_identity_verification_age_gate.sql`.
+**Modified:** `app/id-verify.tsx`, `legal/terms-of-service.md`, `legal/ADVISER-BRIEFING.md`, `constants/legalDocs.ts`, `CLAUDE.md`, `__tests__/unit/IdVerifyScreen.test.tsx`, `PROGRESS.md`.
+
+### What could go wrong / what to verify by hand
+- The age-gate CHECK constraint reads `CURRENT_DATE` at write time — this is correct (age is evaluated as-of-now, not as-of-signup), but means a user who submitted while 17 and was rejected, then waits until their actual 18th birthday, can resubmit and pass without changing anything else. That's intentional and correct, just worth knowing it's not a permanent block tied to the original submission attempt.
+- Still self-reported DOB — the constraint only proves internal consistency ("this DOB, if true, means 18+"), not that the DOB is truthful. The actual anti-fraud step remains Jordan's manual cross-check of DOB against the photo ID during review, same as before.
+
+---
+
 ## 19 July 2026 (late) — Universal identity verification + simulator dev-fallback + ntfy review flow (branch `feat/full-sweep`, PR #28)
 
 Continues directly from the round-2 entry below (same branch/PR). `tsc --noEmit`: 0 errors. Jest: **83 suites, 1169 tests, all green.** Nothing merged to `main` — Jordan merges by hand once he's hands-on tested.
