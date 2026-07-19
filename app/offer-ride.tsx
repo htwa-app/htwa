@@ -34,6 +34,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { RouteInput } from '../components/RouteInput';
+import { DateTimeField } from '../components/DateTimeField';
 import { calculateJourneyPricing, type Jurisdiction, type EngineCcBand, type PricingRates } from '../utils/pricingEngine';
 import { fetchPricingRates } from '../services/pricingRates';
 import { cumulativeForTaxYear, type MileageIncrement } from '../utils/mileageTracking';
@@ -345,25 +346,26 @@ export default function OfferRideScreen(): React.ReactElement {
         )}
       </View>
 
-      {/* Date + Time */}
+      {/* Date + Time — native calendar/clock pickers (value contracts unchanged) */}
       <View style={styles.fieldRow}>
         <View style={styles.fieldHalf}>
           <Text style={styles.sectionLabel}>Date</Text>
-          <Input
-            placeholder="YYYY-MM-DD"
+          <DateTimeField
+            mode="date"
             value={date}
-            onChangeText={setDate}
-            keyboardType="numbers-and-punctuation"
+            onChange={setDate}
+            placeholder="Pick a date"
+            minimumDate={new Date()}
             testID="date-input"
           />
         </View>
         <View style={styles.fieldHalf}>
           <Text style={styles.sectionLabel}>Time</Text>
-          <Input
-            placeholder="HH:MM"
+          <DateTimeField
+            mode="time"
             value={time}
-            onChangeText={setTime}
-            keyboardType="numbers-and-punctuation"
+            onChange={setTime}
+            placeholder="Pick a time"
             testID="time-input"
           />
         </View>

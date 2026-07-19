@@ -77,6 +77,7 @@ const _profileRow: ProfileRow = {
   women_only_mode:    false,
   university_verification_status: 'unverified',
   student_card_url:   null,
+  avatar_url:         null,
 };
 
 const _profileInsert: ProfileInsert = {

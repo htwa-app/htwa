@@ -24,6 +24,8 @@ import Button from '../components/Button';
 import { Colors, Typography, Spacing } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { captureVerificationSelfie } from '../services/imagePicker';
+import { uploadVerificationSelfie } from '../services/verificationSelfie';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -56,12 +58,29 @@ export default function IdVerifyScreen() {
     setMessage(null);
 
     try {
-      // TODO Phase 15: replace this block with real Stripe Identity verification:
+      // The selfie is REAL as of the safety-suite build: a live front-camera
+      // capture, uploaded to the verification-selfies bucket, shown to booked
+      // passengers on the "Verify your driver" panel.
+      const selfieBytes = await captureVerificationSelfie();
+      if (!selfieBytes) {
+        setIsError(true);
+        setMessage('A live selfie is required — it lets your passengers verify it\'s really you. Camera permission and a photo are needed to continue.');
+        return;
+      }
+      const selfieRes = await uploadVerificationSelfie(user.id, selfieBytes);
+      if (!selfieRes.ok) {
+        setIsError(true);
+        setMessage('Could not save your selfie. Please try again.');
+        return;
+      }
+
+      // TODO Phase 15: replace this block with real Stripe Identity verification
+      // for the ID-document side:
       //   1. Call a Supabase Edge Function to obtain verificationSessionId + ephemeralKeySecret
       //   2. Use @stripe/stripe-identity-react-native to present the verification sheet
-      //   3. Only write the row below after a successful Stripe result
+      //   3. Only write id_verified below after a successful Stripe result
 
-      // Beta placeholder — write verified status directly so onboarding can proceed
+      // Beta placeholder — id_verified written directly so onboarding can proceed
       const { error: upsertError } = await supabase.from('verification').upsert({
         user_id:         user.id,
         id_verified:     true,

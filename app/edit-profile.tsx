@@ -18,6 +18,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
+  Image,
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
@@ -37,7 +38,8 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { uploadStudentCard } from '../services/studentCard';
-import { pickStudentCardImage } from '../services/imagePicker';
+import { pickProfilePhoto, pickStudentCardImage } from '../services/imagePicker';
+import { getAvatarUrl, uploadAvatar } from '../services/avatar';
 import type { UniversityVerificationStatus } from '../types/database';
 
 // Labels + colours for the university verification status badge.
@@ -116,6 +118,9 @@ export default function EditProfileScreen(): React.ReactElement {
   const [uniStatus,  setUniStatus]  = useState<UniversityVerificationStatus>('unverified');
   const [uploading,  setUploading]  = useState(false);
   const [uploadNote, setUploadNote] = useState<string | null>(null);
+  const [avatarUrl,  setAvatarUrl]  = useState<string | null>(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarNote, setAvatarNote] = useState<string | null>(null);
   const [isLoading,  setIsLoading]  = useState(true);
   const [isSaving,   setIsSaving]   = useState(false);
   const [saveError,  setSaveError]  = useState<string | null>(null);
@@ -129,7 +134,7 @@ export default function EditProfileScreen(): React.ReactElement {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('bio, university, travel_preferences, university_verification_status')
+        .select('bio, university, travel_preferences, university_verification_status, avatar_url')
         .eq('user_id', user.id)
         .single();
 
@@ -145,6 +150,7 @@ export default function EditProfileScreen(): React.ReactElement {
         setUniStatus((data.university_verification_status ?? 'unverified') as UniversityVerificationStatus);
         const saved = (data.travel_preferences ?? {}) as Partial<TravelPreferences>;
         setPrefs({ ...DEFAULT_PREFS, ...saved });
+        setAvatarUrl(await getAvatarUrl(data.avatar_url ?? null));
       }
     } catch {
       setSaveError('Could not load your profile. Please try again.');
@@ -161,6 +167,23 @@ export default function EditProfileScreen(): React.ReactElement {
     setPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const handlePickAvatar = async () => {
+    if (!user || avatarBusy) return;
+    setAvatarNote(null);
+    setAvatarBusy(true);
+    try {
+      const bytes = await pickProfilePhoto();
+      if (!bytes) return; // cancelled or permission denied — leave as-is
+      const res = await uploadAvatar(user.id, bytes);
+      if (!res.ok) { setAvatarNote('Could not save your photo. Please try again.'); return; }
+      setAvatarUrl(await getAvatarUrl(res.path));
+    } catch {
+      setAvatarNote('Could not save your photo. Please try again.');
+    } finally {
+      setAvatarBusy(false);
+    }
+  };
+
   const handleUploadStudentCard = async () => {
     if (!user) return;
     setUploadNote(null);
@@ -168,8 +191,8 @@ export default function EditProfileScreen(): React.ReactElement {
     try {
       const bytes = await pickStudentCardImage();
       if (!bytes) {
-        // Native image-picker not installed yet (see services/imagePicker.ts).
-        setUploadNote('Photo upload needs the camera module — coming in the next build.');
+        // Cancelled, or photo-library permission denied.
+        setUploadNote('No photo selected. Allow photo access in Settings if the picker didn\'t open.');
         return;
       }
       const result = await uploadStudentCard(user.id, bytes);
@@ -239,12 +262,25 @@ export default function EditProfileScreen(): React.ReactElement {
         <View style={styles.headerSpacer} />
       </View>
 
-      {/* ── Photo placeholder ─────────────────────────────────────────────────── */}
+      {/* ── Profile photo ─────────────────────────────────────────────────────── */}
       <View style={styles.photoSection}>
-        <View style={styles.photoPlaceholder} testID="photo-placeholder">
-          <Ionicons name="camera-outline" size={28} color={Colors.textSecondary} />
-        </View>
-        <Text style={styles.photoHint}>Photo upload coming soon</Text>
+        <TouchableOpacity
+          onPress={handlePickAvatar}
+          disabled={avatarBusy}
+          accessibilityRole="button"
+          accessibilityLabel="Change profile photo"
+          testID="photo-picker"
+        >
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.photo} testID="profile-photo" />
+          ) : (
+            <View style={styles.photoPlaceholder} testID="photo-placeholder">
+              <Ionicons name="camera-outline" size={28} color={Colors.textSecondary} />
+            </View>
+          )}
+        </TouchableOpacity>
+        <Text style={styles.photoHint}>{avatarBusy ? 'Uploading…' : 'Tap to change your photo'}</Text>
+        {avatarNote && <Text style={styles.photoError} testID="avatar-error">{avatarNote}</Text>}
       </View>
 
       {/* ── Bio ──────────────────────────────────────────────────────────────── */}
@@ -387,6 +423,17 @@ const styles = StyleSheet.create({
   photoHint: {
     ...Typography.bodySmall,
     color: Colors.textTertiary,
+  },
+  photo: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    marginBottom: Spacing.sm,
+  },
+  photoError: {
+    ...Typography.bodySmall,
+    color: Colors.sos,
+    marginTop: Spacing.xs,
   },
 
   section: {

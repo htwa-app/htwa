@@ -30,6 +30,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
 import { NominatedContactCard } from '../../components/NominatedContactCard';
 import { DriverVerifyPanel } from '../../components/DriverVerifyPanel';
+import { JourneyMap } from '../../components/JourneyMap';
 import {
   Colors, Typography, Spacing, BorderRadius, FontFamily,
 } from '../../constants/theme';
@@ -354,21 +355,28 @@ export default function LiveTripScreen(): React.ReactElement {
 
   return (
     <View style={styles.screen} testID="live-trip-screen">
-      {/* Map stub — meaningful live data until the Maps key lands */}
+      {/* Map — real map when the Maps key exists, meaningful stub until then */}
       <View style={styles.mapPlaceholder} testID="map-placeholder">
-        <Ionicons name="map-outline" size={48} color={Colors.textTertiary} />
-        {isInProgress && activeTrip?.role === 'passenger' ? (
-          feed.state === 'live' && feed.last ? (
-            <Text style={styles.mapPlaceholderText} testID="live-coords">
-              Live: {feed.last.lat.toFixed(4)}, {feed.last.lng.toFixed(4)}
-            </Text>
-          ) : (
-            <Text style={styles.signalLostText} testID="signal-lost">
-              Signal lost{feed.last ? ` — last seen ${new Date(feed.last.recorded_at).toLocaleTimeString('en-IE', { hour: '2-digit', minute: '2-digit' })} at ${feed.last.lat.toFixed(4)}, ${feed.last.lng.toFixed(4)}` : ''}
-            </Text>
-          )
-        ) : (
-          <Text style={styles.mapPlaceholderText}>Live map</Text>
+        <JourneyMap
+          from={activeTrip?.from_coords ?? null}
+          to={activeTrip?.to_coords ?? null}
+          current={feed.last ? { lat: feed.last.lat, lng: feed.last.lng } : null}
+          stubText={
+            isInProgress && activeTrip?.role === 'passenger' && feed.state === 'live' && feed.last
+              ? `Live: ${feed.last.lat.toFixed(4)}, ${feed.last.lng.toFixed(4)}`
+              : 'Live map'
+          }
+          testID="journey-map"
+        />
+        {isInProgress && activeTrip?.role === 'passenger' && feed.state !== 'live' && (
+          <Text style={styles.signalLostText} testID="signal-lost">
+            Signal lost{feed.last ? ` — last seen ${new Date(feed.last.recorded_at).toLocaleTimeString('en-IE', { hour: '2-digit', minute: '2-digit' })} at ${feed.last.lat.toFixed(4)}, ${feed.last.lng.toFixed(4)}` : ''}
+          </Text>
+        )}
+        {isInProgress && activeTrip?.role === 'passenger' && feed.state === 'live' && feed.last && (
+          <Text style={styles.mapPlaceholderText} testID="live-coords">
+            Live: {feed.last.lat.toFixed(4)}, {feed.last.lng.toFixed(4)}
+          </Text>
         )}
         {isInProgress && (
           <View style={styles.liveBadge} testID="live-badge">

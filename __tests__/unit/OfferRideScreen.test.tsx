@@ -50,6 +50,21 @@ jest.mock('../../services/pricingRates', () => ({
 }));
 
 // RouteInput mock — no type annotations in factory (Jest hoisting rule)
+// DateTimeField is a native-picker field; stub it as a plain TextInput so the
+// existing changeText-based tests keep exercising the same string contracts.
+jest.mock('../../components/DateTimeField', () => {
+  const { TextInput } = require('react-native');
+  return {
+    DateTimeField: (props: Record<string, unknown>) => (
+      <TextInput
+        testID={props.testID as string}
+        value={(props.value as string) ?? ''}
+        onChangeText={props.onChange}
+      />
+    ),
+  };
+});
+
 jest.mock('../../components/RouteInput', () => {
   const { View, TextInput } = require('react-native');
   return {

@@ -51,7 +51,8 @@
         {
           "merchantIdentifier": "merchant.com.htwa"
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "owner": "htwa-app"
   }

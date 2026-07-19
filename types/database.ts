@@ -91,6 +91,7 @@ export type ProfileRow = {
   women_only_mode:      boolean;                          // migration 20260531000001
   university_verification_status: UniversityVerificationStatus; // migration 20260601000002
   student_card_url:     string | null;                    // migration 20260601000002
+  avatar_url:           string | null;                    // migration 20260719000006
 }
 
 export type UniversityVerificationStatus = 'unverified' | 'pending' | 'verified' | 'rejected';
@@ -106,6 +107,7 @@ export type ProfileInsert = {
   women_only_mode?:      boolean;      // defaults to false
   university_verification_status?: UniversityVerificationStatus;
   student_card_url?:     string | null;
+  avatar_url?:           string | null;
 }
 
 export type ProfileUpdate = {
@@ -117,6 +119,7 @@ export type ProfileUpdate = {
   women_only_mode?:      boolean;
   university_verification_status?: UniversityVerificationStatus;
   student_card_url?:     string | null;
+  avatar_url?:           string | null;
 }
 
 // ─── rides ────────────────────────────────────────────────────────────────────
