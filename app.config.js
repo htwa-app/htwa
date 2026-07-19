@@ -73,6 +73,24 @@ module.exports = {
         },
       ],
       '@react-native-community/datetimepicker',
+      // Required so iOS actually grants (rather than hard-crashing on) camera/
+      // photo-library access — expo-image-picker was in use (selfie, photo ID,
+      // driver photos, profile photo) without ever being registered here, so
+      // the built Info.plist had no NSCameraUsageDescription/
+      // NSPhotoLibraryUsageDescription at all. iOS terminates the process
+      // outright when an app requests either without the description string
+      // present — not a catchable JS error, which is why this went unnoticed
+      // in Jest (the native picker is always mocked there).
+      [
+        'expo-image-picker',
+        {
+          photosPermission: 'htwa needs access to your photos to upload identity, driver, or profile verification images.',
+          cameraPermission: 'htwa needs your camera to take a live selfie for identity verification.',
+          // No audio/video capture anywhere in the app — skip the mic
+          // permission and its Android RECORD_AUDIO entry entirely.
+          microphonePermission: false,
+        },
+      ],
     ],
     owner: 'htwa-app',
   },

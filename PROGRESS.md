@@ -4,6 +4,27 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 20 July 2026 (very early) — Fixed a real, reproducible native crash on camera/photo access (branch `feat/full-sweep`, PR #28)
+
+Found live during Jordan's own hands-on testing: tapping the live-selfie tile on id-verify.tsx crashed the app outright ("htwa quit unexpectedly"), reproducibly every time. `tsc --noEmit`: 0 errors (config-only change, no test suite impact).
+
+### Root cause
+`expo-image-picker` is used throughout the app (identity-verification selfie/photo ID, driver-verification selfie/licence/car photos, profile photo) but was never registered as a config plugin. That means the built `ios/htwa/Info.plist` had no `NSCameraUsageDescription` or `NSPhotoLibraryUsageDescription` keys at all — confirmed by grepping the actual generated Info.plist. iOS terminates a process outright the instant it requests camera or photo-library access without the corresponding usage-description string present — this is not a catchable JS error, which is exactly why it was never caught in Jest (the native picker module is always mocked there, so the real OS-level permission check is never exercised) and had apparently been silently present since `expo-image-picker` was first installed.
+
+### Fix
+Added `expo-image-picker` to `app.config.js`'s `plugins` array with `photosPermission`/`cameraPermission` strings (and `microphonePermission: false`, since nothing in the app records audio/video — skips an unused mic permission on both platforms). Verified via `npx expo config --json` that the plugin registers and applies cleanly.
+
+**This requires Jordan to actually rebuild** (`npx expo run:ios` again, or `npx expo prebuild --clean` first if that alone doesn't regenerate `Info.plist`) — Metro's JS-only reload will NOT pick this up, since it's a native Info.plist change applied at prebuild time, not a JS bundle change.
+
+### Files
+**Modified:** `app.config.js`.
+
+### What could go wrong / what to verify by hand
+- Not yet confirmed on-device that the rebuild actually resolves the crash — this is a strong, well-understood root cause (missing Info.plist keys is a textbook iOS crash-on-permission-request), but Jordan needs to rebuild and retry the selfie/photo-ID tiles to confirm.
+- Worth also re-testing the photo-ID (library) picker specifically, not just the selfie (camera) one — both were exposed to the same missing-Info.plist-key issue, just the selfie was the one actually tapped and crashed first.
+
+---
+
 ## 20 July 2026 (early hours) — Login screen rebuilt as sign-up-first, mobile removed (branch `feat/full-sweep`, PR #28)
 
 Found during Jordan's own hands-on fresh-signup walkthrough tonight: the root Login screen's "Continue with email" button went to the returning-user login screen, not signup — correct behavior (fixed deliberately in an 18 Jul session to stop ambiguous new-vs-existing handling), but confusing for a brand-new user with no obvious way to reach email signup except detouring through the Apple/Google buttons. Jordan's call: make the whole screen read as sign-up-first, with a clear escape hatch for returning users. `tsc --noEmit`: 0 errors. Jest: 83/83 suites, 1172/1172 tests green.
