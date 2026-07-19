@@ -81,6 +81,26 @@ Drivers now can't post journeys until you approve them. To review:
 
 That's the whole flow — the app unblocks posting the moment the row says approved. (Only the dashboard/service role can approve; the app physically can't self-approve, I tested the tamper paths.)
 
+**You'll now get a push notification the moment someone submits** (see item 7 below) — you don't need to keep checking the table proactively.
+
+---
+
+## 7. Set up the ntfy app to get notified of new driver submissions (2 minutes)
+
+**Why:** MailerLite (the key you already have) turned out not to support sending single one-off emails — that's a separate product (MailerSend) we don't have a key for. As an immediate, zero-signup stand-in, I wired a push notification via ntfy.sh (a free, no-account-needed push service) straight from the database — it fires the moment a `driver_verifications` row enters (or re-enters) review.
+
+**Get it by:**
+1. Install the free **ntfy** app from the App Store (search "ntfy" — publisher is "ntfy.sh").
+2. Open it → tap **+** (subscribe to topic) → paste this exact topic name:
+   ```
+   htwa-driver-review-3b0ae5a0413c639d095a
+   ```
+3. Server: leave it as the default `ntfy.sh`. Tap Subscribe.
+
+**Caveat:** ntfy's free tier has no login — that topic name is the only thing keeping these alerts private (anyone who learns the exact string could read them or post fake ones). It's a driver's name/email/car details, not financial data, so the risk is low, but it's worth knowing. If you'd rather have a proper authenticated email instead, get a free API key from **resend.com** (2-minute signup) and tell Claude — it'll swap this trigger for a real "New driver submitted" email to hello@htwa-app.com and this ntfy trigger can be removed.
+
+**Unblocks:** knowing the moment a new driver needs review, instead of having to remember to check the dashboard.
+
 ---
 
 *Entries are appended as new blockers are hit; nothing above stops the build — every feature behind these has a graceful fallback.*
