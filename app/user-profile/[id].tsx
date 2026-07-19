@@ -77,7 +77,7 @@ export default function UserProfileScreen(): React.ReactElement {
       const [userRes, profileRes, verifyRes] = await Promise.all([
         supabase.from('users').select('full_name').eq('id', id).single(),
         supabase.from('profiles').select('university, women_only_mode').eq('user_id', id).single(),
-        supabase.from('verification').select('id_verified, selfie_verified').eq('user_id', id).single(),
+        supabase.from('verification').select('status').eq('user_id', id).single(),
       ]);
 
       if (userRes.error && userRes.error.code !== 'PGRST116') {
@@ -85,9 +85,7 @@ export default function UserProfileScreen(): React.ReactElement {
         return;
       }
 
-      const isVerified =
-        verifyRes.data?.id_verified === true &&
-        verifyRes.data?.selfie_verified === true;
+      const isVerified = verifyRes.data?.status === 'approved';
 
       setUserData({
         full_name:  userRes.data?.full_name ?? 'Unknown',

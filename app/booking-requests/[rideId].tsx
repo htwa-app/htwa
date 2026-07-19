@@ -123,14 +123,14 @@ export default function BookingRequestsScreen(): React.ReactElement {
       if (usersErr) throw usersErr;
 
       const { data: verifs, error: verifsErr } = passengerIds.length > 0
-        ? await supabase.from('verification').select('user_id, id_verified, selfie_verified').in('user_id', passengerIds)
+        ? await supabase.from('verification').select('user_id, status').in('user_id', passengerIds)
         : { data: [], error: null };
       if (verifsErr) throw verifsErr;
 
       const nameById = new Map((users ?? []).map((u) => [u.id, u.full_name as string]));
       const verifiedSet = new Set(
         (verifs ?? [])
-          .filter((v) => v.id_verified === true && v.selfie_verified === true)
+          .filter((v) => v.status === 'approved')
           .map((v) => v.user_id as string),
       );
 

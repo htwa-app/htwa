@@ -151,13 +151,13 @@ export async function submitDriverVerification(
       return { ok: false, message: 'Could not submit your driver verification. Please try again.' };
     }
 
-    // Keep the disclosure selfie reference in sync (legacy fallback path).
-    if (photos.selfieBytes) {
-      const { error: verifErr } = await supabase
-        .from('verification')
-        .upsert({ user_id: userId, selfie_url: selfiePath, selfie_verified: true }, { onConflict: 'user_id' });
-      if (verifErr) console.error('[DriverVerification] verification selfie sync failed:', verifErr.message);
-    }
+    // No cross-sync to the identity `verification` table here (there used to
+    // be one): get_driver_disclosure already reads
+    // driver_verifications.selfie_photo_path first, falling back to
+    // verification.selfie_url only when no approved driver record exists. An
+    // upsert into `verification` would also trigger its owner-resets-status
+    // trigger, silently bouncing the driver's UNRELATED identity verification
+    // back to 'pending' every time they touch their car details.
 
     return { ok: true, verification: data };
   } catch {

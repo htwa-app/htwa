@@ -1,7 +1,9 @@
 /**
  * __tests__/unit/AuthContext.test.tsx
  *
- * Unit tests for context/AuthContext.tsx (Stage 20A).
+ * Unit tests for context/AuthContext.tsx (Stage 20A; updated 19 Jul for
+ * universal identity verification — verificationStatus replaces the old
+ * id_verified/selfie_verified boolean pair).
  *
  * Strategy: mock lib/supabase entirely so no real network calls are made.
  * A <TestConsumer /> component renders auth context values as text nodes
@@ -19,7 +21,7 @@ import { AuthProvider, useAuth } from '../../context/AuthContext';
 
 const mockGetSession       = jest.fn();
 const mockOnAuthStateChange = jest.fn();
-const mockSingle           = jest.fn();
+const mockMaybeSingle      = jest.fn();
 const mockUnsubscribe      = jest.fn();
 
 jest.mock('../../lib/supabase', () => ({
@@ -31,7 +33,7 @@ jest.mock('../../lib/supabase', () => ({
     from: () => ({
       select: () => ({
         eq: () => ({
-          single: () => mockSingle(),
+          maybeSingle: () => mockMaybeSingle(),
         }),
       }),
     }),
@@ -42,11 +44,11 @@ jest.mock('../../lib/supabase', () => ({
 
 /** Renders a component that exposes AuthContext values as testable text nodes. */
 function TestConsumer() {
-  const { user, session, isLoading, isVerified } = useAuth();
+  const { user, session, isLoading, verificationStatus } = useAuth();
   return (
     <View>
       <Text testID="isLoading">{String(isLoading)}</Text>
-      <Text testID="isVerified">{String(isVerified)}</Text>
+      <Text testID="verificationStatus">{String(verificationStatus)}</Text>
       <Text testID="hasSession">{String(session !== null)}</Text>
       <Text testID="hasUser">{String(user !== null)}</Text>
     </View>
@@ -74,8 +76,8 @@ beforeEach(() => {
     data: { subscription: { unsubscribe: mockUnsubscribe } },
   });
 
-  // Default: no verification row
-  mockSingle.mockResolvedValue({ data: null, error: null });
+  // Default: no verification row (never submitted)
+  mockMaybeSingle.mockResolvedValue({ data: null, error: null });
 });
 
 // ─── useAuth hook ─────────────────────────────────────────────────────────────
@@ -126,10 +128,10 @@ describe('AuthProvider — no session', () => {
     );
   });
 
-  it('keeps isVerified false when there is no session', async () => {
+  it('verificationStatus is null when there is no session', async () => {
     renderWithProvider();
     await waitFor(() =>
-      expect(screen.getByTestId('isVerified').props.children).toBe('false'),
+      expect(screen.getByTestId('verificationStatus').props.children).toBe('null'),
     );
   });
 
@@ -138,23 +140,19 @@ describe('AuthProvider — no session', () => {
     await waitFor(() =>
       expect(screen.getByTestId('isLoading').props.children).toBe('false'),
     );
-    expect(mockSingle).not.toHaveBeenCalled();
+    expect(mockMaybeSingle).not.toHaveBeenCalled();
   });
 });
 
-// ─── Session exists, not verified ────────────────────────────────────────────
+// ─── Session exists, never submitted identity verification ──────────────────
 
-describe('AuthProvider — session but not verified', () => {
+describe('AuthProvider — session but no verification row yet', () => {
   const fakeUser    = { id: 'user-123' };
   const fakeSession = { user: fakeUser };
 
   beforeEach(() => {
     mockGetSession.mockResolvedValue({ data: { session: fakeSession } });
-    // Verification row exists but both flags are false
-    mockSingle.mockResolvedValue({
-      data: { id_verified: false, selfie_verified: false },
-      error: null,
-    });
+    mockMaybeSingle.mockResolvedValue({ data: null, error: null });
   });
 
   it('sets session and user', async () => {
@@ -165,44 +163,41 @@ describe('AuthProvider — session but not verified', () => {
     expect(screen.getByTestId('hasUser').props.children).toBe('true');
   });
 
-  it('isVerified is false when id_verified is false', async () => {
+  it('verificationStatus is null when no row exists', async () => {
     renderWithProvider();
     await waitFor(() =>
       expect(screen.getByTestId('isLoading').props.children).toBe('false'),
     );
-    expect(screen.getByTestId('isVerified').props.children).toBe('false');
+    expect(screen.getByTestId('verificationStatus').props.children).toBe('null');
   });
 
   it('queries the verification table for the correct user', async () => {
     renderWithProvider();
     await waitFor(() =>
-      expect(mockSingle).toHaveBeenCalledTimes(1),
+      expect(mockMaybeSingle).toHaveBeenCalledTimes(1),
     );
   });
 });
 
-// ─── Session exists, fully verified ──────────────────────────────────────────
+// ─── Session exists, pending review ──────────────────────────────────────────
 
-describe('AuthProvider — session and fully verified', () => {
+describe('AuthProvider — session, submitted but pending review', () => {
   const fakeUser    = { id: 'user-456' };
   const fakeSession = { user: fakeUser };
 
   beforeEach(() => {
     mockGetSession.mockResolvedValue({ data: { session: fakeSession } });
-    mockSingle.mockResolvedValue({
-      data: { id_verified: true, selfie_verified: true },
-      error: null,
-    });
+    mockMaybeSingle.mockResolvedValue({ data: { status: 'pending' }, error: null });
   });
 
-  it('isVerified is true when both flags are true', async () => {
+  it('verificationStatus is "pending"', async () => {
     renderWithProvider();
     await waitFor(() =>
-      expect(screen.getByTestId('isVerified').props.children).toBe('true'),
+      expect(screen.getByTestId('verificationStatus').props.children).toBe('pending'),
     );
   });
 
-  it('isLoading becomes false after verification fetch', async () => {
+  it('isLoading becomes false after the fetch', async () => {
     renderWithProvider();
     await waitFor(() =>
       expect(screen.getByTestId('isLoading').props.children).toBe('false'),
@@ -210,35 +205,27 @@ describe('AuthProvider — session and fully verified', () => {
   });
 });
 
-// ─── Partially verified (only one flag true) ─────────────────────────────────
+// ─── Session exists, approved ─────────────────────────────────────────────────
 
-describe('AuthProvider — partially verified', () => {
+describe('AuthProvider — session, approved', () => {
   const fakeSession = { user: { id: 'user-789' } };
 
-  it('isVerified is false when only id_verified is true', async () => {
+  it('verificationStatus is "approved"', async () => {
     mockGetSession.mockResolvedValue({ data: { session: fakeSession } });
-    mockSingle.mockResolvedValue({
-      data: { id_verified: true, selfie_verified: false },
-      error: null,
-    });
+    mockMaybeSingle.mockResolvedValue({ data: { status: 'approved' }, error: null });
     renderWithProvider();
     await waitFor(() =>
-      expect(screen.getByTestId('isLoading').props.children).toBe('false'),
+      expect(screen.getByTestId('verificationStatus').props.children).toBe('approved'),
     );
-    expect(screen.getByTestId('isVerified').props.children).toBe('false');
   });
 
-  it('isVerified is false when only selfie_verified is true', async () => {
+  it('verificationStatus is "rejected" when the row says so', async () => {
     mockGetSession.mockResolvedValue({ data: { session: fakeSession } });
-    mockSingle.mockResolvedValue({
-      data: { id_verified: false, selfie_verified: true },
-      error: null,
-    });
+    mockMaybeSingle.mockResolvedValue({ data: { status: 'rejected' }, error: null });
     renderWithProvider();
     await waitFor(() =>
-      expect(screen.getByTestId('isLoading').props.children).toBe('false'),
+      expect(screen.getByTestId('verificationStatus').props.children).toBe('rejected'),
     );
-    expect(screen.getByTestId('isVerified').props.children).toBe('false');
   });
 });
 
@@ -259,5 +246,16 @@ describe('AuthProvider — subscription', () => {
     );
     unmount();
     expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it('resets verificationStatus to null when the auth event reports signed-out', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: { user: { id: 'u1' } } } });
+    mockMaybeSingle.mockResolvedValue({ data: { status: 'approved' }, error: null });
+    renderWithProvider();
+    await waitFor(() => expect(screen.getByTestId('verificationStatus').props.children).toBe('approved'));
+
+    const authChangeHandler = mockOnAuthStateChange.mock.calls[0][0] as (event: string, session: unknown) => void;
+    authChangeHandler('SIGNED_OUT', null);
+    await waitFor(() => expect(screen.getByTestId('verificationStatus').props.children).toBe('null'));
   });
 });

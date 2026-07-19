@@ -81,7 +81,7 @@ beforeEach(() => {
   mockRide.mockResolvedValue({ data: RIDE, error: null });
   mockUser.mockResolvedValue({ data: { full_name: 'Aoife Murphy' }, error: null });
   mockProfile.mockResolvedValue({ data: { university: 'NUIG', vehicle_details: { make: 'Toyota', model: 'Yaris', seats: 4, hasAC: true, dashcam: false } }, error: null });
-  mockVerif.mockResolvedValue({ data: { id_verified: true, selfie_verified: true }, error: null });
+  mockVerif.mockResolvedValue({ data: { status: 'approved' }, error: null });
   mockMyBooking.mockResolvedValue({ data: null, error: null }); // not booked
   mockCancelBooking.mockResolvedValue({ success: true, refunded: true, message: 'Booking cancelled. Full refund issued within 3–5 business days.' });
   mockFetchRates.mockResolvedValue(TEST_PRICING_RATES);

@@ -1,7 +1,7 @@
 
 # htwa Terms of Service
 
-**Last updated:** 17 July 2026 (PLACEHOLDER — PENDING ADVISER REVIEW)  
+**Last updated:** 19 July 2026 (PLACEHOLDER — PENDING ADVISER REVIEW)  
 **Effective date:** To be confirmed on launch
 
 ---
@@ -21,7 +21,7 @@ By using htwa, you agree to these Terms of Service. If you do not agree, do not 
 To use htwa you must:
 - Be 18 years of age or older
 - Hold a valid email address associated with an Irish or Northern Irish university or college, OR be verified as a resident of the Republic of Ireland or Northern Ireland
-- Complete mandatory ID and selfie verification before accessing the platform
+- Complete mandatory identity verification (photo ID, date of birth, and live selfie) before booking or posting a journey — see §5
 - Agree to these Terms and our Community Safety Pledge
 
 If you are a driver, you must additionally:
@@ -77,11 +77,11 @@ The applicable rate is determined by the driver's home jurisdiction regardless o
 
 ## 5. Verification
 
-All users must complete ID and selfie verification before accessing the platform. This is mandatory and non-negotiable. Verification confirms:
-- You are who you say you are
-- You are over 18
+Every user — passenger or driver — must submit identity verification: a government-issued photo ID (passport, driving licence, or national ID card), date of birth, and a live-captured selfie. This is mandatory and non-negotiable, and applies equally to all users, not only drivers. Submissions are manually reviewed. <!-- ADVISER NOTE: item 2 (age eligibility) requires the app to actually confirm the user is 18+; verification currently confirms identity (photo ID matched against a live selfie) and records date of birth, but does not itself gate access on the DOB meeting an age threshold — flagged for review, ADVISER-BRIEFING.md item 11. -->
 
-Your verified status is displayed as a green "Verified" tick on your profile. Users who are not verified cannot offer or book journeys.
+While your submission is under review, you can browse and search for journeys. **Booking a seat or posting a journey requires your verification to be approved.**
+
+Your verified status is displayed as a green "Verified" tick on your profile once approved. Users who are not approved cannot offer or book journeys.
 
 ### 5.1 Driver identity and vehicle disclosure
 

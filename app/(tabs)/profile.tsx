@@ -6,7 +6,7 @@
  * Shows the signed-in user's profile per DESIGN-SPEC §9.3 and SCREENS.md #20:
  *   - Avatar (initials derived from full_name)
  *   - Name and university
- *   - Verified badge (from useAuth().isVerified)
+ *   - Verified badge (from useAuth().verificationStatus === 'approved')
  *   - Stats row: Rating, Trips, Reliability (placeholders until Phase 9 reviews/trips)
  *   - Edit profile and Settings (cog) actions
  *
@@ -62,7 +62,7 @@ interface ProfileData {
 
 export default function ProfileScreen(): React.ReactElement {
   const router = useRouter();
-  const { user, isVerified } = useAuth();
+  const { user, verificationStatus } = useAuth();
 
   const [profile, setProfile]     = useState<ProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -196,7 +196,7 @@ export default function ProfileScreen(): React.ReactElement {
 
         {/* ── Badges ───────────────────────────────────────────────────────── */}
         <View style={styles.badgeRow}>
-          {isVerified && (
+          {verificationStatus === 'approved' && (
             <Badge variant="verified" style={styles.badge} testID="verified-badge" />
           )}
         </View>

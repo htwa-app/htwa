@@ -104,10 +104,10 @@ export default function RideDetailScreen(): React.ReactElement {
       const vehicleRaw = (profileData?.vehicle_details as Record<string, unknown> | null) ?? null;
 
       const { data: vData, error: vErr } = await supabase
-        .from('verification').select('id_verified, selfie_verified')
+        .from('verification').select('status')
         .eq('user_id', data.driver_id).maybeSingle();
       if (vErr) throw vErr;
-      const isVerified = vData?.id_verified === true && vData?.selfie_verified === true;
+      const isVerified = vData?.status === 'approved';
 
       // The viewer's own booking on this journey (drives the booked-state UI).
       if (user) {

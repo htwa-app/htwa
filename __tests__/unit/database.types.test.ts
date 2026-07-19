@@ -48,12 +48,16 @@ const _userUpdate: UserUpdate = {
 };
 
 const _verificationRow: VerificationRow = {
-  id:              'uuid-2',
-  user_id:         'uuid-1',
-  id_verified:     false,
-  selfie_verified: false,
-  selfie_url:      null,
-  verified_at:     null,
+  id:               'uuid-2',
+  user_id:          'uuid-1',
+  selfie_url:       null,
+  verified_at:      null,
+  date_of_birth:    null,
+  id_document_path: null,
+  status:           'pending',
+  review_note:      null,
+  submitted_at:     '2026-07-19T00:00:00Z',
+  reviewed_at:      null,
 };
 
 const _verificationInsert: VerificationInsert = {
@@ -61,9 +65,9 @@ const _verificationInsert: VerificationInsert = {
 };
 
 const _verificationUpdate: VerificationUpdate = {
-  id_verified:     true,
-  selfie_verified: true,
-  verified_at:     '2026-05-09T12:00:00Z',
+  status:       'approved',
+  reviewed_at:  '2026-05-09T12:00:00Z',
+  verified_at:  '2026-05-09T12:00:00Z',
 };
 
 const _profileRow: ProfileRow = {
@@ -158,18 +162,20 @@ describe('types/database — Currency', () => {
 describe('types/database — VerificationRow', () => {
   it('has all required fields', () => {
     const keys: (keyof VerificationRow)[] = [
-      'id', 'user_id', 'id_verified', 'selfie_verified', 'verified_at',
+      'id', 'user_id', 'selfie_url', 'verified_at', 'date_of_birth',
+      'id_document_path', 'status', 'review_note', 'submitted_at', 'reviewed_at',
     ];
     keys.forEach((k) => expect(k in _verificationRow).toBe(true));
   });
 
-  it('verified_at is nullable', () => {
+  it('verified_at, date_of_birth, id_document_path are nullable', () => {
     expect(_verificationRow.verified_at).toBeNull();
+    expect(_verificationRow.date_of_birth).toBeNull();
+    expect(_verificationRow.id_document_path).toBeNull();
   });
 
-  it('defaults id_verified and selfie_verified to false', () => {
-    expect(_verificationRow.id_verified).toBe(false);
-    expect(_verificationRow.selfie_verified).toBe(false);
+  it('defaults status to pending', () => {
+    expect(_verificationRow.status).toBe('pending');
   });
 });
 
@@ -181,10 +187,9 @@ describe('types/database — VerificationInsert', () => {
 });
 
 describe('types/database — VerificationUpdate', () => {
-  it('can set both verified flags and verified_at', () => {
-    expect(_verificationUpdate.id_verified).toBe(true);
-    expect(_verificationUpdate.selfie_verified).toBe(true);
-    expect(_verificationUpdate.verified_at).toBe('2026-05-09T12:00:00Z');
+  it('can set status and reviewed_at', () => {
+    expect(_verificationUpdate.status).toBe('approved');
+    expect(_verificationUpdate.reviewed_at).toBe('2026-05-09T12:00:00Z');
   });
 });
 
