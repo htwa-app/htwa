@@ -11,6 +11,7 @@ import {
 import * as SplashScreen from 'expo-splash-screen';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import { AuthProvider } from '../context/AuthContext';
+import { OfflineBanner } from '../components/OfflineBanner';
 
 // Keep the native splash screen visible while fonts are loading.
 SplashScreen.preventAutoHideAsync();
@@ -40,6 +41,8 @@ export default function RootLayout() {
     <StripeProvider publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ''}>
       <AuthProvider>
         <StatusBar style="dark" />
+        {/* Global connectivity banner — covers every screen from one mount. */}
+        <OfflineBanner />
         <Stack screenOptions={{ headerShown: false }} />
       </AuthProvider>
     </StripeProvider>

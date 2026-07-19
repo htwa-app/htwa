@@ -34,6 +34,8 @@ interface TripHistoryItem {
   bookingId?:    string;       // passenger items — chat is booking-scoped (Change 3)
   bookingStatus?: BookingStatus;
   chatStatus?:   ChatStatus;
+  /** Driver items — one chat per confirmed passenger booking. */
+  passengerChats?: Array<{ bookingId: string; passengerName: string; chatStatus: ChatStatus }>;
 }
 
 export default function HistoryScreen(): React.ReactElement {
@@ -57,10 +59,42 @@ export default function HistoryScreen(): React.ReactElement {
         setError('Could not load your trips. Please try again.');
         return;
       }
+      // Driver-side chat list: confirmed bookings (each carries its own chat)
+      // on my rides, with passenger names. A failure here degrades to cards
+      // without chat links (logged), not a broken History tab.
+      const chatsByRide = new Map<string, Array<{ bookingId: string; passengerName: string; chatStatus: ChatStatus }>>();
+      const driverRideIds = (driverRes.data ?? []).map((r) => r.id);
+      if (driverRideIds.length > 0) {
+        const { data: driverBookings, error: dbErr } = await supabase
+          .from('bookings')
+          .select('id, ride_id, chat_status, passenger_id')
+          .in('ride_id', driverRideIds)
+          .eq('status', 'confirmed');
+        if (dbErr) {
+          console.error('[History] driver bookings fetch failed:', dbErr.message);
+        } else if (driverBookings && driverBookings.length > 0) {
+          const passengerIds = [...new Set(driverBookings.map((b) => b.passenger_id))];
+          const { data: passengers, error: pErr } = await supabase
+            .from('users').select('id, full_name').in('id', passengerIds);
+          if (pErr) console.error('[History] passenger names fetch failed:', pErr.message);
+          const nameById = new Map((passengers ?? []).map((u) => [u.id, u.full_name]));
+          for (const b of driverBookings) {
+            const list = chatsByRide.get(b.ride_id) ?? [];
+            list.push({
+              bookingId: b.id,
+              passengerName: nameById.get(b.passenger_id) ?? 'Passenger',
+              chatStatus: (b.chat_status as ChatStatus) ?? 'open',
+            });
+            chatsByRide.set(b.ride_id, list);
+          }
+        }
+      }
+
       const driverItems: TripHistoryItem[] = (driverRes.data ?? []).map((r: Record<string, unknown>) => ({
         id: r.id as string, from_location: r.from_location as string, to_location: r.to_location as string,
         departure_datetime: r.departure_datetime as string, cost_per_seat: r.cost_per_seat as number,
         currency: r.currency as 'EUR' | 'GBP', status: r.status as string, role: 'driver', otherPartyName: 'Passenger',
+        passengerChats: chatsByRide.get(r.id as string) ?? [],
       }));
       const passengerItems: TripHistoryItem[] = (passengerRes.data ?? []).map((b: Record<string, unknown>) => {
         const ride = b.ride as Record<string, unknown> | null;
@@ -124,6 +158,18 @@ export default function HistoryScreen(): React.ReactElement {
         </View>
       </View>
 
+      {/* Upcoming journeys (calendar view of booked/offered journeys) */}
+      <TouchableOpacity
+        style={styles.upcomingLink}
+        onPress={() => router.push('/my-rides')}
+        accessibilityRole="button"
+        testID="upcoming-journeys-link"
+      >
+        <Ionicons name="calendar-outline" size={18} color={Colors.primary} />
+        <Text style={styles.upcomingLinkText}>My upcoming journeys</Text>
+        <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
+      </TouchableOpacity>
+
       {/* Filter tabs */}
       <View style={styles.filterRow} testID="filter-tabs">
         {(['all', 'rider', 'driver', 'cancelled'] as FilterTab[]).map((tab) => (
@@ -156,6 +202,22 @@ export default function HistoryScreen(): React.ReactElement {
                   </Text>
                 )}
               </View>
+              {/* Driver: one chat per confirmed passenger booking. */}
+              {trip.role === 'driver' && (trip.passengerChats ?? []).map((chat) => (
+                <TouchableOpacity
+                  key={chat.bookingId}
+                  style={styles.chatLink}
+                  onPress={() => router.push(`/chat/${chat.bookingId}`)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Chat with ${chat.passengerName}`}
+                  testID={`driver-chat-link-${chat.bookingId}`}
+                >
+                  <Ionicons name="chatbubble-ellipses-outline" size={16} color={Colors.primary} />
+                  <Text style={styles.chatLinkText}>
+                    {chat.chatStatus === 'closed' ? `Chat with ${chat.passengerName} (closed)` : `Message ${chat.passengerName}`}
+                  </Text>
+                </TouchableOpacity>
+              ))}
               {/* Chat opens once the driver accepts (booking confirmed); closed chats stay read-only (Change 3). */}
               {trip.role === 'passenger' && trip.bookingId && trip.bookingStatus === 'confirmed' && (
                 <TouchableOpacity
@@ -187,6 +249,13 @@ const styles = StyleSheet.create({
   statCard: { flex: 1, backgroundColor: Colors.primary, borderRadius: BorderRadius.large, padding: Spacing.cardPadding, alignItems: 'center', gap: Spacing.xs },
   statValue: { fontSize: 20, fontFamily: FontFamily.bold, color: Colors.surface },
   statLabel: { ...Typography.bodySmall, color: Colors.surface, opacity: 0.85 },
+  upcomingLink: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    backgroundColor: Colors.surface, borderRadius: BorderRadius.large,
+    borderWidth: 1, borderColor: Colors.border,
+    paddingHorizontal: Spacing.cardPadding, paddingVertical: Spacing.md,
+  },
+  upcomingLinkText: { ...Typography.bodyMedium, color: Colors.textPrimary, flex: 1 },
   filterRow: { flexDirection: 'row', backgroundColor: Colors.primaryLight, borderRadius: BorderRadius.full, padding: 4, gap: 2 },
   filterTab: { flex: 1, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full, alignItems: 'center' },
   filterTabActive: { backgroundColor: Colors.primary },
