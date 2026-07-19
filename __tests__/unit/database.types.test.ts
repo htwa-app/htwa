@@ -78,6 +78,7 @@ const _profileRow: ProfileRow = {
   university_verification_status: 'unverified',
   student_card_url:   null,
   avatar_url:         null,
+  notification_prefs: {},
 };
 
 const _profileInsert: ProfileInsert = {

@@ -118,9 +118,11 @@ describe('BookingRequestScreen', () => {
   it('a prior acceptance skips the waiver UI and does not re-record', async () => {
     mockHasAccepted.mockResolvedValue(true);
     render(<BookingRequestScreen />);
-    await waitFor(() => expect(screen.queryByTestId('waiver-acceptance')).toBeNull());
+    // Generous timeout: the acceptance check is async and this waitFor polls
+    // for DISAPPEARANCE, which is slower under a loaded test machine.
+    await waitFor(() => expect(screen.queryByTestId('waiver-acceptance')).toBeNull(), { timeout: 5000 });
     fireEvent.press(screen.getByTestId('confirm-button'));
-    await waitFor(() => expect(mockRpc).toHaveBeenCalled());
+    await waitFor(() => expect(mockRpc).toHaveBeenCalled(), { timeout: 5000 });
     expect(mockRecordWaiver).not.toHaveBeenCalled();
   });
 

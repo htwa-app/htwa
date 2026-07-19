@@ -22,8 +22,8 @@ export default function LoginScreen() {
   // button on the LOGIN screen is specifically for existing accounts.
   const handleEmail  = () => router.push('/login-email');
 
-  const handleOpenTerms         = () => console.log('TODO: navigate to terms');
-  const handleOpenSafetyPledge  = () => console.log('TODO: navigate to safety pledge');
+  const handleOpenTerms         = () => router.push({ pathname: '/legal/[doc]', params: { doc: 'terms' } });
+  const handleOpenSafetyPledge  = () => router.push({ pathname: '/legal/[doc]', params: { doc: 'safety-pledge' } });
 
   return (
     <ScrollView
