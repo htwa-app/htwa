@@ -14,6 +14,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
+  TextInput,
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
@@ -57,6 +58,24 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
   // null = still checking; the DB trigger is the authoritative wall.
   const [vehicleOk, setVehicleOk] = useState<boolean | null>(null);
   const [vehicleCheckError, setVehicleCheckError] = useState(false);
+  // Round-2 audit: every journey REQUIRES a nominated contact (the waiver says
+  // so) — collected here pre-post and written right after the insert, instead
+  // of the old best-effort seeding that silently skipped drivers without a
+  // saved default.
+  const [contactName, setContactName] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const contactComplete = contactName.trim().length > 0 && contactPhone.trim().length > 0;
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    void getDefaultContact(user.id).then((def) => {
+      if (cancelled || !def) return;
+      setContactName((prev) => prev || def.name);
+      setContactPhone((prev) => prev || def.phone);
+    });
+    return () => { cancelled = true; };
+  }, [user]);
 
   const checkVehicle = useCallback(async () => {
     if (!user) return;
@@ -133,13 +152,12 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
       const waiverRes = await recordWaiverAcceptance({ userId: user.id, role: 'driver', rideId: posted.id });
       if (!waiverRes.ok) console.error('[OfferConfirm] driver waiver record failed:', waiverRes.message);
 
-      // Seed this journey's nominated contact from the driver's default; they
-      // can change it on the Live Trip tab before departure.
-      const defaultContact = await getDefaultContact(user.id);
-      if (defaultContact) {
-        const contactRes = await setJourneyContact(posted.id, user.id, defaultContact);
-        if (!contactRes.ok) console.error('[OfferConfirm] journey contact seed failed:', contactRes.message);
-      }
+      // The journey's nominated contact — REQUIRED (validated pre-post) and
+      // written against the new ride; changeable on Live Trip before departure.
+      const contactRes = await setJourneyContact(posted.id, user.id, {
+        name: contactName, phone: contactPhone,
+      });
+      if (!contactRes.ok) console.error('[OfferConfirm] journey contact write failed:', contactRes.message);
 
       router.replace('/ride-posted');
     } catch (e: unknown) {
@@ -251,6 +269,31 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
         </View>
       )}
 
+      {/* Nominated contact for this journey — required (2A-c) */}
+      <View style={styles.contactCard} testID="offer-contact-card">
+        <Text style={styles.contactTitle}>Nominated contact for this journey</Text>
+        <Text style={styles.contactHint}>
+          They'll receive live tracking and safety alerts while you're on the road.
+        </Text>
+        <TextInput
+          style={styles.contactInput}
+          placeholder="Contact name"
+          placeholderTextColor={Colors.textTertiary}
+          value={contactName}
+          onChangeText={setContactName}
+          testID="offer-contact-name"
+        />
+        <TextInput
+          style={styles.contactInput}
+          placeholder="Phone (e.g. +353 87 123 4567)"
+          placeholderTextColor={Colors.textTertiary}
+          value={contactPhone}
+          onChangeText={setContactPhone}
+          keyboardType="phone-pad"
+          testID="offer-contact-phone"
+        />
+      </View>
+
       {/* Driver acknowledgment (2A-d) */}
       <WaiverAcceptance role="driver" accepted={waiverAccepted} onChange={setWaiverAccepted} />
 
@@ -261,7 +304,7 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
       <Button
         title={isPosting ? 'Posting…' : 'Post journey'}
         onPress={handlePost}
-        disabled={isPosting || !waiverAccepted || vehicleOk !== true}
+        disabled={isPosting || !waiverAccepted || vehicleOk !== true || !contactComplete}
         style={styles.ctaButton}
         testID="post-button"
       />
@@ -311,5 +354,18 @@ const styles = StyleSheet.create({
   },
   vehicleGateText: { ...Typography.bodySmall, color: Colors.textPrimary },
   vehicleGateLink: { ...Typography.bodyMedium, color: Colors.primary },
+  contactCard: {
+    backgroundColor: Colors.surface, borderRadius: BorderRadius.large,
+    borderWidth: 1, borderColor: Colors.border, ...Shadows.card,
+    padding: Spacing.cardPadding, gap: Spacing.sm,
+  },
+  contactTitle: { ...Typography.headingSmall, color: Colors.textPrimary },
+  contactHint: { ...Typography.bodySmall, color: Colors.textSecondary },
+  contactInput: {
+    backgroundColor: Colors.background, borderRadius: BorderRadius.medium,
+    borderWidth: 1, borderColor: Colors.border,
+    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
+    ...Typography.bodyMedium, color: Colors.textPrimary,
+  },
   ctaButton: {},
 });

@@ -210,3 +210,28 @@ describe('OfferRideConfirmScreen', () => {
     expect(mockReplace).not.toHaveBeenCalled();
   });
 });
+
+describe('OfferRideConfirmScreen — required nominated contact (round-2 audit)', () => {
+  it('no saved default: Post stays disabled until a contact is entered, then writes it', async () => {
+    mockGetDefaultContact.mockResolvedValue(null);
+    render(<OfferRideConfirmScreen />);
+    await waitForVehicleOk();
+    acceptWaiver();
+    fireEvent.press(screen.getByTestId('post-button'));
+    expect(mockInsert).not.toHaveBeenCalled();
+
+    fireEvent.changeText(screen.getByTestId('offer-contact-name'), 'Mam');
+    fireEvent.changeText(screen.getByTestId('offer-contact-phone'), '+353879999999');
+    fireEvent.press(screen.getByTestId('post-button'));
+    await waitFor(() => expect(mockInsert).toHaveBeenCalled());
+    await waitFor(() => expect(mockSetJourneyContact).toHaveBeenCalledWith('ride-new', 'u1', {
+      name: 'Mam', phone: '+353879999999',
+    }));
+  });
+
+  it('saved default pre-fills the contact fields', async () => {
+    render(<OfferRideConfirmScreen />);
+    await waitFor(() => expect(screen.getByTestId('offer-contact-name').props.value).toBe('Mam'));
+    expect(screen.getByTestId('offer-contact-phone').props.value).toBe('+353871');
+  });
+});
