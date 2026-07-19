@@ -4,6 +4,39 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 20 July 2026 — OVERNIGHT RUN, Block 1: Maps follow-through (branch `feat/full-sweep`, PR #28)
+
+Jordan unavailable tonight — autonomous run per his ground rules (nothing merges to main, commit-per-block, tsc+Jest green throughout, push regularly, PROGRESS + BLOCKERS at the end). This is Block 1 of 7; see the top of BLOCKERS-FOR-JORDAN.md for the full priority list and honesty check once all blocks are done.
+
+### 1a. Places autocomplete — DONE, code-complete + unit-tested
+`services/places.ts` (new) + `components/RouteInput.tsx` upgraded: debounced (400ms), session-tokened Google Places autocomplete biased to Ireland+UK. Selecting a suggestion resolves real coordinates and threads them through `offer-ride.tsx` → `offer-ride-confirm.tsx` → the `rides` insert (`from_coords`/`to_coords`, previously always null regardless of input method). Free-text entry with no selection is unchanged — zero caller changes needed, matching the upgrade path the original stub was built for. 26 new/updated tests.
+
+### 1b. Real map views — DONE, live-verified where possible
+- `app/ride/[id].tsx`: had **no map at all** before tonight (not even a stub) — added a route-preview `JourneyMap` card.
+- `app/track/[token].tsx`: added a route + live-position map above the existing text summary.
+- `website/track/index.html`: real Google Maps JS embed (markers, polyline, live position, auto-fit bounds), gated behind a `GOOGLE_MAPS_JS_KEY` placeholder — safe to hardcode once real, since a Maps *JavaScript* key is designed to be public/client-visible (HTTP-referrer restricted), unlike the app's mobile key. **Live-verified over a local HTTP server** against a real ride+token from the live DB: correct data rendered, map correctly stays hidden with the placeholder key, zero console errors. (`file://` broke the URL-fragment/fetch path in the preview tool — unrelated to the code; confirmed working the moment it was served over real HTTP, matching how Netlify serves it in production.)
+
+### 1c. Routes API distance/duration end-to-end — BLOCKED, not my code
+**Discovered mid-session: the Google Maps key that worked earlier tonight is now rejected by Google as invalid.** Tested three ways (Routes API, Geocoding API, with/without an iOS bundle-identifier header) — all return `API_KEY_INVALID`/`REQUEST_DENIED`. Full detail and likely causes (including a mistake I made earlier this session — see below) in BLOCKERS-FOR-JORDAN.md item 1. Could not live-verify a real Belfast→Dublin price calculation as asked; the code path itself (`services/routes.ts`) is unchanged and was already confirmed correct earlier this session, before the key died.
+
+**Self-report, not buried:** earlier tonight I printed this exact key's full value in plaintext in the transcript twice while verifying an unrelated config change — a mistake I flagged in-session both times. Google actively scans for exposed keys and auto-revokes them; if that's what happened here, it's a direct consequence of that mistake, not bad luck. Told to Jordan plainly in BLOCKERS-FOR-JORDAN.md rather than left implicit.
+
+### 1d. Tolls — investigated, NOT implemented, here's why
+Researched Google's Routes API toll support directly against their reference docs (`TollPass` enum, the definitive list of countries/regions Google actually has toll data for): **Ireland and the UK are not represented at all** — the enum covers Australia, Argentina, Brazil, US/Canada, Indonesia, India, Japan, Mexico, and US states, with zero IE/GB entries. This means requesting `extraComputations: ["TOLLS"]` on a htwa route would almost certainly return no toll data even with a working key — not worth implementing against an API that doesn't cover our market. `offer-ride.tsx` still passes `tolls: 0` to the pricing engine, unchanged. If real toll pricing (M50 barrier-free toll, Dublin Port Tunnel, etc.) is wanted later, it would need a small static lookup table of known Irish/NI toll roads and prices — genuinely different, separate work from "wire up the API," and not attempted tonight.
+
+### Also found in passing (not fixed — out of scope tonight)
+`components/RouteMapPlaceholder.tsx` is dead code — defined and unit-tested but never imported/used anywhere in the actual app. Left alone since removing it wasn't asked for and touches unrelated files.
+
+### Files
+**New:** `services/places.ts`, `__tests__/unit/places.test.ts`.
+**Modified:** `components/RouteInput.tsx`, `app/offer-ride.tsx`, `app/offer-ride-confirm.tsx`, `app/ride/[id].tsx`, `app/track/[token].tsx`, `website/track/index.html`, `BLOCKERS-FOR-JORDAN.md`, plus test files for all of the above.
+
+### What could go wrong / what to verify by hand once the key is fixed
+- Autocomplete suggestions, coordinate resolution, and the Belfast→Dublin distance/price calc are all **code-complete and unit-tested with mocks, but zero live verification against the real Google API** — needs a full pass the moment BLOCKERS item 1 is resolved.
+- The web tracking page's actual Google Maps rendering (not just the graceful-fallback path) also needs a real `GOOGLE_MAPS_JS_KEY` before it's ever been seen rendering a real map — only the no-key path was live-tested.
+
+---
+
 ## 20 July 2026 (very early, continued) — id-verify title collided with the status bar (branch `feat/full-sweep`, PR #28)
 
 Spotted in Jordan's own screenshot while testing the crash fix above: "Verify your identity" rendered underneath the clock/status bar on his device. `tsc --noEmit`: 0 errors. Jest: 83/83 suites, 1172/1172 tests green.
