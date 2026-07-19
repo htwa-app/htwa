@@ -20,7 +20,7 @@ jest.mock('@expo/vector-icons', () => {
 
 const mockInsert = jest.fn();          // rides insert (payload capture)
 const mockInsertResult = jest.fn();    // resolved value of insert().select('id').single()
-const mockVehicleFetch = jest.fn();    // profiles vehicle-details check (2A-a)
+const mockVehicleFetch = jest.fn();    // (legacy name) driver-verification approval check
 jest.mock('../../lib/supabase', () => ({
   supabase: {
     from: (table: string) => {
@@ -39,6 +39,10 @@ jest.mock('../../lib/supabase', () => ({
 
 // Change 2 — client-side overlap check (isolated here; its own unit test covers logic)
 const mockCheckOverlap = jest.fn();
+jest.mock('../../services/driverVerification', () => ({
+  getDriverVerification: (...a: unknown[]) => mockVehicleFetch(...a),
+}));
+
 jest.mock('../../services/journeyConflicts', () => ({
   checkDriverOverlap: (...a: unknown[]) => mockCheckOverlap(...a),
 }));
@@ -90,7 +94,7 @@ beforeEach(() => {
   mockUseAuth.mockReturnValue({ user: { id: 'u1' } });
   mockInsert.mockReturnValue(undefined);
   mockInsertResult.mockResolvedValue({ data: { id: 'ride-new' }, error: null });
-  mockVehicleFetch.mockResolvedValue({ data: { vehicle_details: COMPLETE_VEHICLE }, error: null });
+  mockVehicleFetch.mockResolvedValue({ ok: true, verification: { status: 'approved' } });
   mockCheckOverlap.mockResolvedValue({ ok: true });
   mockRecordWaiver.mockResolvedValue({ ok: true });
   mockGetDefaultContact.mockResolvedValue({ name: 'Mam', phone: '+353871' });
@@ -155,8 +159,8 @@ describe('OfferRideConfirmScreen', () => {
     expect(mockInsert).not.toHaveBeenCalled();
   });
 
-  it('incomplete vehicle details block posting with a link to complete them (2A-a)', async () => {
-    mockVehicleFetch.mockResolvedValue({ data: { vehicle_details: { make: 'Toyota', model: 'Corolla' } }, error: null });
+  it('unapproved driver verification blocks posting with a link to complete it', async () => {
+    mockVehicleFetch.mockResolvedValue({ ok: true, verification: { status: 'pending' } });
     render(<OfferRideConfirmScreen />);
     await waitFor(() => expect(screen.getByTestId('vehicle-incomplete')).toBeTruthy());
     acceptWaiver();
@@ -165,7 +169,7 @@ describe('OfferRideConfirmScreen', () => {
   });
 
   it('a failed vehicle check blocks posting with retry — never silently passes', async () => {
-    mockVehicleFetch.mockResolvedValueOnce({ data: null, error: { message: 'down' } });
+    mockVehicleFetch.mockResolvedValueOnce({ ok: false });
     render(<OfferRideConfirmScreen />);
     await waitFor(() => expect(screen.getByTestId('vehicle-check-error')).toBeTruthy());
     fireEvent.press(screen.getByTestId('vehicle-check-retry'));

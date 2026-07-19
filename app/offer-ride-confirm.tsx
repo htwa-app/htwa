@@ -38,7 +38,7 @@ import { checkDriverOverlap } from '../services/journeyConflicts';
 import { computeWindowEnd } from '../utils/journeyWindow';
 import { recordWaiverAcceptance } from '../services/waivers';
 import { getDefaultContact, setJourneyContact } from '../services/tracking';
-import { vehicleDetailsComplete, type VehicleDetails } from './vehicle-details';
+import { getDriverVerification } from '../services/driverVerification';
 
 export default function OfferRideConfirmScreen(): React.ReactElement {
   const router = useRouter();
@@ -53,7 +53,8 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
   const [isPosting, setIsPosting] = useState(false);
   const [postError, setPostError] = useState<string | null>(null);
   const [waiverAccepted, setWaiverAccepted] = useState(false);
-  // 2A-a: null = still checking, false = incomplete (blocks posting), true = ok.
+  // Round-2 fix #2: posting requires an APPROVED driver verification.
+  // null = still checking; the DB trigger is the authoritative wall.
   const [vehicleOk, setVehicleOk] = useState<boolean | null>(null);
   const [vehicleCheckError, setVehicleCheckError] = useState(false);
 
@@ -61,15 +62,11 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
     if (!user) return;
     setVehicleCheckError(false);
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('vehicle_details')
-        .eq('user_id', user.id)
-        .maybeSingle();
       // A failed check must block posting WITH a retry — not silently pass or
-      // wrongly tell an onboarded driver their vehicle is missing.
-      if (error) { setVehicleCheckError(true); return; }
-      setVehicleOk(vehicleDetailsComplete(data?.vehicle_details as Partial<VehicleDetails> | null));
+      // wrongly tell an approved driver to redo verification.
+      const res = await getDriverVerification(user.id);
+      if (!res.ok) { setVehicleCheckError(true); return; }
+      setVehicleOk(res.verification?.status === 'approved');
     } catch {
       setVehicleCheckError(true);
     }
@@ -121,10 +118,13 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
         status:             'active',
       }).select('id').single();
       if (error || !posted) {
-        // The DB trigger raises 'JOURNEY_OVERLAP: …' if a concurrent overlap slipped past.
+        // DB triggers: JOURNEY_OVERLAP (concurrent overlap) and
+        // driver_not_approved (verification gate — the authoritative wall).
         setPostError(error?.message?.includes('JOURNEY_OVERLAP')
           ? 'This journey overlaps another of your journeys. Choose a different time.'
-          : error?.message ?? 'Failed to post journey. Please try again.');
+          : error?.message?.includes('driver_not_approved')
+            ? 'Your driver verification isn\'t approved yet — you can post once it is.'
+            : error?.message ?? 'Failed to post journey. Please try again.');
         return;
       }
 
@@ -238,15 +238,15 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
       {vehicleOk === false && !vehicleCheckError && (
         <View style={styles.vehicleGate} testID="vehicle-incomplete">
           <Text style={styles.vehicleGateText}>
-            Before posting, add your vehicle's make, model, colour and registration —
-            passengers use them to verify your car.
+            You need an approved driver verification (licence, live selfie, car
+            photo and details) before you can post journeys.
           </Text>
           <TouchableOpacity
-            onPress={() => router.push('/vehicle-details')}
+            onPress={() => router.push('/driver-verification')}
             accessibilityRole="button"
             testID="vehicle-complete-link"
           >
-            <Text style={styles.vehicleGateLink}>Complete vehicle details</Text>
+            <Text style={styles.vehicleGateLink}>Go to driver verification</Text>
           </TouchableOpacity>
         </View>
       )}

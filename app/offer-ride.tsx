@@ -49,6 +49,8 @@ import {
   FontFamily,
 } from '../constants/theme';
 import { supabase } from '../lib/supabase';
+import { getDriverVerification } from '../services/driverVerification';
+import type { DriverVerificationStatus } from '../types/database';
 import { useAuth } from '../context/AuthContext';
 
 // ─── Spec-local constants ─────────────────────────────────────────────────────
@@ -96,6 +98,9 @@ export default function OfferRideScreen(): React.ReactElement {
   // understated cumulative could apply a more favourable (wrong) tax band.
   // Distinct from "hasProfile is false" (which means genuinely not set up yet).
   const [profileLoadError, setProfileLoadError] = useState(false);
+  // Driver verification gate (round-2 fix #2): null = no submission yet.
+  const [verificationStatus, setVerificationStatus] = useState<DriverVerificationStatus | null>(null);
+  const [verificationLoadError, setVerificationLoadError] = useState(false);
 
   // Rates come from the DB (sole source of truth). null until loaded; ratesError
   // when the fetch fails — pricing then FAILS LOUD, never from a hardcoded rate.
@@ -110,6 +115,13 @@ export default function OfferRideScreen(): React.ReactElement {
   const loadDriverProfile = useCallback(async () => {
     if (!user) return;
     try {
+      // Verification gate first — a failed check BLOCKS with retry, it never
+      // silently passes (and never tells an approved driver to redo setup).
+      const dv = await getDriverVerification(user.id);
+      if (!dv.ok) { setVerificationLoadError(true); setProfileLoadError(true); return; }
+      setVerificationLoadError(false);
+      setVerificationStatus(dv.verification?.status ?? null);
+
       const { data: profile, error: profileErr } = await supabase
         .from('driver_pricing_profiles')
         .select('tax_residence, engine_cc')
@@ -228,6 +240,7 @@ export default function OfferRideScreen(): React.ReactElement {
     && time.length > 0
     && hasProfile
     && !profileLoadError
+    && verificationStatus === 'approved'
     && driverSeatPrice !== null && driverSeatPrice > 0;
 
   const handleReview = () => {
@@ -286,6 +299,30 @@ export default function OfferRideScreen(): React.ReactElement {
             Could not load your driver pricing details. Please try again.
           </Text>
         </View>
+      )}
+
+      {/* Driver verification gate — no posting until approved (DB-enforced too). */}
+      {profileLoaded && !verificationLoadError && verificationStatus !== 'approved' && (
+        <TouchableOpacity
+          style={styles.setupBanner}
+          onPress={() => router.push('/driver-verification')}
+          accessibilityRole="button"
+          testID="driver-verification-banner"
+        >
+          <Ionicons
+            name={verificationStatus === 'pending' ? 'time-outline' : 'shield-outline'}
+            size={20}
+            color={Colors.primary}
+          />
+          <Text style={styles.setupBannerText}>
+            {verificationStatus === 'pending'
+              ? 'Your driver verification is under review — you can post journeys once approved.'
+              : verificationStatus === 'rejected'
+                ? 'Your driver verification wasn\'t approved. Tap to fix and resubmit.'
+                : 'Verify as a driver (licence, selfie, car photo + details) to post journeys.'}
+          </Text>
+          <Ionicons name="chevron-forward" size={18} color={Colors.primary} />
+        </TouchableOpacity>
       )}
 
       {/* Driver setup gate — pricing needs the driver's tax residence + engine cc. */}

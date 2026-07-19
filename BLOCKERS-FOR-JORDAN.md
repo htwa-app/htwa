@@ -71,6 +71,18 @@ I discovered htwa-app.com is already served by Netlify from this repo's `website
 
 ---
 
+## 6. Reviewing driver applications (recurring beta task — not a blocker)
+
+Drivers now can't post journeys until you approve them. To review:
+
+1. Go to https://supabase.com/dashboard/project/adrwtjlphjrnrrqjkbfk → **Table Editor** → `driver_verifications` → rows with status `pending`.
+2. Open **Storage** → `driver-verifications` bucket → the driver's folder → check the licence photo and the car photo, and confirm the registration plate in the photo matches the `car_registration` column. Their selfie is in the `verification-selfies` bucket.
+3. Back in the table row: set `status` to `approved` (or `rejected` — put a short reason in `review_note`, the driver sees it in the app) and save.
+
+That's the whole flow — the app unblocks posting the moment the row says approved. (Only the dashboard/service role can approve; the app physically can't self-approve, I tested the tamper paths.)
+
+---
+
 *Entries are appended as new blockers are hit; nothing above stops the build — every feature behind these has a graceful fallback.*
 
 **Note on Stripe (updated 19 Jul):** test-mode payments are fully working end-to-end — I verified a real test-card charge with the 10% platform fee, a driver-mismatch full refund, and idempotent refund retries against the live backend tonight. Item 2 above only matters when real money starts.

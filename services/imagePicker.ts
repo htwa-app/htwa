@@ -41,6 +41,16 @@ export async function pickStudentCardImage(): Promise<Uint8Array | null> {
   return pickFromLibrary(undefined);
 }
 
+/** Driving licence photo (driver verification — review-only, never shown to users). */
+export async function pickLicencePhoto(): Promise<Uint8Array | null> {
+  return pickFromLibrary(undefined);
+}
+
+/** Car photo with the registration plate visible (driver verification — review-only). */
+export async function pickCarPhoto(): Promise<Uint8Array | null> {
+  return pickFromLibrary(undefined);
+}
+
 /** Profile photo from the library (square-cropped). */
 export async function pickProfilePhoto(): Promise<Uint8Array | null> {
   return pickFromLibrary([1, 1]);
