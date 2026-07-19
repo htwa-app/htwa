@@ -62,7 +62,7 @@ const DISTANCE_DEBOUNCE_MS = 500; // wait for the driver to stop typing before c
 const MILES_TO_KM = 1.60934; // convert a UK miles distance to km for storage in distance_km
 const TOGGLE_TRACK_OFF = 'rgba(40,30,20,0.15)'; // §9 switch inactive track — not in palette
 
-type DistanceState = 'idle' | 'calculating' | 'ok' | 'unavailable';
+type DistanceState = 'idle' | 'calculating' | 'ok' | 'unavailable' | 'no_key';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -199,7 +199,9 @@ export default function OfferRideScreen(): React.ReactElement {
           } else {
             setDistance(null);
             setDurationSeconds(null);
-            setDistanceState('unavailable');
+            // 'no_key' is the platform's missing Maps key — never the user's
+            // locations; the two states get honest, distinct copy below.
+            setDistanceState(result.reason === 'no_key' ? 'no_key' : 'unavailable');
           }
         } catch {
           if (cancelled) return;
@@ -376,9 +378,16 @@ export default function OfferRideScreen(): React.ReactElement {
             </Text>
           </>
         )}
+        {distanceState === 'no_key' && (
+          <Text style={styles.priceError} testID="distance-no-key">
+            Distance calculation isn't available yet — journeys can't be priced
+            until it is. This is on our side, not yours.
+          </Text>
+        )}
         {distanceState === 'unavailable' && (
           <Text style={styles.priceError} testID="distance-unavailable">
-            Distance calculation unavailable. Please check the locations and try again later.
+            Couldn't calculate the distance. Check your connection and the
+            locations, then try again.
           </Text>
         )}
       </View>

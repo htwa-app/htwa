@@ -28,8 +28,13 @@ export interface RouteDistanceResult {
   /** Estimated driving duration in seconds (present only when ok). Drives the
    *  no-overlapping-journeys window (Change 2). */
   durationSeconds?: number;
-  /** Why it failed: 'unavailable' (key/network/no route) — UI shows a clear state. */
-  reason?: 'unavailable';
+  /**
+   * Why it failed:
+   *  - 'no_key': the platform's Maps key isn't configured — NOT the user's
+   *    fault; copy must never tell them to "check the locations".
+   *  - 'unavailable': network/API/no-route failure — retryable.
+   */
+  reason?: 'no_key' | 'unavailable';
 }
 
 /** Parse a Routes API duration string like "1234s" into seconds. */
@@ -72,9 +77,11 @@ export async function computeRouteDistance(
   unit: DistanceUnit,
   fetchImpl: typeof fetch = fetch,
 ): Promise<RouteDistanceResult> {
-  const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+  // Both env names are accepted — BLOCKERS-FOR-JORDAN.md says
+  // EXPO_PUBLIC_GOOGLE_MAPS_KEY; older code used ..._API_KEY.
+  const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY ?? process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
   if (!isMapsKeyUsable(apiKey)) {
-    return { ok: false, reason: 'unavailable' };
+    return { ok: false, reason: 'no_key' };
   }
   if (!origin.trim() || !destination.trim()) {
     return { ok: false, reason: 'unavailable' };

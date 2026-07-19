@@ -41,11 +41,11 @@ describe('computeRouteDistance', () => {
   const ORIGINAL = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
   afterEach(() => { process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY = ORIGINAL; });
 
-  it('returns unavailable (no throw) when the key is a placeholder', async () => {
+  it('returns no_key (no throw) when the key is a placeholder', async () => {
     process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY = PLACEHOLDER_KEY;
     const fetchSpy = mockFetch(208000);
     const r = await computeRouteDistance('Galway', 'Dublin', 'km', fetchSpy);
-    expect(r).toEqual({ ok: false, reason: 'unavailable' });
+    expect(r).toEqual({ ok: false, reason: 'no_key' });
     expect(fetchSpy).not.toHaveBeenCalled(); // never even hits the network
   });
 

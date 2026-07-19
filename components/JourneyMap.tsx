@@ -28,7 +28,7 @@ export interface JourneyMapProps {
 }
 
 export function mapsAvailable(): boolean {
-  return !!process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY;
+  return !!(process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY ?? process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY);
 }
 
 export function JourneyMap({ from, to, current, stubText, style, testID }: JourneyMapProps): React.ReactElement {
