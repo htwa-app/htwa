@@ -4,6 +4,39 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 19 July 2026 (evening) — Hands-on round-2 fixes (branch `feat/full-sweep`, PR #28)
+
+Six fixes from Jordan's walk-through. `tsc --noEmit`: 0 errors; Jest: **1140 passing**; every DB change applied + live-verified; fresh EAS simulator build triggered.
+
+### 1. Tab-navigator crash (realtime double-subscribe) ✅
+Root cause: `supabase.removeChannel` is async, so on remount/Fast Refresh/auth change `supabase.channel(<stable name>)` returned the still-subscribed previous instance and chaining `.on()` threw. All realtime channels (notifications hook, chat screen, tracking subscriptions) now use unique per-mount names + proper effect teardown; account switching tears down the old user's channel. 5 regression tests whose mock reproduces realtime-js's exact semantics.
+
+### 2. Driver verification — the real spec ✅ (10/10 live e2e incl. tamper paths)
+What the gate actually enforced before: only the PRICING profile (tax residence + engine cc) on offer-ride, and a free-text vehicle check on the confirm screen — **nothing required any upload, and nothing was DB-enforced**. Now:
+- `driver_verifications` (migration applied): licence photo + live selfie + car-with-plate photo + make/model/registration/colour, status pending→approved/rejected. Owner writes are trigger-forced to `pending` (self-approval impossible — tamper-tested). Licence+car photos in a locked-down bucket (cross-user signed-URL denied — tested); the selfie goes to the passenger-readable disclosure bucket.
+- **DB wall:** rides INSERT trigger rejects unapproved drivers (`driver_not_approved`) — live-tested no-submission/pending/self-approve-attempt/approved/edit-after-approval paths.
+- UI: new `app/driver-verification.tsx` (camera-only selfie tile, status banners incl. reviewer's rejection note); offer-ride + confirm gate on approved with distinct none/pending/rejected states.
+- `get_driver_disclosure` now serves the REVIEWED vehicle facts.
+- Review flow for Jordan: BLOCKERS-FOR-JORDAN.md item 6 (dashboard steps).
+
+### 3. Sign out + account switching ✅
+`utils/signOut.ts` (production): realtime teardown → Supabase sign-out → `htwa:`/`sb-` cache wipe. Settings sign-out is always visible, confirms first, lands on login; deletion reuses the full clear. Residue covered by: cache-wipe tests, channel account-switch regression test, and all per-user queries keying off the live session.
+
+### 4. iOS time-spinner half off-screen ✅
+The spinner has a fixed ~320pt intrinsic width — inline rendering inside the half-width form column overflowed the screen edge. iOS pickers now open in a centred bottom-sheet modal (width-immune); Android unchanged; string value contracts unchanged.
+
+### 5. Distance copy ✅ (+ env-var bug)
+`no_key` (platform-side: "Distance calculation isn't available yet — journeys can't be priced until it is. This is on our side, not yours.") split from `unavailable` (retryable network copy). Bonus bug: routes.ts read `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` while JourneyMap/BLOCKERS said `EXPO_PUBLIC_GOOGLE_MAPS_KEY` — the key Jordan adds would have enabled maps but never distance. Both names accepted everywhere.
+
+### 6. Audit: "backend built, UI path unwired" sweep ✅
+Traced every 2A feature through the running navigation paths (not tests): passenger waiver+contact gates on booking-request (reachable, blocking) ✓; driver waiver on confirm ✓ (app-level only — documented); driver-verify panel on booking-success/ride-detail/live-trip ✓; pay button reachable from my-rides/history → ride detail ✓; track deep link ✓. **One live gap found & fixed:** the driver-side journey contact was best-effort seeded — a driver with no saved default posted journeys with NO nominated contact. The confirm screen now requires it (pre-filled, blocking, written against the ride).
+
+### Files
+Created: `app/driver-verification.tsx`, `services/driverVerification.ts`, `utils/signOut.ts`, `supabase/migrations/20260719100001_driver_verification.sql`, tests (`useRealtimeNotifications`, `driverVerificationService`, `DriverVerificationScreen`, `signOut`).
+Modified: `hooks/useRealtimeNotifications.ts`, `services/tracking.ts`, `app/chat/[booking_id].tsx`, `components/DateTimeField.tsx`, `components/JourneyMap.tsx`, `services/routes.ts`, `services/imagePicker.ts`, `app/offer-ride.tsx`, `app/offer-ride-confirm.tsx`, `app/settings.tsx`, `types/database.ts`, `constants/legalDocs.ts` (regenerated after legal updates), `legal/{privacy-policy,ADVISER-BRIEFING}.md` (Jordan's), `BLOCKERS-FOR-JORDAN.md`, ~10 test files.
+
+---
+
 ## 18–19 July 2026 — Overnight autonomous full-sweep (branch `feat/full-sweep`, PR to follow #27)
 
 Overnight run on `feat/full-sweep` (branched off `feat/journey-overhaul` — **must merge AFTER PR #27**, then this branch soft-reset-rebases per the squash-merge lesson). **Nothing merged to main.** `tsc --noEmit`: 0 errors throughout. Jest: **1021 → 1107 passing** (net of dead-code removal; every block committed tsc-0 + suite-green; PR CI green). **EAS iOS simulator build FINISHED**: https://expo.dev/accounts/htwa-app/projects/htwa/builds/67e52170-67d0-45e8-85eb-a12f0187744b — install via `npx eas-cli build:run -p ios` (pick the top build). PR: [#28](https://github.com/htwa-app/htwa/pull/28); CodeRabbit auto-review skipped (155 files > 100-file cap) — review commit-by-commit. All 8 migrations written AND applied+verified to the live DB; all 7 Edge Functions deployed and test-invoked against the real backend.
