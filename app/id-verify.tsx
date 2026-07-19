@@ -36,6 +36,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../components/Button';
 import { DateTimeField } from '../components/DateTimeField';
@@ -78,6 +79,7 @@ function ageFromDOB(dob: string): number {
 
 export default function IdVerifyScreen(): React.ReactElement {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user, isLoading: authLoading, refreshVerification } = useAuth();
 
   const [existing, setExisting] = useState<VerificationRow | null>(null);
@@ -194,7 +196,11 @@ export default function IdVerifyScreen(): React.ReactElement {
   const maxDob = new Date();
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} testID="id-verify-screen">
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + Spacing.lg }]}
+      testID="id-verify-screen"
+    >
       <Text style={styles.title}>Verify your identity</Text>
 
       {status === null && (
@@ -308,8 +314,9 @@ export default function IdVerifyScreen(): React.ReactElement {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.background },
   content: {
+    // paddingTop is set inline (insets.top + Spacing.lg) so the title clears
+    // the status bar/Dynamic Island on every device instead of a fixed value.
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.xxxl,
     paddingBottom: Spacing.xxxxxl,
     gap: Spacing.md,
   },

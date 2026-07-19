@@ -10,6 +10,7 @@ import {
 } from '@expo-google-fonts/poppins';
 import * as SplashScreen from 'expo-splash-screen';
 import { StripeProvider } from '@stripe/stripe-react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '../context/AuthContext';
 import { OfflineBanner } from '../components/OfflineBanner';
 
@@ -38,13 +39,15 @@ export default function RootLayout() {
   }
 
   return (
-    <StripeProvider publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ''}>
-      <AuthProvider>
-        <StatusBar style="dark" />
-        {/* Global connectivity banner — covers every screen from one mount. */}
-        <OfflineBanner />
-        <Stack screenOptions={{ headerShown: false }} />
-      </AuthProvider>
-    </StripeProvider>
+    <SafeAreaProvider>
+      <StripeProvider publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ''}>
+        <AuthProvider>
+          <StatusBar style="dark" />
+          {/* Global connectivity banner — covers every screen from one mount. */}
+          <OfflineBanner />
+          <Stack screenOptions={{ headerShown: false }} />
+        </AuthProvider>
+      </StripeProvider>
+    </SafeAreaProvider>
   );
 }

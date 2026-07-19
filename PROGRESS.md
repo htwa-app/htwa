@@ -4,6 +4,27 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 20 July 2026 (very early, continued) — id-verify title collided with the status bar (branch `feat/full-sweep`, PR #28)
+
+Spotted in Jordan's own screenshot while testing the crash fix above: "Verify your identity" rendered underneath the clock/status bar on his device. `tsc --noEmit`: 0 errors. Jest: 83/83 suites, 1172/1172 tests green.
+
+### Root cause
+The app has **no screen anywhere** using safe-area-aware padding — every screen manages its own top spacing with a fixed `Spacing.*` token, and the root `_layout.tsx` runs `headerShown: false` globally so there's no navigation header reserving space either. `id-verify.tsx`'s `paddingTop: Spacing.xxxl` (32px) is comfortably less than a real device's safe-area top inset (~44–59px depending on notch/Dynamic Island), so its title collided with the status bar. Other screens likely happen to use larger fixed values that clear it by coincidence, not by design — a fragile pattern, but out of scope to fix everywhere right now.
+
+### Fix (scoped to the one reported screen)
+- Added `SafeAreaProvider` (from `react-native-safe-area-context`, already a direct dependency) around the whole app in `app/_layout.tsx` — previously absent entirely, so `useSafeAreaInsets()` wasn't even usable anywhere in the app.
+- `app/id-verify.tsx` now reads real insets via `useSafeAreaInsets()` and uses `insets.top + Spacing.lg` for the content's top padding instead of a fixed token, so the title clears the status bar/Dynamic Island on any device.
+- New `__mocks__/react-native-safe-area-context.js` — a manual Jest mock (auto-applied by Jest for node_modules packages placed in `<rootDir>/__mocks__`, no per-test `jest.mock()` needed) returning all-zero insets, matching the package's own official test-mock defaults.
+
+### Files
+**New:** `__mocks__/react-native-safe-area-context.js`. **Modified:** `app/_layout.tsx`, `app/id-verify.tsx`.
+
+### What could go wrong / what to verify by hand
+- **Not yet confirmed on-device** — Jordan needs to reload/rebuild and check the title clears the status bar now.
+- **Every other screen still uses fixed top padding**, not real insets — this was a targeted fix for the one screen reported, not an app-wide audit. Worth a dedicated pass later if other screens turn out to have the same issue on Jordan's specific device (Dynamic Island devices are the most likely to expose this, since their safe-area top inset is the largest).
+
+---
+
 ## 20 July 2026 (very early) — Fixed a real, reproducible native crash on camera/photo access (branch `feat/full-sweep`, PR #28)
 
 Found live during Jordan's own hands-on testing: tapping the live-selfie tile on id-verify.tsx crashed the app outright ("htwa quit unexpectedly"), reproducibly every time. `tsc --noEmit`: 0 errors (config-only change, no test suite impact).
