@@ -61,6 +61,9 @@ export default function DriverVerificationScreen(): React.ReactElement {
   const [photos, setPhotos] = useState<Record<PhotoKey, Uint8Array | null>>({
     licence: null, selfie: null, car: null,
   });
+  // __DEV__ only: true when the selfie came from the library fallback
+  // (simulator has no camera) rather than a live capture.
+  const [selfieDevFallback, setSelfieDevFallback] = useState(false);
   const [photoBusy, setPhotoBusy] = useState<PhotoKey | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,10 +93,15 @@ export default function DriverVerificationScreen(): React.ReactElement {
     setPhotoBusy(key);
     setError(null);
     try {
-      const bytes =
-        key === 'selfie' ? await captureVerificationSelfie()
-        : key === 'licence' ? await pickLicencePhoto()
-        : await pickCarPhoto();
+      if (key === 'selfie') {
+        const selfie = await captureVerificationSelfie();
+        if (selfie) {
+          setPhotos((prev) => ({ ...prev, selfie: selfie.bytes }));
+          setSelfieDevFallback(selfie.source === 'library-dev-fallback');
+        }
+        return;
+      }
+      const bytes = key === 'licence' ? await pickLicencePhoto() : await pickCarPhoto();
       if (bytes) setPhotos((prev) => ({ ...prev, [key]: bytes }));
     } catch {
       setError('Could not open the camera or photo picker. Check permissions in Settings.');
@@ -126,6 +134,7 @@ export default function DriverVerificationScreen(): React.ReactElement {
       if (!res.ok) { setError(res.message); return; }
       setExisting(res.verification);
       setPhotos({ licence: null, selfie: null, car: null });
+      setSelfieDevFallback(false);
     } catch {
       setError('Could not submit your driver verification. Please try again.');
     } finally {
@@ -228,6 +237,7 @@ export default function DriverVerificationScreen(): React.ReactElement {
               <Text style={styles.photoTitle}>{tile.title}</Text>
               <Text style={styles.photoHint}>
                 {photoBusy === tile.key ? 'Opening…'
+                  : tile.key === 'selfie' && fresh && selfieDevFallback ? '(dev fallback) Picked from library — no camera on this device'
                   : fresh ? 'New photo ready to submit'
                   : done ? 'On file — tap to replace'
                   : tile.hint}

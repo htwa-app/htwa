@@ -63,7 +63,7 @@ beforeEach(() => {
   mockUseAuth.mockReturnValue({ user: { id: 'u1' } });
   mockGet.mockResolvedValue({ ok: true, verification: null });
   mockSubmit.mockResolvedValue({ ok: true, verification: ROW });
-  mockSelfie.mockResolvedValue(BYTES);
+  mockSelfie.mockResolvedValue({ bytes: BYTES, source: 'camera' });
   mockLicence.mockResolvedValue(BYTES);
   mockCar.mockResolvedValue(BYTES);
 });
@@ -90,6 +90,22 @@ describe('DriverVerificationScreen — gating', () => {
     await waitFor(() => expect(mockSelfie).toHaveBeenCalled());
     expect(mockLicence).not.toHaveBeenCalled();
     expect(mockCar).not.toHaveBeenCalled();
+  });
+
+  it('labels the selfie tile "(dev fallback)" when the capture used the library', async () => {
+    mockSelfie.mockResolvedValue({ bytes: BYTES, source: 'library-dev-fallback' });
+    render(<DriverVerificationScreen />);
+    await waitFor(() => expect(screen.getByTestId('photo-selfie')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('photo-selfie'));
+    await waitFor(() => expect(screen.getByTestId('photo-selfie')).toHaveTextContent(/dev fallback/i));
+  });
+
+  it('a normal camera capture never shows the dev-fallback label', async () => {
+    render(<DriverVerificationScreen />);
+    await waitFor(() => expect(screen.getByTestId('photo-selfie')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('photo-selfie'));
+    await waitFor(() => expect(screen.getByTestId('photo-selfie')).toHaveTextContent(/ready to submit/i));
+    expect(screen.getByTestId('photo-selfie')).not.toHaveTextContent(/dev fallback/i);
   });
 
   it('submits everything and lands in the pending state', async () => {
