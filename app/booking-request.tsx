@@ -154,7 +154,11 @@ export default function BookingRequestScreen(): React.ReactElement {
       )}
 
       {/* Safety acknowledgment (2A-d) */}
-      {!alreadyAccepted && (
+      {alreadyAccepted ? (
+        <Text style={styles.waiverDoneNote} testID="waiver-already-accepted">
+          ✓ Safety acknowledgment already accepted for this journey.
+        </Text>
+      ) : (
         <WaiverAcceptance role="passenger" accepted={waiverAccepted} onChange={setWaiverAccepted} />
       )}
 
@@ -183,4 +187,5 @@ const styles = StyleSheet.create({
   totalLabel: { ...Typography.headingSmall, color: Colors.textPrimary },
   totalValue: { ...Typography.headingSmall, color: Colors.primary },
   errorText: { ...Typography.bodySmall, color: Colors.sos, textAlign: 'center' },
+  waiverDoneNote: { ...Typography.bodySmall, color: Colors.primary, textAlign: 'center' },
 });
