@@ -4,6 +4,28 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 20 July 2026 (early hours) — Login screen rebuilt as sign-up-first, mobile removed (branch `feat/full-sweep`, PR #28)
+
+Found during Jordan's own hands-on fresh-signup walkthrough tonight: the root Login screen's "Continue with email" button went to the returning-user login screen, not signup — correct behavior (fixed deliberately in an 18 Jul session to stop ambiguous new-vs-existing handling), but confusing for a brand-new user with no obvious way to reach email signup except detouring through the Apple/Google buttons. Jordan's call: make the whole screen read as sign-up-first, with a clear escape hatch for returning users. `tsc --noEmit`: 0 errors. Jest: 83/83 suites, 1172/1172 tests green.
+
+### What changed
+- **`app/login.tsx`** rebuilt: all three remaining buttons now read "Sign up with Apple / Google / email" (Apple/Google still placeholder → `/signup` pending Phase 15 OAuth; email now also → `/signup`, not `/login-email`). **Mobile number option removed entirely** (button, handler, and its icon). Added a new "Already have an account? **Log in**" link below the buttons → `/login-email`, styled identically to the same link already on `signup.tsx` for consistency.
+- **`__tests__/unit/LoginScreen.test.tsx`** rewritten for the new labels/behavior, plus a new assertion that no mobile-number button exists and that the login link is present and wired correctly.
+- **`app/login-email.tsx`** — updated a stale doc-comment that referenced the old "Continue with email" button.
+- **`DESIGN-SPEC.md`** §login screen updated to match (was still describing the old 4-button layout).
+
+### Also fixed while testing: a real timezone bug in the age-gate tests
+While re-running the suite as part of this change, `__tests__/unit/IdVerifyScreen.test.tsx`'s "one day short of 18th birthday" boundary test started failing — not from tonight's login changes, but because it built test DOBs with `Date#toISOString().slice(0,10)`, which converts to UTC first. Just after midnight in BST (UTC+1), that silently shifted the computed date back by a day, corrupting the exact boundary the test needed. Replaced with a `toLocalDateString()` helper that builds the string from local date parts instead — the same way the app itself parses/formats DOB values. All three date-boundary tests in that file now use it. This was a latent bug since the age-gate work was committed (d78659d) — it just hadn't been triggered by the clock yet.
+
+### Files
+**Modified:** `app/login.tsx`, `app/login-email.tsx`, `DESIGN-SPEC.md`, `__tests__/unit/LoginScreen.test.tsx`, `__tests__/unit/IdVerifyScreen.test.tsx`.
+
+### What could go wrong / what to verify by hand
+- Apple and Google buttons are still non-functional placeholders (routed to `/signup`, no real OAuth) — this hasn't changed, just relabeled. Real implementation is still Phase 15.
+- Worth a quick look on-device that the new "Already have an account? Log in" link doesn't visually collide with the buttons above it or the Terms/Safety-Pledge footer below it on a smaller screen (iPhone SE-class) — only checked via Jest, not the simulator, for this specific change.
+
+---
+
 ## 19 July 2026 (latest) — app.json → app.config.js + Android Maps key EAS env fix (branch `feat/full-sweep`, PR #28)
 
 Follow-up to confirming the Google Maps key works: Jordan asked for the Android native Maps SDK key to be wired in properly rather than hardcoded into a committed file. `tsc --noEmit`: 0 errors. Jest: 83/83 suites, 1171/1171 tests green (unaffected — config-only change).

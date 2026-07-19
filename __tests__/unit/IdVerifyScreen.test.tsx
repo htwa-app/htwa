@@ -86,8 +86,20 @@ const APPROVED_ROW: VerificationRow = {
   submitted_at: '2026-07-01T00:00:00Z', reviewed_at: '2026-07-02T00:00:00Z',
 };
 
-// A DOB comfortably older than the 13-year plausibility floor.
+// A DOB comfortably older than the 18-year age gate.
 const VALID_DOB = '2000-06-15';
+
+// Builds a 'YYYY-MM-DD' string from LOCAL date parts, matching how the app
+// itself parses/formats DOB (`${dob}T00:00:00`, always local time). Using
+// Date#toISOString() here instead would convert to UTC first, silently
+// shifting the calendar date by a day depending on the runner's timezone and
+// time of day — exactly the class of bug the app's own DOB handling avoids.
+function toLocalDateString(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 async function fillDob(dob = VALID_DOB): Promise<void> {
   await waitFor(() => expect(screen.getByTestId('dob-field')).toBeTruthy());
@@ -252,7 +264,7 @@ describe('IdVerifyScreen — 18+ age gate', () => {
     await addAllPhotos();
     const tooYoung = new Date();
     tooYoung.setFullYear(tooYoung.getFullYear() - 5);
-    await fillDob(tooYoung.toISOString().slice(0, 10));
+    await fillDob(toLocalDateString(tooYoung));
     await waitFor(() => expect(screen.getByTestId('dob-underage')).toHaveTextContent(/18 or older/i));
     expect(screen.queryByTestId('dob-implausible')).toBeNull();
     expect(screen.getByTestId('id-verify-submit').props.accessibilityState?.disabled).toBe(true);
@@ -264,7 +276,7 @@ describe('IdVerifyScreen — 18+ age gate', () => {
     const almost18 = new Date();
     almost18.setFullYear(almost18.getFullYear() - 18);
     almost18.setDate(almost18.getDate() + 1); // turns 18 tomorrow, not yet today
-    await fillDob(almost18.toISOString().slice(0, 10));
+    await fillDob(toLocalDateString(almost18));
     await waitFor(() => expect(screen.getByTestId('dob-underage')).toBeTruthy());
   });
 
@@ -272,7 +284,7 @@ describe('IdVerifyScreen — 18+ age gate', () => {
     render(<IdVerifyScreen />);
     const exactly18 = new Date();
     exactly18.setFullYear(exactly18.getFullYear() - 18);
-    await fillDob(exactly18.toISOString().slice(0, 10));
+    await fillDob(toLocalDateString(exactly18));
     expect(screen.queryByTestId('dob-underage')).toBeNull();
     expect(screen.queryByTestId('dob-implausible')).toBeNull();
   });
