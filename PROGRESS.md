@@ -17,7 +17,7 @@ Overnight run on `feat/full-sweep` (branched off `feat/journey-overhaul` — **m
 - **`services/tracking.ts`:** contact management (last-used → profile default pre-fill), throttled location publishing with last-known retention, `raiseAlert` (audit-insert-first; realtime + SMS channels recorded), silent `sendSOS` (live GPS → last-published → last-persisted fallback).
 - **`utils/routeCorridor.ts`:** off-course detection — generous straight-line corridor until the Maps key lands, sustained-deviation state machine (6 consecutive samples ≈ 90s), flags exactly once.
 - **Live Trip screen rewritten:** driver start/complete lifecycle (zero-row-guarded), publishing + corridor monitoring while in progress, silent SOS with subtle confirmation, per-journey NominatedContactCard, tokenised share link, passenger live/signal-lost view, watch-cards for journeys you're the nominated contact of.
-- **`app/track/[token].tsx` + `web/track.html`:** tokenised tracking (in-app + static web page for contacts without the app) — live, signal-lost with last-seen time+position, completed, expired-token, invalid-token, SOS/off-course banners. Web page needs hosting (BLOCKERS #5).
+- **`app/track/[token].tsx` + `website/track/index.html`:** tokenised tracking (in-app + static web page for contacts without the app) — live, signal-lost with last-seen time+position, completed, expired-token, invalid-token, SOS/off-course banners. Web page deploys automatically on merge (Netlify serves website/ at htwa-app.com).
 - Live-verified: waiver gate, women-only enforcement inside the RPC, immutable audit, RLS grants/denials, token expiry on completion, anon snapshot.
 
 ### 2A. Verification disclosure + waiver flow ✅
@@ -52,7 +52,7 @@ Driver-side chat list in History (one chat per confirmed passenger); global Offl
 `app.json`, `app/(tabs)/{_layout,history,index,live-trip,profile}.tsx`, `app/_layout.tsx`, `app/booking-request.tsx`, `app/booking-requests/[rideId].tsx`, `app/booking-success.tsx`, `app/edit-profile.tsx`, `app/id-verify.tsx`, `app/login.tsx`, `app/my-rides.tsx`, `app/offer-ride-confirm.tsx`, `app/offer-ride.tsx`, `app/ride/[id].tsx`, `app/settings.tsx`, `app/user-profile/[id].tsx`, `app/vehicle-details.tsx`, `app/verify.tsx`, `jest.config.js`, `legal/{privacy-policy,terms-of-service}.md`, `package.json`, `package-lock.json`, `services/{bookings,imagePicker}.ts`, `supabase/functions/{create-connect-account,create-payment-intent}/index.ts`, `types/database.ts`, ~20 test files. Deleted: `app/home.tsx`, `utils/tracking.ts` + 3 test files.
 
 ### Human tasks (see BLOCKERS-FOR-JORDAN.md for exact steps)
-1. Google Maps API key  2. Stripe Connect platform profile (live mode only — test mode verified working)  3. Twilio credentials (SMS to contacts)  4. Apple/Google developer accounts (push + stores)  5. Host `web/track.html` at htwa-app.com/track.
+1. Google Maps API key  2. Stripe Connect platform profile (live mode only — test mode verified working)  3. Twilio credentials (SMS to contacts)  4. Apple/Google developer accounts (push + stores)  ~~5. Host the tracking page~~ — resolved: htwa-app.com is Netlify-served from this repo's `website/`; the page now lives at `website/track/index.html` and goes live on merge.
 
 ---
 
