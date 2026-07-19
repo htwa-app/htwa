@@ -45,7 +45,8 @@ BEGIN
                    ') submitted ' || NEW.car_colour || ' ' || NEW.car_make || ' ' || NEW.car_model ||
                    ' ' || NEW.car_registration || ' for review.',
         'priority', 4,
-        'tags', jsonb_build_array('car')
+        'tags', jsonb_build_array('car'),
+        'click', 'https://supabase.com/dashboard/project/adrwtjlphjrnrrqjkbfk/editor'
       ),
       headers := '{"Content-Type": "application/json"}'::jsonb
     );
