@@ -58,7 +58,9 @@ export default function RideDetailScreen(): React.ReactElement {
   const [seatsWant, setSeatsWant] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error,     setError]     = useState<string | null>(null);
-  const [myBooking, setMyBooking] = useState<{ id: string; status: string } | null>(null);
+  const [myBooking, setMyBooking] = useState<{
+    id: string; status: string; seats_booked: number; payment_intent_id: string | null;
+  } | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelMessage, setCancelMessage] = useState<string | null>(null);
 
@@ -111,7 +113,7 @@ export default function RideDetailScreen(): React.ReactElement {
       if (user) {
         const { data: bookingData, error: bookingErr } = await supabase
           .from('bookings')
-          .select('id, status')
+          .select('id, status, seats_booked, payment_intent_id')
           .eq('ride_id', data.id)
           .eq('passenger_id', user.id)
           .in('status', ['pending', 'confirmed'])
@@ -290,6 +292,18 @@ export default function RideDetailScreen(): React.ReactElement {
           </View>
 
           <DriverVerifyPanel rideId={ride.id} testID="ride-driver-verify" />
+
+          {/* Payment: due once the driver confirms; PaymentIntent id present
+              means the payment sheet was already started (retry allowed). */}
+          {myBooking.status === 'confirmed' && (
+            <Button
+              title={`Pay ${formatCurrency(passengerSeatPrice * myBooking.seats_booked, ride.currency)}`}
+              onPress={() => router.push(
+                `/payment?bookingId=${myBooking.id}&rideId=${ride.id}&amount=${passengerSeatPrice * myBooking.seats_booked}&currency=${ride.currency}`,
+              )}
+              testID="pay-button"
+            />
+          )}
 
           <Button
             title="Message driver"

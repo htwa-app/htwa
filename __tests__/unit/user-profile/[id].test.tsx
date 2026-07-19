@@ -29,6 +29,11 @@ let mockProfileRow: Record<string, unknown> | null = { university: 'TCD', women_
 let mockVerifyRow:  Record<string, unknown> | null = { id_verified: true, selfie_verified: true };
 let mockIsPending = false;
 
+jest.mock('../../../services/reviews', () => ({
+  getReviewSummary: jest.fn().mockResolvedValue({ ok: true, summary: { average: null, count: 0, reviews: [] } }),
+  getCompletedTripsCount: jest.fn().mockResolvedValue({ ok: true, count: 0 }),
+}));
+
 jest.mock('../../../lib/supabase', () => ({
   supabase: {
     from: (table: string) => ({
@@ -120,7 +125,7 @@ describe('UserProfileScreen — stats', () => {
     render(<UserProfileScreen />);
     await waitFor(() => expect(screen.getByTestId('stat-rating')).toBeTruthy());
     expect(screen.getByTestId('stat-trips')).toBeTruthy();
-    expect(screen.getByTestId('stat-reliability')).toBeTruthy();
+    expect(screen.getByTestId('stat-reviews-count')).toBeTruthy();
   });
 });
 

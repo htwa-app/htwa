@@ -44,6 +44,10 @@ jest.mock('expo-router', () => {
 });
 
 // Ionicons mock — renders nothing (we're not testing icon visuals here)
+jest.mock('../../hooks/useRealtimeNotifications', () => ({
+  useRealtimeNotifications: () => undefined,
+}));
+
 jest.mock('@expo/vector-icons', () => ({
   Ionicons: () => null,
 }));

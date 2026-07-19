@@ -39,6 +39,11 @@ jest.mock('../../lib/supabase', () => ({
 
 // Auth context mock
 const mockUseAuth = jest.fn();
+jest.mock('../../services/reviews', () => ({
+  getReviewSummary: jest.fn().mockResolvedValue({ ok: true, summary: { average: 4.5, count: 3, reviews: [] } }),
+  getCompletedTripsCount: jest.fn().mockResolvedValue({ ok: true, count: 7 }),
+}));
+
 jest.mock('../../context/AuthContext', () => ({
   useAuth: () => mockUseAuth(),
 }));
@@ -169,7 +174,7 @@ describe('ProfileScreen — stats row', () => {
     render(<ProfileScreen />);
     await waitFor(() => expect(screen.getByTestId('stat-rating')).toBeTruthy());
     expect(screen.getByTestId('stat-trips')).toBeTruthy();
-    expect(screen.getByTestId('stat-reliability')).toBeTruthy();
+    expect(screen.getByTestId('stat-reviews-count')).toBeTruthy();
   });
 });
 

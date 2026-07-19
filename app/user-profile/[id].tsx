@@ -39,6 +39,7 @@ import {
   Shadows,
 } from '../../constants/theme';
 import { supabase } from '../../lib/supabase';
+import { getCompletedTripsCount, getReviewSummary, type ReviewSummary } from '../../services/reviews';
 
 // ─── Spec-local constants ─────────────────────────────────────────────────────
 
@@ -63,6 +64,9 @@ export default function UserProfileScreen(): React.ReactElement {
   const [isLoading,   setIsLoading]   = useState(true);
   const [error,       setError]       = useState<string | null>(null);
   const [reportModal, setReportModal] = useState(false);
+  const [reviewSummary, setReviewSummary] = useState<ReviewSummary | null>(null);
+  const [reviewsError, setReviewsError] = useState(false);
+  const [tripsCount, setTripsCount] = useState<number | null>(null);
 
   const fetchUser = useCallback(async () => {
     if (!id) { setIsLoading(false); return; }
@@ -91,6 +95,16 @@ export default function UserProfileScreen(): React.ReactElement {
         isVerified,
         womenOnly:  profileRes.data?.women_only_mode === true,
       });
+
+      // Stages 56-57 rollup: rating average/count + review list + trips.
+      // Errors here are distinguished from "no reviews" (retryable state).
+      const [summaryRes, tripsRes] = await Promise.all([
+        getReviewSummary(id),
+        getCompletedTripsCount(id),
+      ]);
+      if (summaryRes.ok) { setReviewSummary(summaryRes.summary); setReviewsError(false); }
+      else setReviewsError(true);
+      setTripsCount(tripsRes.ok ? tripsRes.count : null);
     } catch {
       setError('Could not load this profile.');
     } finally {
@@ -177,30 +191,53 @@ export default function UserProfileScreen(): React.ReactElement {
           </View>
         </View>
 
-        {/* ── Stats ───────────────────────────────────────────────────────── */}
+        {/* ── Stats (Stages 56-57 rollup) ─────────────────────────────────── */}
         <View style={styles.statsCard}>
           <View style={styles.statItem} testID="stat-rating">
-            <Text style={styles.statValue}>--</Text>
+            <Text style={styles.statValue}>
+              {reviewSummary?.average != null ? `★ ${reviewSummary.average.toFixed(1)}` : '--'}
+            </Text>
             <Text style={styles.statLabel}>Rating</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem} testID="stat-trips">
-            <Text style={styles.statValue}>0</Text>
+            <Text style={styles.statValue}>{tripsCount ?? '--'}</Text>
             <Text style={styles.statLabel}>Trips</Text>
           </View>
           <View style={styles.statDivider} />
-          <View style={styles.statItem} testID="stat-reliability">
-            <Text style={styles.statValue}>--</Text>
-            <Text style={styles.statLabel}>Reliability</Text>
+          <View style={styles.statItem} testID="stat-reviews-count">
+            <Text style={styles.statValue}>{reviewSummary ? reviewSummary.count : '--'}</Text>
+            <Text style={styles.statLabel}>Reviews</Text>
           </View>
         </View>
 
-        {/* ── Reviews placeholder ─────────────────────────────────────────── */}
+        {/* ── Reviews (Stages 56-57 rollup) ───────────────────────────────── */}
         <View style={styles.sectionCard} testID="reviews-section">
           <Text style={styles.sectionTitle}>Reviews</Text>
-          <Text style={styles.placeholderText}>
-            Reviews will appear here after completed trips.
-          </Text>
+          {reviewsError ? (
+            <TouchableOpacity onPress={fetchUser} accessibilityRole="button" testID="reviews-retry">
+              <Text style={styles.errorText}>Couldn't load reviews. Tap to retry.</Text>
+            </TouchableOpacity>
+          ) : !reviewSummary || reviewSummary.count === 0 ? (
+            <Text style={styles.placeholderText}>
+              Reviews will appear here after completed trips.
+            </Text>
+          ) : (
+            reviewSummary.reviews.map((review) => (
+              <View key={review.id} style={styles.reviewRow} testID={`review-${review.id}`}>
+                <View style={styles.reviewHeader}>
+                  <Text style={styles.reviewName}>{review.reviewerName}</Text>
+                  <Text style={styles.reviewStars}>{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</Text>
+                </View>
+                {review.comment ? <Text style={styles.reviewComment}>{review.comment}</Text> : null}
+                {review.createdAt ? (
+                  <Text style={styles.reviewDate}>
+                    {new Date(review.createdAt).toLocaleDateString('en-IE', { month: 'short', year: 'numeric' })}
+                  </Text>
+                ) : null}
+              </View>
+            ))
+          )}
         </View>
 
         {/* ── Report button ───────────────────────────────────────────────── */}
@@ -245,6 +282,17 @@ export default function UserProfileScreen(): React.ReactElement {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  reviewRow: {
+    paddingVertical: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: STATS_DIVIDER_COLOR,
+    gap: 2,
+  },
+  reviewHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  reviewName: { ...Typography.bodyMedium, color: Colors.textPrimary },
+  reviewStars: { ...Typography.bodySmall, color: Colors.amber },
+  reviewComment: { ...Typography.bodySmall, color: Colors.textSecondary },
+  reviewDate: { ...Typography.bodySmall, color: Colors.textTertiary },
   screen: {
     flex: 1,
     backgroundColor: Colors.background,

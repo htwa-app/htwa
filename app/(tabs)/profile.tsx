@@ -41,6 +41,7 @@ import {
   BorderRadius,
   Shadows,
 } from '../../constants/theme';
+import { getCompletedTripsCount, getReviewSummary } from '../../services/reviews';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 
@@ -66,6 +67,9 @@ export default function ProfileScreen(): React.ReactElement {
   const [profile, setProfile]     = useState<ProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError]         = useState<string | null>(null);
+  const [ratingAvg, setRatingAvg] = useState<number | null>(null);
+  const [reviewCount, setReviewCount] = useState<number | null>(null);
+  const [tripsCount, setTripsCount] = useState<number | null>(null);
 
   const fetchProfile = useCallback(async () => {
     if (!user) {
@@ -87,6 +91,17 @@ export default function ProfileScreen(): React.ReactElement {
         return;
       }
       setProfile(data ?? null);
+
+      // Stages 56-57 rollup — errors show '--', never a fake 0-rating.
+      const [summaryRes, tripsRes] = await Promise.all([
+        getReviewSummary(user.id),
+        getCompletedTripsCount(user.id),
+      ]);
+      if (summaryRes.ok) {
+        setRatingAvg(summaryRes.summary.average);
+        setReviewCount(summaryRes.summary.count);
+      }
+      if (tripsRes.ok) setTripsCount(tripsRes.count);
     } catch {
       setError('Could not load your profile. Please try again.');
     } finally {
@@ -190,18 +205,18 @@ export default function ProfileScreen(): React.ReactElement {
       {/* ── Stats row ───────────────────────────────────────────────────────── */}
       <View style={styles.statsCard}>
         <View style={styles.statItem} testID="stat-rating">
-          <Text style={styles.statValue}>--</Text>
+          <Text style={styles.statValue}>{ratingAvg != null ? `★ ${ratingAvg.toFixed(1)}` : '--'}</Text>
           <Text style={styles.statLabel}>Rating</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem} testID="stat-trips">
-          <Text style={styles.statValue}>0</Text>
+          <Text style={styles.statValue}>{tripsCount ?? '--'}</Text>
           <Text style={styles.statLabel}>Trips</Text>
         </View>
         <View style={styles.statDivider} />
-        <View style={styles.statItem} testID="stat-reliability">
-          <Text style={styles.statValue}>--</Text>
-          <Text style={styles.statLabel}>Reliability</Text>
+        <View style={styles.statItem} testID="stat-reviews-count">
+          <Text style={styles.statValue}>{reviewCount ?? '--'}</Text>
+          <Text style={styles.statLabel}>Reviews</Text>
         </View>
       </View>
 

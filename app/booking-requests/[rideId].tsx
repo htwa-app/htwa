@@ -22,7 +22,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet,
+  View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, StyleSheet,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,7 +31,7 @@ import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { PriceBreakdown } from '../../components/PriceBreakdown';
 import { acceptBooking } from '../../services/chat';
-import { declineBooking } from '../../services/bookings';
+import { cancelRideAsDriver, declineBooking } from '../../services/bookings';
 import { fetchPricingRates } from '../../services/pricingRates';
 import type { PricingRates } from '../../utils/pricingEngine';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../constants/theme';
@@ -50,6 +50,7 @@ interface RideContext {
   currency: 'EUR' | 'GBP';
   seats_available: number;
   seats_total: number;
+  status: string;
 }
 
 interface RequestItem {
@@ -84,6 +85,8 @@ export default function BookingRequestsScreen(): React.ReactElement {
   // never leaks onto another row.
   const [actionBusy,  setActionBusy]  = useState<string | null>(null);
   const [actionError,  setActionError] = useState<Record<string, string>>({});
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const [cancelMessage, setCancelMessage] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!user || !rideId) { setIsLoading(false); return; }
@@ -94,7 +97,7 @@ export default function BookingRequestsScreen(): React.ReactElement {
       // "not found" rather than an empty request list for someone else's ride.
       const { data: rideRow, error: rideErr } = await supabase
         .from('rides')
-        .select('id, from_location, to_location, departure_datetime, cost_per_seat, currency, seats_available, seats_total')
+        .select('id, from_location, to_location, departure_datetime, cost_per_seat, currency, seats_available, seats_total, status')
         .eq('id', rideId)
         .eq('driver_id', user.id)
         .maybeSingle();
@@ -239,6 +242,8 @@ export default function BookingRequestsScreen(): React.ReactElement {
         </Text>
       </View>
 
+      {cancelMessage && <Text style={styles.cancelMessage} testID="cancel-journey-message">{cancelMessage}</Text>}
+
       {requests.length === 0 ? (
         <Text style={styles.emptyText} testID="requests-empty">No booking requests yet.</Text>
       ) : (
@@ -255,6 +260,47 @@ export default function BookingRequestsScreen(): React.ReactElement {
             onDecline={() => handleDecline(req.id)}
           />
         ))
+      )}
+
+      {/* Driver cancels the whole journey: every pending/confirmed booking is
+          cancelled and refunded in full (create-refund Edge Function). */}
+      {ride.status !== 'cancelled' && (
+        <TouchableOpacity
+          onPress={() => {
+            Alert.alert(
+              'Cancel this journey?',
+              'All passengers are notified and receive a full refund. This cannot be undone.',
+              [
+                { text: 'Keep journey', style: 'cancel' },
+                {
+                  text: 'Cancel journey',
+                  style: 'destructive',
+                  onPress: () => void (async () => {
+                    if (!user) return;
+                    setCancelBusy(true);
+                    setCancelMessage(null);
+                    try {
+                      const res = await cancelRideAsDriver(rideId, user.id);
+                      setCancelMessage(res.message);
+                      if (res.success) await fetchData();
+                    } catch {
+                      setCancelMessage('Cancellation failed. Please try again.');
+                    } finally {
+                      setCancelBusy(false);
+                    }
+                  })(),
+                },
+              ],
+            );
+          }}
+          disabled={cancelBusy}
+          accessibilityRole="button"
+          testID="cancel-journey-button"
+        >
+          <Text style={styles.cancelJourneyText}>
+            {cancelBusy ? 'Cancelling…' : 'Cancel this journey'}
+          </Text>
+        </TouchableOpacity>
       )}
     </ScrollView>
   );
@@ -344,6 +390,8 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center' },
   headerSpacer: { width: 24 },
   screenTitle: { ...Typography.headingLarge, color: Colors.textPrimary, flex: 1, textAlign: 'center' },
+  cancelMessage: { ...Typography.bodySmall, color: Colors.textSecondary, textAlign: 'center' },
+  cancelJourneyText: { ...Typography.bodyMedium, color: Colors.sos, textAlign: 'center', paddingVertical: Spacing.md },
   emptyText: { ...Typography.bodyMedium, color: Colors.textTertiary, textAlign: 'center' },
   retryBtn: { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md },
   retryText: { ...Typography.bodyMedium, color: Colors.primary },
