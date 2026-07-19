@@ -77,7 +77,8 @@ describe('ChatScreen', () => {
 
   it('subscribes to the realtime channel for the booking', async () => {
     render(<ChatScreen />);
-    await waitFor(() => expect(mockChannel).toHaveBeenCalledWith('chat:b1'));
+    // Channel names carry a unique per-mount suffix (double-subscribe fix).
+    await waitFor(() => expect(mockChannel).toHaveBeenCalledWith(expect.stringMatching(/^chat:b1:/)));
     expect(mockSubscribe).toHaveBeenCalled();
   });
 

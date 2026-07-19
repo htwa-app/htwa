@@ -275,7 +275,9 @@ export function subscribeToLocations(
   onLocation: (row: TripLocationRow) => void,
 ): () => void {
   const channel = supabase
-    .channel(`trip-locations:${rideId}`)
+    // Unique per subscription — a stable name would return the previous
+    // still-subscribed instance on quick resubscribe and .on() would throw.
+    .channel(`trip-locations:${rideId}:${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'trip_locations', filter: `ride_id=eq.${rideId}` },
@@ -423,7 +425,7 @@ export function subscribeToAlerts(
   onAlert: (row: { alert_type: TripAlertType; detail: string | null; created_at: string }) => void,
 ): () => void {
   const channel = supabase
-    .channel(`trip-alerts:${rideId}`)
+    .channel(`trip-alerts:${rideId}:${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'trip_alerts', filter: `ride_id=eq.${rideId}` },
