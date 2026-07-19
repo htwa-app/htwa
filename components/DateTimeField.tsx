@@ -72,6 +72,19 @@ export function DateTimeField({ mode, value, onChange, placeholder, minimumDate,
     onChange(toValue(mode, selected));
   };
 
+  // iOS "Done": the spinner opens already showing today's date / the current
+  // time (toDate's fallback for an empty value), but never fires onChange
+  // until the user actually scrolls a wheel. Tapping Done immediately closed
+  // the sheet with nothing committed — silently rejecting "post/search for
+  // right now" even though that's exactly what was on screen. Re-deriving
+  // from `value` via toDate/toValue is a no-op if the user did scroll
+  // (round-trips the already-committed value) and commits the visible
+  // default when they didn't.
+  const handleDone = () => {
+    onChange(toValue(mode, toDate(mode, value)));
+    setOpen(false);
+  };
+
   return (
     <View>
       <TouchableOpacity
@@ -126,7 +139,7 @@ export function DateTimeField({ mode, value, onChange, placeholder, minimumDate,
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{placeholder}</Text>
               <TouchableOpacity
-                onPress={() => setOpen(false)}
+                onPress={handleDone}
                 accessibilityRole="button"
                 testID={`${baseTestID}-done`}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
