@@ -54,13 +54,21 @@ export interface UploadStudentCardResult {
 /**
  * Upload a student-card image to the private `student-cards` bucket (under the
  * user's own folder) and mark the profile as `pending` manual review.
+ *
+ * Uses a versioned path (timestamped) rather than a fixed `student-card.jpg`.
+ * The old fixed-path + upsert:true design meant a RE-upload overwrote the
+ * user's previous photo in place — so if the DB write failed afterwards, the
+ * "rollback" (removing the just-uploaded file) deleted the user's last known
+ * -good photo too, leaving them with none at all instead of reverting to the
+ * old one. A unique path per upload means a failed DB write only ever removes
+ * the new, orphaned file — any previous photo is untouched.
  */
 export async function uploadStudentCard(
   userId: string,
   fileBytes: ArrayBuffer | Uint8Array,
   contentType = 'image/jpeg',
 ): Promise<UploadStudentCardResult> {
-  const path = `${userId}/student-card.jpg`;
+  const path = `${userId}/student-card-${Date.now()}.jpg`;
 
   const { error: uploadError } = await supabase.storage
     .from('student-cards')
@@ -77,8 +85,11 @@ export async function uploadStudentCard(
       { onConflict: 'user_id' },
     );
   if (dbError) {
-    // The file is uploaded but the DB write failed — remove the orphaned upload.
-    await supabase.storage.from('student-cards').remove([path]);
+    // The file is uploaded but the DB write failed — remove ONLY the newly
+    // uploaded (versioned, orphaned) file. Any previously-saved photo is at a
+    // different path and is never touched by this rollback.
+    const { error: removeError } = await supabase.storage.from('student-cards').remove([path]);
+    if (removeError) console.error('[StudentCard] orphaned upload cleanup failed:', removeError.message);
     return { ok: false, status: 'unverified', error: dbError.message };
   }
 

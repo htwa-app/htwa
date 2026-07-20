@@ -1,7 +1,7 @@
 
 # htwa Privacy Policy
 
-**Last updated:** 29 April 2026  
+**Last updated:** 17 July 2026 (PLACEHOLDER — PENDING ADVISER REVIEW)  
 **Effective date:** To be confirmed on launch
 
 ---
@@ -46,9 +46,11 @@ For the purposes of data protection law:
 - Driver payout records (via Stripe Connect)
 
 ### 2.5 Safety Data
-- Nominated contact name and phone number
-- Silent SOS activations (if any)
-- Journey share links sent
+- Nominated contact name and phone number (per journey — defaults to your last-used contact and can be changed for each journey)
+- Silent SOS activations, including the live or last-known location transmitted with an alert
+- Route-deviation alerts (where a journey's live position departs significantly from its planned route)
+- Last-known location and timestamp where live tracking disconnects mid-journey
+- Journey tracking links generated and their access
 
 ### 2.6 Communications
 - In-app messages between drivers and passengers
@@ -82,8 +84,9 @@ For the purposes of data protection law:
 
 We share your data only where necessary:
 
-- **Other users:** Your first name, profile photo, verified status, rating, and vehicle details are visible to other users when you offer or book a ride.
-- **Nominated contact:** Your live location and driver details are shared with your nominated contact during active journeys.
+- **Other users:** Your first name, profile photo, verified status, rating, and vehicle details are visible to other users when you offer or book a journey.
+- **Drivers → booked passengers:** if you drive on htwa, passengers who book your journey are shown your verified photo, full name, gender, and your vehicle's make, model, colour and registration number. This exists so passengers can confirm at pickup that the person and vehicle match what they booked — a core safety feature of the platform. It is disclosed to booked passengers only (never publicly), and drivers consent to it when offering journeys.
+- **Nominated contact:** your live location, journey details and driver identity details are shared with your nominated contact during active journeys, including via Silent SOS and route-deviation alerts. If tracking disconnects, your last-known location and its timestamp are shared instead.
 - **Stripe:** Payment processing. Stripe's privacy policy applies to payment data: stripe.com/privacy
 - **Supabase:** Our database provider. Data is stored in EU data centres.
 - **Apple/Google:** Push notification delivery only.
@@ -120,10 +123,19 @@ Your government ID and selfie are used solely for identity verification. Once ve
 | Account data | Until account deletion + 30 days |
 | Journey history | 3 years (legal/financial records) |
 | Payment records | 7 years (tax and accounting requirements) |
-| ID verification documents | 12 months from verification date |
+| ID verification documents | 12 months from verification date¹ |
 | Live location data | 30 days after trip completion |
-| In-app messages | 12 months |
+| In-app messages | Retained permanently as a safeguarding and dispute record² |
+| SOS and safety alert records | Retained permanently as a safeguarding record² |
 | Support correspondence | 2 years |
+
+¹ The driver's verified photo shown to booked passengers is retained for as long as the driver offers journeys on the platform.
+
+² In-app messages and safety-incident records cannot be deleted by users, including on account deletion. We retain them on the basis of legitimate interests (user safeguarding, dispute and incident records) — messages are exchanged between users arranging to travel together, and a permanent record protects both parties in the event of a safety incident, dispute or law-enforcement request. <!-- ADVISER NOTE: lawful basis for permanent retention vs Art. 17 right to erasure needs sign-off — ADVISER-BRIEFING.md item 6. -->
+
+### 7A. Account deletion
+
+When you delete your account, your `users` record is anonymised in place: your name, email, phone number, photos and other identifying details are erased or replaced with non-identifying values. Records that must be retained (journey history for legal/financial purposes, payment records for tax purposes, in-app messages and safety records for safeguarding) are kept in that anonymised or pseudonymised form. This means your identity is removed from the platform while the integrity of other users' records — for example, the other side of a chat or a shared journey record — is preserved. <!-- ADVISER NOTE: anonymise-in-place vs full erasure needs sign-off — ADVISER-BRIEFING.md item 7. -->
 
 ---
 

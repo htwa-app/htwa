@@ -10,17 +10,14 @@
 // query builder works.
 const mockRideCancelSelect = jest.fn();  // cancelRideAsDriver: ride update ...select('id')
 const mockBookingsBulkCancel = jest.fn(); // cancelRideAsDriver: bookings bulk update (no select)
-const mockBookingCancelSelect = jest.fn(); // cancelBookingAsPassenger: booking update ...select(...)
-const mockRideSingle = jest.fn();         // cancelBookingAsPassenger: ride read ...single()
-const mockRideRestoreUpdate = jest.fn();  // cancelBookingAsPassenger: seat-restore update (no select)
+const mockBookingCancelSelect = jest.fn(); // cancelBookingAsPassenger/declineBooking: booking update ...select(...)
+const mockRpc = jest.fn(); // restore_ride_seats / book_ride / close_chat
 
 jest.mock('../../lib/supabase', () => {
   function ridesUpdateBuilder(): Record<string, unknown> {
     const builder: Record<string, unknown> = {
       eq: () => builder,
       select: () => mockRideCancelSelect(),
-      then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
-        mockRideRestoreUpdate().then(resolve, reject),
     };
     return builder;
   }
@@ -40,14 +37,11 @@ jest.mock('../../lib/supabase', () => {
     supabase: {
       from: (table: string) => {
         if (table === 'rides') {
-          return {
-            update: () => ridesUpdateBuilder(),
-            select: () => ({ eq: () => ({ single: () => mockRideSingle() }) }),
-          };
+          return { update: () => ridesUpdateBuilder() };
         }
         return { update: () => bookingsUpdateBuilder() }; // table === 'bookings'
       },
-      rpc: jest.fn(),
+      rpc: (...args: unknown[]) => mockRpc(...args),
     },
   };
 });
@@ -144,16 +138,12 @@ describe('cancelRideAsDriver', () => {
 describe('cancelBookingAsPassenger', () => {
   const futureDeparture = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
 
-  it('cancels the booking and restores seats on success (full refund eligible)', async () => {
+  it('cancels the booking and restores seats via the restore_ride_seats RPC on success (full refund eligible)', async () => {
     mockBookingCancelSelect.mockResolvedValue({
       data: [{ seats_booked: 2, ride_id: 'r1' }],
       error: null,
     });
-    mockRideSingle.mockResolvedValue({
-      data: { seats_available: 1, seats_total: 4, status: 'full' },
-      error: null,
-    });
-    mockRideRestoreUpdate.mockResolvedValue({ error: null });
+    mockRpc.mockResolvedValue({ error: null });
 
     const res = await cancelBookingAsPassenger('b1', 'p1', futureDeparture);
     expect(res).toEqual({
@@ -161,6 +151,7 @@ describe('cancelBookingAsPassenger', () => {
       refunded: true,
       message: 'Booking cancelled. Full refund issued within 3–5 business days.',
     });
+    expect(mockRpc).toHaveBeenCalledWith('restore_ride_seats', { p_ride_id: 'r1', p_seats: 2 });
   });
 
   it('fails when the booking update query errors', async () => {
@@ -169,47 +160,26 @@ describe('cancelBookingAsPassenger', () => {
     expect(res).toEqual({ success: false, refunded: false, message: 'db down' });
   });
 
-  it('fails (does not report success) when zero rows are updated — wrong id or not the passenger', async () => {
+  it('fails (does not report success) when zero rows are updated — wrong id, not the passenger, or already cancelled', async () => {
     mockBookingCancelSelect.mockResolvedValue({ data: [], error: null });
     const res = await cancelBookingAsPassenger('b1', 'not-the-passenger', futureDeparture);
     expect(res.success).toBe(false);
-    expect(res.message).toMatch(/not found|permitted/i);
+    expect(res.message).toMatch(/not found|permitted|cancelled/i);
   });
 
-  it('still reports the cancellation as successful if the seat-restore read fails (logs, does not fail the user-facing result)', async () => {
+  it('still reports the cancellation as successful if the seat-restore RPC fails (logs, does not fail the user-facing result)', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     mockBookingCancelSelect.mockResolvedValue({
       data: [{ seats_booked: 1, ride_id: 'r1' }],
       error: null,
     });
-    mockRideSingle.mockResolvedValue({ data: null, error: { message: 'ride read failed' } });
+    mockRpc.mockResolvedValue({ error: { message: 'rpc failed' } });
 
     const res = await cancelBookingAsPassenger('b1', 'p1', futureDeparture);
     expect(res.success).toBe(true);
     expect(errorSpy).toHaveBeenCalledWith(
       expect.stringContaining('[Bookings]'),
-      'ride read failed',
-    );
-    errorSpy.mockRestore();
-  });
-
-  it('still reports the cancellation as successful if the seat-restore update fails (logs, does not fail the user-facing result)', async () => {
-    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    mockBookingCancelSelect.mockResolvedValue({
-      data: [{ seats_booked: 1, ride_id: 'r1' }],
-      error: null,
-    });
-    mockRideSingle.mockResolvedValue({
-      data: { seats_available: 2, seats_total: 4, status: 'active' },
-      error: null,
-    });
-    mockRideRestoreUpdate.mockResolvedValue({ error: { message: 'seat update failed' } });
-
-    const res = await cancelBookingAsPassenger('b1', 'p1', futureDeparture);
-    expect(res.success).toBe(true);
-    expect(errorSpy).toHaveBeenCalledWith(
-      expect.stringContaining('[Bookings]'),
-      'seat update failed',
+      'rpc failed',
     );
     errorSpy.mockRestore();
   });
@@ -220,11 +190,7 @@ describe('cancelBookingAsPassenger', () => {
       data: [{ seats_booked: 1, ride_id: 'r1' }],
       error: null,
     });
-    mockRideSingle.mockResolvedValue({
-      data: { seats_available: 0, seats_total: 4, status: 'full' },
-      error: null,
-    });
-    mockRideRestoreUpdate.mockResolvedValue({ error: null });
+    mockRpc.mockResolvedValue({ error: null });
 
     const res = await cancelBookingAsPassenger('b1', 'p1', soon);
     expect(res).toEqual({
@@ -243,19 +209,16 @@ describe('cancelBookingAsPassenger', () => {
 });
 
 describe('declineBooking', () => {
-  it('declines the booking and restores the seat on success', async () => {
+  it('declines the booking and restores the seat via the restore_ride_seats RPC on success', async () => {
     mockBookingCancelSelect.mockResolvedValue({
       data: [{ seats_booked: 1, ride_id: 'r1' }],
       error: null,
     });
-    mockRideSingle.mockResolvedValue({
-      data: { seats_available: 0, seats_total: 4, status: 'full' },
-      error: null,
-    });
-    mockRideRestoreUpdate.mockResolvedValue({ error: null });
+    mockRpc.mockResolvedValue({ error: null });
 
     const res = await declineBooking('b1');
     expect(res).toEqual({ ok: true });
+    expect(mockRpc).toHaveBeenCalledWith('restore_ride_seats', { p_ride_id: 'r1', p_seats: 1 });
   });
 
   it('fails when the update query errors', async () => {
@@ -271,17 +234,17 @@ describe('declineBooking', () => {
     expect(res.error).toMatch(/not found|permitted|decided/i);
   });
 
-  it('still reports success if the seat-restore fails (logs, does not fail the user-facing result)', async () => {
+  it('still reports success if the seat-restore RPC fails (logs, does not fail the user-facing result)', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     mockBookingCancelSelect.mockResolvedValue({
       data: [{ seats_booked: 1, ride_id: 'r1' }],
       error: null,
     });
-    mockRideSingle.mockResolvedValue({ data: null, error: { message: 'ride read failed' } });
+    mockRpc.mockResolvedValue({ error: { message: 'rpc failed' } });
 
     const res = await declineBooking('b1');
     expect(res).toEqual({ ok: true });
-    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('[Bookings]'), 'ride read failed');
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('[Bookings]'), 'rpc failed');
     errorSpy.mockRestore();
   });
 

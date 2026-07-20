@@ -46,25 +46,17 @@ export function isFullRefundEligible(
  * would tell the caller their cancellation/decline failed when it actually
  * succeeded, risking a confusing retry. Worst case is a temporarily
  * under-reported seat count, which never oversells a seat.
+ *
+ * Calls the restore_ride_seats RPC (migration 20260718000001) rather than a
+ * client-side SELECT-then-UPDATE: two concurrent restores on the same ride
+ * (e.g. two passengers on the same journey cancelling around the same time)
+ * could otherwise both read the same starting seats_available and each write
+ * back +1 instead of +2, silently losing a seat restoration. The RPC does the
+ * whole read-modify-write as one UPDATE statement, which Postgres serialises.
  */
 async function restoreRideSeats(rideId: string, seatsBooked: number): Promise<void> {
-  const { data: rideData, error: rideReadErr } = await supabase
-    .from('rides')
-    .select('seats_available, seats_total, status')
-    .eq('id', rideId)
-    .single();
-
-  if (rideReadErr) {
-    console.error('[Bookings] seat-restore ride read failed:', rideReadErr.message);
-    return;
-  }
-
-  const newAvail = Math.min(rideData.seats_total, rideData.seats_available + seatsBooked);
-  const { error: seatErr } = await supabase.from('rides').update({
-    seats_available: newAvail,
-    status: rideData.status === 'full' ? 'active' : rideData.status,
-  }).eq('id', rideId);
-  if (seatErr) console.error('[Bookings] seat-restore update failed:', seatErr.message);
+  const { error } = await supabase.rpc('restore_ride_seats', { p_ride_id: rideId, p_seats: seatsBooked });
+  if (error) console.error('[Bookings] seat-restore RPC failed:', error.message);
 }
 
 // ─── Cancel as driver ─────────────────────────────────────────────────────────
@@ -133,17 +125,22 @@ export async function cancelBookingAsPassenger(
   const refundEligible = isFullRefundEligible(departureDateTime);
 
   try {
+    // .in('status', ...) guards against re-cancelling an already-cancelled or
+    // already-declined booking — without it, a duplicate/replayed cancel call
+    // (double-tap, retry after a UI glitch) would restore the seat a second
+    // time, incorrectly inflating seats_available.
     const { data: bookingRows, error: bookErr } = await supabase
       .from('bookings')
       .update({ status: 'cancelled' })
       .eq('id', bookingId)
       .eq('passenger_id', passengerId)
+      .in('status', ['pending', 'confirmed'])
       .select('seats_booked, ride_id');
 
     if (bookErr) return { success: false, refunded: false, message: bookErr.message };
     const bookingData = bookingRows?.[0];
     if (!bookingData) {
-      return { success: false, refunded: false, message: 'Booking not found or not permitted.' };
+      return { success: false, refunded: false, message: 'Booking not found, not permitted, or already cancelled.' };
     }
 
     await restoreRideSeats(bookingData.ride_id, bookingData.seats_booked);

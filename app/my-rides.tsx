@@ -142,22 +142,31 @@ export default function MyRidesScreen(): React.ReactElement {
         <View style={{ width: 24 }} />
       </View>
 
-      {error && <Text style={styles.errorText} testID="rides-error">{error}</Text>}
-
-      {/* Upcoming */}
-      <Text style={styles.sectionLabel}>Upcoming</Text>
-      {upcoming.length === 0 ? (
-        <Text style={styles.emptyText} testID="upcoming-empty">No upcoming journeys</Text>
+      {error ? (
+        <View style={styles.errorState} testID="rides-error">
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity onPress={fetchRides} style={styles.retryBtn} accessibilityRole="button">
+            <Text style={styles.retryText}>Try again</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
-        upcoming.map((ride) => <RideCard key={`${ride.role}-${ride.id}`} ride={ride} onPress={() => navigateToRide(ride)} />)
-      )}
+        <>
+          {/* Upcoming */}
+          <Text style={styles.sectionLabel}>Upcoming</Text>
+          {upcoming.length === 0 ? (
+            <Text style={styles.emptyText} testID="upcoming-empty">No upcoming journeys</Text>
+          ) : (
+            upcoming.map((ride) => <RideCard key={`${ride.role}-${ride.id}`} ride={ride} onPress={() => navigateToRide(ride)} />)
+          )}
 
-      {/* Past */}
-      <Text style={styles.sectionLabel}>Past</Text>
-      {past.length === 0 ? (
-        <Text style={styles.emptyText} testID="past-empty">No past journeys</Text>
-      ) : (
-        past.map((ride) => <RideCard key={`${ride.role}-${ride.id}`} ride={ride} onPress={() => navigateToRide(ride)} />)
+          {/* Past */}
+          <Text style={styles.sectionLabel}>Past</Text>
+          {past.length === 0 ? (
+            <Text style={styles.emptyText} testID="past-empty">No past journeys</Text>
+          ) : (
+            past.map((ride) => <RideCard key={`${ride.role}-${ride.id}`} ride={ride} onPress={() => navigateToRide(ride)} />)
+          )}
+        </>
       )}
     </ScrollView>
   );
@@ -212,7 +221,10 @@ const styles = StyleSheet.create({
   screenTitle: { ...Typography.headingLarge, color: Colors.textPrimary, flex: 1, textAlign: 'center' },
   sectionLabel: { ...Typography.headingSmall, color: Colors.textPrimary, marginTop: Spacing.md },
   emptyText: { ...Typography.bodyMedium, color: Colors.textTertiary },
-  errorText: { ...Typography.bodySmall, color: Colors.sos },
+  errorState: { alignItems: 'center', paddingTop: Spacing.xl, gap: Spacing.sm },
+  errorText: { ...Typography.bodySmall, color: Colors.sos, textAlign: 'center' },
+  retryBtn: { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md },
+  retryText: { ...Typography.bodyMedium, color: Colors.primary },
   rideCard: { backgroundColor: Colors.surface, borderRadius: BorderRadius.large, borderWidth: 1, borderColor: Colors.border, ...Shadows.card, padding: Spacing.cardPadding, gap: Spacing.sm },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   routeCol: { flex: 1, gap: 2 },

@@ -43,7 +43,12 @@ describe('@stripe/stripe-react-native — no single-arg forwardRef (React 19 com
   });
 
   it('no patch-package patch is needed for this fix (removed — fixed upstream in 0.68.0)', () => {
+    // Check only for a stripe-react-native patch specifically, not that the
+    // whole patches/ directory is absent — a future unrelated patch for a
+    // different package shouldn't fail this regression guard.
     const patchesDir = path.join(__dirname, '../../patches');
-    expect(fs.existsSync(patchesDir)).toBe(false);
+    if (!fs.existsSync(patchesDir)) return;
+    const stripePatches = fs.readdirSync(patchesDir).filter((f) => f.startsWith('@stripe+stripe-react-native+'));
+    expect(stripePatches).toEqual([]);
   });
 });

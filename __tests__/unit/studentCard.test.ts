@@ -51,12 +51,20 @@ describe('uploadStudentCard', () => {
     mockRemove.mockResolvedValue({ error: null });
   });
 
-  it('uploads to the user folder and upserts status pending (manual review)', async () => {
+  // The upload path is versioned (student-card-<timestamp>.jpg) rather than a
+  // fixed name — a RE-upload must never overwrite (and a rollback must never
+  // delete) a user's previously-saved photo. Match on the pattern, not an
+  // exact string.
+  const PATH_PATTERN = /^u1\/student-card-\d+\.jpg$/;
+
+  it('uploads to a versioned path in the user folder and upserts status pending (manual review)', async () => {
     const res = await uploadStudentCard('u1', new Uint8Array([1, 2, 3]));
-    expect(res).toEqual({ ok: true, status: 'pending', path: 'u1/student-card.jpg' });
-    expect(mockUpload).toHaveBeenCalledWith('u1/student-card.jpg', expect.anything(), expect.objectContaining({ upsert: true }));
+    expect(res.ok).toBe(true);
+    expect(res.status).toBe('pending');
+    expect(res.path).toMatch(PATH_PATTERN);
+    expect(mockUpload).toHaveBeenCalledWith(expect.stringMatching(PATH_PATTERN), expect.anything(), expect.objectContaining({ upsert: true }));
     expect(mockUpsert).toHaveBeenCalledWith(
-      expect.objectContaining({ user_id: 'u1', university_verification_status: 'pending', student_card_url: 'u1/student-card.jpg' }),
+      expect.objectContaining({ user_id: 'u1', university_verification_status: 'pending', student_card_url: expect.stringMatching(PATH_PATTERN) }),
       expect.objectContaining({ onConflict: 'user_id' }),
     );
     expect(mockRemove).not.toHaveBeenCalled();
@@ -69,10 +77,21 @@ describe('uploadStudentCard', () => {
     expect(res.status).toBe('unverified');
   });
 
-  it('rolls back the uploaded file when the profile write fails (no orphan)', async () => {
+  it('rolls back only the newly-uploaded (orphaned) file when the profile write fails — never a previous photo, since each upload gets a unique path', async () => {
     mockUpsert.mockResolvedValue({ error: { message: 'db failed' } });
     const res = await uploadStudentCard('u1', new Uint8Array([1]));
     expect(res.ok).toBe(false);
-    expect(mockRemove).toHaveBeenCalledWith(['u1/student-card.jpg']);
+    expect(mockRemove).toHaveBeenCalledWith([expect.stringMatching(PATH_PATTERN)]);
+  });
+
+  it('logs (does not throw or mask the original error) when the rollback removal itself fails', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockUpsert.mockResolvedValue({ error: { message: 'db failed' } });
+    mockRemove.mockResolvedValue({ error: { message: 'remove failed' } });
+    const res = await uploadStudentCard('u1', new Uint8Array([1]));
+    expect(res.ok).toBe(false);
+    expect(res.error).toBe('db failed'); // original DB error, not the cleanup error
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('[StudentCard]'), 'remove failed');
+    errorSpy.mockRestore();
   });
 });

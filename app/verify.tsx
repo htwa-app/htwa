@@ -12,6 +12,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Button } from '../components/Button';
 import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
 import { supabase } from '../lib/supabase';
+import { resolvePostAuthDestination } from '../utils/authRouting';
 import type { HomeLocation, Currency, Gender } from '../types/database';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -21,17 +22,29 @@ const RESEND_COOLDOWN_SECONDS = 60;
 // Allowlist for the cached gender value — anything outside the union is stored as null.
 const ALLOWED_GENDERS: Gender[] = ['female', 'male', 'non_binary', 'prefer_not_to_say'];
 
+// Friendly, generic messages — never surface a raw Postgres error (e.g.
+// "duplicate key value violates unique constraint users_pkey") to the user.
+const ACCOUNT_ERROR_MESSAGE = 'Something went wrong setting up your account. Please try again.';
+const STATE_ERROR_MESSAGE   = "We couldn't check your account status. Please try again.";
+const NO_ACCOUNT_MESSAGE    = "We couldn't find an account for that email.";
+
+type VerifyMode = 'signup' | 'login';
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function VerifyScreen() {
   const router = useRouter();
-  const { email = '' } = useLocalSearchParams<{ email?: string }>();
+  const { email = '', mode: modeParam } = useLocalSearchParams<{ email?: string; mode?: string }>();
+  const mode: VerifyMode = modeParam === 'login' ? 'login' : 'signup';
 
   // ── State ───────────────────────────────────────────────────────────────────
   const [digits,       setDigits]       = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const [cooldown,     setCooldown]     = useState(0);
   const [verifyError,  setVerifyError]  = useState<string | null>(null);
+  // Distinct from verifyError: only true for "no account found" in login mode,
+  // so the UI can offer a "Sign up instead" link rather than just an error.
+  const [noAccount,    setNoAccount]    = useState(false);
 
   // ── Refs ────────────────────────────────────────────────────────────────────
   const inputRefs      = useRef<(TextInput | null)[]>(Array(OTP_LENGTH).fill(null));
@@ -40,11 +53,46 @@ export default function VerifyScreen() {
 
   const isComplete = digits.every(d => d.length === 1);
 
-  // ── Verify OTP, insert DB rows, then navigate ─────────────────────────────
+  /**
+   * Shared by both modes once a public.users row is confirmed to exist:
+   * reads the current verification + profile state and routes accordingly,
+   * so a user lands in the same place regardless of which flow they came
+   * through (mirrors SplashScreen's own precedence: unverified beats a
+   * missing profile).
+   */
+  const routeByCurrentState = async (userId: string): Promise<boolean> => {
+    const { data: verifRow, error: verifErr } = await supabase
+      .from('verification')
+      .select('id_verified, selfie_verified')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (verifErr) {
+      setVerifyError(STATE_ERROR_MESSAGE);
+      return false;
+    }
+    const isVerified = verifRow?.id_verified === true && verifRow?.selfie_verified === true;
+
+    const { data: profileRow, error: profileErr } = await supabase
+      .from('profiles')
+      .select('user_id')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (profileErr) {
+      setVerifyError(STATE_ERROR_MESSAGE);
+      return false;
+    }
+    const hasProfile = profileRow !== null;
+
+    router.replace(resolvePostAuthDestination({ isVerified, hasProfile }));
+    return true;
+  };
+
+  // ── Verify OTP, then write (signup) or read (login) state, then route ────────
   const verifyCode = async () => {
     if (isSubmittingRef.current || !isComplete) return;
     isSubmittingRef.current = true;
     setVerifyError(null);
+    setNoAccount(false);
     try {
       const { data, error } = await supabase.auth.verifyOtp({
         email,
@@ -55,6 +103,30 @@ export default function VerifyScreen() {
         setVerifyError(error?.message ?? 'Verification failed');
         return;
       }
+      const userId = data.user.id;
+
+      if (mode === 'login') {
+        // Returning user — never create a new account on this path. Confirm
+        // one already exists before deciding where to route.
+        const { data: userRow, error: userErr } = await supabase
+          .from('users')
+          .select('id')
+          .eq('id', userId)
+          .maybeSingle();
+        if (userErr) {
+          setVerifyError(STATE_ERROR_MESSAGE);
+          return;
+        }
+        if (!userRow) {
+          setNoAccount(true);
+          setVerifyError(NO_ACCOUNT_MESSAGE);
+          return;
+        }
+        await routeByCurrentState(userId);
+        return;
+      }
+
+      // ── Signup mode ──────────────────────────────────────────────────────
       // Read user data saved by the signup screen
       const [fullName, phone, homeLocation, currency, gender] = await Promise.all([
         AsyncStorage.getItem('htwa:fullName'),
@@ -63,9 +135,12 @@ export default function VerifyScreen() {
         AsyncStorage.getItem('htwa:currency'),
         AsyncStorage.getItem('htwa:gender'),
       ]);
-      // Create the user profile row
-      const { error: usersError } = await supabase.from('users').insert({
-        id:            data.user.id,
+      // Upsert (not insert) so a retry after an interrupted signup — the same
+      // auth user verifying a second time — updates the existing row instead
+      // of hitting "duplicate key value violates unique constraint
+      // users_pkey". onConflict targets the primary key explicitly.
+      const { error: usersError } = await supabase.from('users').upsert({
+        id:            userId,
         email,
         phone:         phone         ?? '',
         full_name:     fullName      ?? '',
@@ -77,23 +152,25 @@ export default function VerifyScreen() {
         // Block 5 — gender drives the women-only filter. Validate against the
         // Gender union (don't trust the raw AsyncStorage string); null if invalid.
         gender:        ALLOWED_GENDERS.includes(gender as Gender) ? (gender as Gender) : null,
-      });
+      }, { onConflict: 'id' });
       if (usersError) {
-        setVerifyError(usersError.message ?? 'Failed to create account. Please try again.');
+        setVerifyError(ACCOUNT_ERROR_MESSAGE);
         return;
       }
-      // Create the verification row (starts unverified — completed by id-verify screen).
-      // Use upsert so re-verification after a failed attempt doesn't duplicate the row.
+      // Create the verification row if missing (starts unverified — completed
+      // by id-verify.tsx). ignoreDuplicates so a retry can NEVER clobber an
+      // already-verified row back to false/false — if it exists, leave it
+      // alone entirely; routeByCurrentState below reads whatever is really there.
       const { error: verificationError } = await supabase.from('verification').upsert({
-        user_id:         data.user.id,
+        user_id:         userId,
         id_verified:     false,
         selfie_verified: false,
-      }, { onConflict: 'user_id' });
+      }, { onConflict: 'user_id', ignoreDuplicates: true });
       if (verificationError) {
-        setVerifyError(verificationError.message ?? 'Failed to create account. Please try again.');
+        setVerifyError(ACCOUNT_ERROR_MESSAGE);
         return;
       }
-      router.replace('/id-verify');
+      await routeByCurrentState(userId);
     } catch {
       setVerifyError('Something went wrong. Please try again.');
     } finally {
@@ -121,6 +198,7 @@ export default function VerifyScreen() {
 
   const handleDigitChange = (index: number, value: string) => {
     setVerifyError(null); // clear any previous error when the user retypes
+    setNoAccount(false);
     const digit = value.replace(/\D/g, '').slice(-1);
     const next  = [...digits];
     next[index] = digit;
@@ -141,22 +219,27 @@ export default function VerifyScreen() {
   const handleResend = async () => {
     if (cooldown > 0) return;
     setVerifyError(null);
-    const { error: resendError } = await supabase.auth.resend({ email, type: 'signup' });
-    if (resendError) {
-      setVerifyError(resendError.message ?? 'Unable to resend code. Please try again.');
-      return;
+    setNoAccount(false);
+    try {
+      const { error: resendError } = await supabase.auth.resend({ email, type: 'signup' });
+      if (resendError) {
+        setVerifyError(resendError.message ?? 'Unable to resend code. Please try again.');
+        return;
+      }
+      // Only start the countdown after a confirmed successful resend
+      setCooldown(RESEND_COOLDOWN_SECONDS);
+      intervalRef.current = setInterval(() => {
+        setCooldown(prev => {
+          if (prev <= 1) {
+            if (intervalRef.current) clearInterval(intervalRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } catch {
+      setVerifyError('Unable to resend code. Please try again.');
     }
-    // Only start the countdown after a confirmed successful resend
-    setCooldown(RESEND_COOLDOWN_SECONDS);
-    intervalRef.current = setInterval(() => {
-      setCooldown(prev => {
-        if (prev <= 1) {
-          if (intervalRef.current) clearInterval(intervalRef.current);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
   };
 
   const formatCooldown = (s: number) =>
@@ -165,6 +248,8 @@ export default function VerifyScreen() {
   const resendLabel = cooldown > 0
     ? `Resend in ${formatCooldown(cooldown)}`
     : 'Resend code';
+
+  const wrongEmailDestination = mode === 'login' ? '/login-email' : '/signup';
 
   return (
     <ScrollView
@@ -214,7 +299,19 @@ export default function VerifyScreen() {
 
       {/* ── Verify error ────────────────────────────────────────────────────── */}
       {verifyError && (
-        <Text style={styles.errorText}>{verifyError}</Text>
+        <Text style={styles.errorText} testID="verify-error">{verifyError}</Text>
+      )}
+
+      {/* ── No account found (login mode) ──────────────────────────────────── */}
+      {noAccount && (
+        <TouchableOpacity
+          onPress={() => router.push('/signup')}
+          accessibilityRole="button"
+          accessibilityLabel="Sign up instead"
+          style={styles.noAccountLink}
+        >
+          <Text style={styles.noAccountLinkText}>Sign up instead</Text>
+        </TouchableOpacity>
       )}
 
       {/* ── Resend ──────────────────────────────────────────────────────────── */}
@@ -233,7 +330,7 @@ export default function VerifyScreen() {
 
       {/* ── Wrong email ─────────────────────────────────────────────────────── */}
       <TouchableOpacity
-        onPress={() => router.push('/signup')}
+        onPress={() => router.push(wrongEmailDestination)}
         accessibilityRole="button"
         accessibilityLabel="Wrong email? Go back"
         style={styles.backLink}
@@ -317,6 +414,16 @@ const styles = StyleSheet.create({
     color: Colors.sos,
     marginBottom: Spacing.lg,
     textAlign: 'center',
+  },
+
+  // No-account-found link (login mode)
+  noAccountLink: {
+    marginBottom: Spacing.lg,
+  },
+  noAccountLinkText: {
+    ...Typography.bodyMedium,
+    color: Colors.primary,
+    textDecorationLine: 'underline',
   },
 
   // Wrong email link

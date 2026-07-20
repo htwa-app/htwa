@@ -116,9 +116,9 @@ describe('LoginScreen — navigation', () => {
     expect(mockPush).toHaveBeenCalledWith('/signup');
   });
 
-  it('Continue with email calls router.push with /signup', () => {
+  it('Continue with email calls router.push with /login-email (returning-user sign-in)', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Continue with email' }));
-    expect(mockPush).toHaveBeenCalledWith('/signup');
+    expect(mockPush).toHaveBeenCalledWith('/login-email');
   });
 
   it('each button press calls router.push exactly once', () => {

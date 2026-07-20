@@ -239,6 +239,15 @@ describe('SignupScreen — navigation', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Continue' }));
     expect(mockPush).not.toHaveBeenCalled();
   });
+
+  it('renders an "Already have an account? Log in" link', () => {
+    expect(screen.getByRole('button', { name: 'Already have an account? Log in' })).toBeTruthy();
+  });
+
+  it('"Already have an account? Log in" navigates to /login-email', () => {
+    fireEvent.press(screen.getByRole('button', { name: 'Already have an account? Log in' }));
+    expect(mockPush).toHaveBeenCalledWith('/login-email');
+  });
 });
 
 // ─── Signup errors ────────────────────────────────────────────────────────────

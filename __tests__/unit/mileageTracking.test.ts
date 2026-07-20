@@ -61,6 +61,15 @@ describe('recordIncrement', () => {
     expect(start).toHaveLength(0);
     expect(next).toEqual([{ amount: 42, at: '2026-06-08T12:00:00.000Z', source: 'journey' }]);
   });
+
+  it('rejects an amount that rounds down to zero (e.g. 0.001)', () => {
+    expect(() => recordIncrement([], 0.001)).toThrow(/invalid/i);
+  });
+
+  it('accepts the smallest amount that rounds to a non-zero cent (0.005)', () => {
+    const next = recordIncrement([], 0.005);
+    expect(next[0].amount).toBeGreaterThan(0);
+  });
 });
 
 describe('shouldFlagForSupport — over-clicking the manual +1', () => {

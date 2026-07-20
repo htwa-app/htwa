@@ -72,6 +72,11 @@ export function recordIncrement(
     throw new Error(`Invalid mileage increment: ${amount}`);
   }
   const normalised = Math.round(amount * 100) / 100;
+  // A sub-cent amount (e.g. 0.001) passes the raw check above but rounds down
+  // to 0 — re-validate after rounding so a zero-value increment is never appended.
+  if (normalised <= 0) {
+    throw new Error(`Invalid mileage increment after normalisation: ${amount}`);
+  }
   return [...increments, { amount: normalised, at: at.toISOString(), source }];
 }
 
