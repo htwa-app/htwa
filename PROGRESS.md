@@ -4,6 +4,27 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 20 July 2026 — OVERNIGHT RUN, Block 5: Performance + bundle audit (branch `feat/full-sweep`, PR #28)
+
+Measurement-first, per Jordan's own instruction ("no risky refactors — findings report for the rest"). `tsc --noEmit`: 0 errors. Jest: 84/84 suites, 1196/1196 tests green (unchanged from before this block — see below).
+
+### Measured
+- `npx expo export --platform ios`: the Hermes JS bundle is 4.84MB.
+- Static image assets (`assets/*.png`) are all small (17.5–48KB) — nothing to optimize there, this app is icon-font-driven, not image-heavy.
+- `app/(tabs)/history.tsx`, `app/search-results.tsx`, `app/my-rides.tsx` all render their ride lists with `ScrollView` + `.map()`, not `FlatList` — no virtualization. **Not changed**: at expected list sizes (a student's ride history is realistically dozens, not thousands, of rows), this doesn't matter yet, and converting to `FlatList` touches rendering/keying logic — exactly the kind of thing tonight's "no risky refactors" rule is for. Worth a real look if/when power users accumulate hundreds of rides.
+
+### Investigated a genuine ~2.7MB bundle-size win — found it, attempted it, reverted it
+All 44 `Ionicons` usages import from the `@expo/vector-icons` **barrel** (`import { Ionicons } from '@expo/vector-icons'`), but only `Ionicons` is used anywhere in the app. The barrel re-exports all 15 icon families, and Metro bundles every one of their font files regardless of which are actually used — `MaterialCommunityIcons.ttf` alone is 1.31MB; the 9 unused families total ~2.7MB of dead weight in every build.
+
+The documented fix is importing directly from the subpath (`import Ionicons from '@expo/vector-icons/Ionicons'`), which avoids pulling in the other 14 families. I applied it across all 44 files — **and it broke 37 of 84 Jest suites** with `Cannot find module 'expo-asset' from 'node_modules/expo-font/build/FontLoader.js'`. Root cause: something about how Jest resolves the bare `@expo/vector-icons` specifier vs. the explicit `@expo/vector-icons/Ionicons` subpath causes the subpath form to eagerly reach `expo-font`'s `FontLoader`, which requires `expo-asset` — a package that isn't installed in this project at all (confirmed: not in `node_modules`, not a declared dependency). The barrel form somehow never reaches that code path in the test environment; I didn't fully root-cause why given tonight's time budget, but empirically confirmed it by toggling one file back and forth.
+
+**Reverted in full** (`git checkout -- app/ components/`) rather than pushing forward — this needed either adding `expo-asset` as a new dependency or a real investigation into jest-expo's module resolution, neither of which is a "low-risk win." Confirmed the revert brought the suite back to 84/84 green. **This is a real, worthwhile ~2.7MB win for a future session** that has time to sort out the Jest side properly (or add a manual Jest mock for the subpath import) — not attempted again tonight.
+
+### Not attempted (out of scope per "no risky refactors")
+Memoization audit on the tab screens, deeper re-render profiling — didn't find anything via static reading of `app/(tabs)/*.tsx` that looked like an obvious, safe, mechanical win the way the icon-import and camera-permission findings were; flagging rather than guessing at a fix without being able to profile actual render counts on-device.
+
+---
+
 ## 20 July 2026 — OVERNIGHT RUN, Block 4: split PR #28 into 6 stacked PRs + CodeRabbit (branch `feat/full-sweep`, PR #28)
 
 Explicitly the priority tiebreaker in Jordan's overnight brief ("if the night runs short, this matters more than blocks 5–7"). `feat/full-sweep` had grown to 184 files against `main` — over CodeRabbit's 100-file review cap — with the stacked-PR plan never executed. Did it tonight.
