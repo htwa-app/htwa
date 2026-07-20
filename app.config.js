@@ -50,6 +50,13 @@ module.exports = {
       package: 'com.htwa.app',
       edgeToEdgeEnabled: true,
       predictiveBackGestureEnabled: false,
+      // expo-image-picker@17's own Android config plugin (withImagePicker.ts)
+      // never actually adds android.permission.CAMERA despite its README
+      // claiming it does — it only ever removes it when explicitly disabled.
+      // Without this, requestCameraPermissionsAsync()/launchCameraAsync() is
+      // silently denied on Android (no declared permission = no runtime grant),
+      // breaking the mandatory ID/selfie capture flow. Force it here instead.
+      permissions: ['android.permission.CAMERA'],
       ...(googleMapsKey ? { config: { googleMaps: { apiKey: googleMapsKey } } } : {}),
     },
     web: {
