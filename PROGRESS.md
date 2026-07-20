@@ -4,6 +4,35 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 20 July 2026 — OVERNIGHT RUN, Block 7: Finish (branch `feat/full-sweep`, PR #28)
+
+Closing out the 7-block overnight brief. `feat/full-sweep` is now 83 commits / 190 files / +20,547 −2,313 vs `main`. Nothing merged to `main` — that stays Jordan's call, per standing rule, for every one of tonight's commits.
+
+### Final numbers
+- `tsc --noEmit`: **0 errors**.
+- Jest: **84/84 suites, 1199/1199 tests**, ~8s.
+- EAS builds kicked off (development profile — internal distribution, iOS simulator + Android APK): iOS `1cda2ad8`, Android `3c438deb`. Both were still `IN_PROGRESS` on EAS's servers when this entry was written — check https://expo.dev/accounts/htwa-app/projects/htwa/builds for final status; if either failed, that's the very next thing to look at.
+
+### Honesty check — what I could NOT verify myself tonight, in the order to check it
+
+1. **The Android APK / iOS simulator build results themselves** — queued but not watched to completion. Open the EAS dashboard link above first thing.
+2. **The full signed-in app flow on Android** — got the app booting and rendering correctly (login/signup screens, safe-area, splash/icon), found and fixed a real camera-permission bug verified at the APK level — but never got past email OTP sign-in on the emulator (no personal-email access, by standing rule), so datetimepicker-in-actual-use, driver setup, tracking, and the camera permission's real "tap → OS dialog → grant → camera opens" round-trip are still unwatched on Android. Worth a hands-on Android pass once you're at a real device/emulator.
+3. **Maps/Places/Routes API — still dead key.** Everything built tonight (Places autocomplete, real map views, toll research) is code-complete and unit-tested but has never been seen working against the real Google API since the key died earlier this session (my own mistake — see BLOCKERS item 1). Get a working key in first, then this whole surface needs a real look.
+4. **The seed script has never actually run.** Written carefully against the real schema, but the 1Password service-account CLI went unresponsive before I could execute it (BLOCKERS item 9) — so there is no live proof it inserts correctly, only that it type-checks and reads correctly against `types/database.ts`.
+5. **CodeRabbit review debt is only 1/6 done.** PR #29 fully triaged (7 real fixes, rest dismissed with reasons). PRs #30–#34 are still waiting on CodeRabbit's hourly rate limit — re-trigger `@coderabbitai full review` on each roughly once an hour (BLOCKERS item 8) and triage as they come back.
+6. **None of tonight's fixes have flowed back into the stacked PR branches.** `stack/01` through `stack/06` are frozen snapshots of the history as it stood when the stack was cut; every fix from tonight (camera permission, the CodeRabbit triage batch, etc.) landed on `feat/full-sweep` directly. Before merging the stack, it needs a rebase pass so the fixes are actually reflected in the PRs being reviewed — right now there's a real gap between "what's fixed on the branch" and "what CodeRabbit is looking at in #30–#34."
+7. **Zero visual/behavioural verification by hand on iOS either** — this whole session's changes (safe-area audit across 25 screens, real maps, Places autocomplete, all the CodeRabbit-triage UI changes) were verified via Jest + targeted code reading, not a simulator walkthrough. The safe-area pattern itself was proven correct once on `id-verify.tsx` in an earlier session, but tonight's other 24 conversions haven't been screenshotted.
+
+### What definitely got a real, working fix tonight (things I'm confident are actually fixed, not just changed)
+- The Android camera-permission bug — confirmed missing, confirmed fixed, confirmed present in the actual built/installed APK via `aapt2 dump permissions`. This one I stand behind fully.
+- The `payment-methods.tsx`/`chat/[booking_id].tsx` query-error-masking bugs — these are the exact failure mode CLAUDE.md's error-handling standard exists to prevent, verified against the actual current code (not assumed from CodeRabbit's diff), and covered by new passing tests.
+- The play-store-listing.md content-rating mismatch — a real inconsistency that would likely have caused store-review friction, now consistent with the App Store listing and the actual 18+ enforcement.
+
+### Files touched tonight (session total, all blocks)
+See each block's own entry above for the full file list per block. Cumulative for tonight: Places/maps (Block 1), `app.config.js` camera fix (Block 2), 25 screens' safe-area conversion (Block 3), 6 new `stack/*` branches + PRs #29–34 (Block 4 setup) + 11 files fixed from CodeRabbit triage (Block 4 triage), zero app-code files (Block 5 — the one attempted change was reverted), `scripts/seed-demo-data.mjs` + 2 docs (Block 6), this entry + BLOCKERS-FOR-JORDAN.md (Block 7).
+
+---
+
 ## 20 July 2026 — OVERNIGHT RUN, Block 4 continued: triaged PR #29's CodeRabbit review (branch `feat/full-sweep`, PR #28)
 
 PR #29's review (79 files, 24 actionable comments, CodeRabbit's own "Estimated code review effort: 5 (Critical) | ~120 minutes") finished processing. Verified every finding against current `feat/full-sweep` rather than blindly applying CodeRabbit's suggested diffs against the frozen 417a848 snapshot.
