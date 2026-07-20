@@ -15,6 +15,7 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../components/Button';
 import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
@@ -49,6 +50,7 @@ const ENGINE_OPTIONS: EngineCcBand[] = ['le1200', 'cc1201to1500', 'ge1501'];
 
 export default function DriverOnboardingScreen(): React.ReactElement {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
   const [taxResidence, setTaxResidence] = useState<TaxResidence | null>(null);
@@ -90,7 +92,7 @@ export default function DriverOnboardingScreen(): React.ReactElement {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + Spacing.lg }]}
       showsVerticalScrollIndicator={false}
       testID="driver-onboarding-screen"
     >
@@ -216,8 +218,9 @@ function CheckRow(props: {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.background },
   content: {
+    // paddingTop is set inline (insets.top + Spacing.lg) so the content clears
+    // the status bar/Dynamic Island on every device instead of a fixed value.
     paddingHorizontal: Spacing.screenPadding,
-    paddingTop: Spacing.xxxl + Spacing.xl,
     paddingBottom: Spacing.xxxxxl,
     gap: Spacing.md,
   },

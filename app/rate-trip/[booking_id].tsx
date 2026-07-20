@@ -9,6 +9,7 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
 import { Colors, Typography, Spacing, BorderRadius, FontFamily } from '../../constants/theme';
@@ -19,6 +20,7 @@ const STAR_SIZE = 36;
 
 export default function RateTripScreen(): React.ReactElement {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { booking_id } = useLocalSearchParams<{ booking_id: string }>();
 
@@ -68,7 +70,7 @@ export default function RateTripScreen(): React.ReactElement {
   };
 
   return (
-    <View style={styles.screen} testID="rate-trip-screen">
+    <View style={[styles.screen, { paddingTop: insets.top + Spacing.lg }]} testID="rate-trip-screen">
       <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back" testID="back-button">
         <Ionicons name="chevron-back" size={24} color={Colors.textPrimary} />
       </TouchableOpacity>
@@ -91,7 +93,9 @@ export default function RateTripScreen(): React.ReactElement {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: Colors.background, paddingHorizontal: Spacing.screenPadding, paddingTop: Spacing.xxxl + Spacing.xl, gap: Spacing.lg },
+  // paddingTop is set inline (insets.top + Spacing.lg) so the content clears
+  // the status bar/Dynamic Island on every device instead of a fixed value.
+  screen: { flex: 1, backgroundColor: Colors.background, paddingHorizontal: Spacing.screenPadding, gap: Spacing.lg },
   backBtn: { alignSelf: 'flex-start' },
   title: { ...Typography.headingLarge, color: Colors.textPrimary },
   subtitle: { ...Typography.bodyLarge, color: Colors.textSecondary },

@@ -18,6 +18,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -49,6 +50,7 @@ const PHOTO_TILES: Array<{ key: PhotoKey; icon: string; title: string; hint: str
 
 export default function DriverVerificationScreen(): React.ReactElement {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
   const [existing, setExisting] = useState<DriverVerificationRow | null>(null);
@@ -164,7 +166,7 @@ export default function DriverVerificationScreen(): React.ReactElement {
   const status = existing?.status ?? null;
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} testID="driver-verification-screen">
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.content, { paddingTop: insets.top + Spacing.lg }]} testID="driver-verification-screen">
       <View style={styles.headerRow}>
         <TouchableOpacity
           onPress={() => router.back()}
@@ -282,8 +284,9 @@ export default function DriverVerificationScreen(): React.ReactElement {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.background },
   content: {
+    // paddingTop is set inline (insets.top + Spacing.lg) so the content clears
+    // the status bar/Dynamic Island on every device instead of a fixed value.
     paddingHorizontal: Spacing.screenPadding,
-    paddingTop: Spacing.xxxl + Spacing.xl,
     paddingBottom: Spacing.xxxxxl,
     gap: Spacing.md,
   },

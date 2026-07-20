@@ -10,6 +10,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { formatCurrency } from '../utils/currency';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../constants/theme';
@@ -40,6 +41,7 @@ interface Transaction {
 
 export default function TransactionHistoryScreen(): React.ReactElement {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading,    setIsLoading]    = useState(true);
@@ -72,7 +74,7 @@ export default function TransactionHistoryScreen(): React.ReactElement {
   if (isLoading) return <View style={styles.center} testID="transactions-loading"><ActivityIndicator size="large" color={Colors.primary} /></View>;
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.scrollContent} testID="transaction-history-screen">
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Spacing.lg }]} testID="transaction-history-screen">
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back" testID="back-button" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Ionicons name="chevron-back" size={24} color={Colors.textPrimary} />
@@ -116,7 +118,9 @@ export default function TransactionHistoryScreen(): React.ReactElement {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.background },
-  scrollContent: { paddingHorizontal: Spacing.screenPadding, paddingTop: Spacing.xxxl + Spacing.xl, paddingBottom: Spacing.xxxxxl, gap: Spacing.md },
+  // paddingTop is set inline (insets.top + Spacing.lg) so the content clears
+  // the status bar/Dynamic Island on every device instead of a fixed value.
+  scrollContent: { paddingHorizontal: Spacing.screenPadding, paddingBottom: Spacing.xxxxxl, gap: Spacing.md },
   center: { flex: 1, backgroundColor: Colors.background, alignItems: 'center', justifyContent: 'center' },
   headerRow: { flexDirection: 'row', alignItems: 'center' },
   screenTitle: { ...Typography.headingLarge, color: Colors.textPrimary, flex: 1, textAlign: 'center' },
