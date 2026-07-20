@@ -23,6 +23,7 @@ import {
   ActivityIndicator, Platform, StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
 import { supabase } from '../lib/supabase';
@@ -41,6 +42,7 @@ const NOTIFICATION_OPTIONS: Array<{ key: string; label: string; hint: string }> 
 
 export default function SettingsScreen(): React.ReactElement {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -260,7 +262,7 @@ export default function SettingsScreen(): React.ReactElement {
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} testID="settings-screen">
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.content, { paddingTop: insets.top + Spacing.lg }]} testID="settings-screen">
       <View style={styles.headerRow}>
         <TouchableOpacity
           onPress={() => router.back()}
@@ -464,8 +466,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
+    // paddingTop is set inline (insets.top + Spacing.lg) so the title clears
+    // the status bar/Dynamic Island on every device instead of a fixed value.
     paddingHorizontal: Spacing.screenPadding,
-    paddingTop: Spacing.xxxl + Spacing.xl,
     paddingBottom: Spacing.xxxxxl,
     gap: Spacing.sm,
   },

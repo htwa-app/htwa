@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
@@ -41,6 +42,7 @@ type RegistrationGender = 'female' | 'male';
 
 export default function SignupScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   // ── Form state ──────────────────────────────────────────────────────────────
   const [fullName,     setFullName]     = useState('');
@@ -101,7 +103,7 @@ export default function SignupScreen() {
 
   return (
     <ScrollView
-      contentContainerStyle={styles.container}
+      contentContainerStyle={[styles.container, { paddingTop: insets.top + Spacing.lg }]}
       bounces={false}
       showsVerticalScrollIndicator={false}
     >
@@ -281,7 +283,8 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     backgroundColor: Colors.background,
     paddingHorizontal: Spacing.screenPadding,
-    paddingTop: Spacing.xxxxxl + Spacing.xxxl, // 80px — extra breathing room
+    // paddingTop is set inline (insets.top + Spacing.lg) so the content clears
+    // the status bar/Dynamic Island on every device instead of a fixed value.
     paddingBottom: Spacing.xxxxxl,
   },
 

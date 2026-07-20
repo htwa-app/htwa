@@ -25,6 +25,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, StyleSheet,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '../../components/Avatar';
 import { Badge } from '../../components/Badge';
@@ -72,6 +73,7 @@ const DECIDED_STATUS_LABEL: Record<Exclude<BookingStatus, 'pending'>, string> = 
 
 export default function BookingRequestsScreen(): React.ReactElement {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { rideId } = useLocalSearchParams<{ rideId: string }>();
   const { user } = useAuth();
 
@@ -219,7 +221,7 @@ export default function BookingRequestsScreen(): React.ReactElement {
   );
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.scrollContent} testID="booking-requests-screen">
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Spacing.lg }]} testID="booking-requests-screen">
       <View style={styles.headerRow}>
         <TouchableOpacity
           onPress={() => router.back()}
@@ -385,7 +387,8 @@ function RequestCard({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.background },
-  scrollContent: { paddingHorizontal: Spacing.screenPadding, paddingTop: Spacing.xxxl + Spacing.xl, paddingBottom: Spacing.xxxxxl, gap: Spacing.md },
+  // paddingTop is set inline (insets.top + Spacing.lg) so content clears the status bar/Dynamic Island on every device instead of a fixed value.
+  scrollContent: { paddingHorizontal: Spacing.screenPadding, paddingBottom: Spacing.xxxxxl, gap: Spacing.md },
   centerState: { flex: 1, backgroundColor: Colors.background, alignItems: 'center', justifyContent: 'center', padding: Spacing.screenPadding, gap: Spacing.md },
   headerRow: { flexDirection: 'row', alignItems: 'center' },
   headerSpacer: { width: 24 },

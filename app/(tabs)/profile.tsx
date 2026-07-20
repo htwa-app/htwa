@@ -31,6 +31,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '../../components/Avatar';
 import { Badge } from '../../components/Badge';
@@ -62,6 +63,7 @@ interface ProfileData {
 
 export default function ProfileScreen(): React.ReactElement {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user, verificationStatus } = useAuth();
 
   const [profile, setProfile]     = useState<ProfileData | null>(null);
@@ -157,7 +159,7 @@ export default function ProfileScreen(): React.ReactElement {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Spacing.lg }]}
       showsVerticalScrollIndicator={false}
       testID="profile-screen"
     >
@@ -289,8 +291,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   scrollContent: {
+    // paddingTop is set inline (insets.top + Spacing.lg) so content clears the
+    // status bar/Dynamic Island on every device instead of a fixed value.
     paddingHorizontal: Spacing.screenPadding,
-    paddingTop: Spacing.xxxl + Spacing.xl,
     paddingBottom: Spacing.xxxxxl,
   },
 

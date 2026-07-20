@@ -16,6 +16,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, StyleSheet,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '../../components/Avatar';
 import { Badge } from '../../components/Badge';
@@ -53,6 +54,7 @@ interface RideDetail {
 
 export default function RideDetailScreen(): React.ReactElement {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { id } = useLocalSearchParams<{ id: string }>();
 
@@ -217,7 +219,7 @@ export default function RideDetailScreen(): React.ReactElement {
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.scrollContent} testID="ride-detail-screen">
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Spacing.lg }]} testID="ride-detail-screen">
       <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back" testID="back-button">
         <Ionicons name="chevron-back" size={24} color={Colors.textPrimary} />
       </TouchableOpacity>
@@ -378,7 +380,8 @@ export default function RideDetailScreen(): React.ReactElement {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.background },
-  scrollContent: { paddingHorizontal: Spacing.screenPadding, paddingTop: Spacing.xxxl + Spacing.xl, paddingBottom: Spacing.xxxxxl, gap: Spacing.md },
+  // paddingTop is set inline (insets.top + Spacing.lg) so the title clears the status bar/Dynamic Island on every device instead of a fixed value.
+  scrollContent: { paddingHorizontal: Spacing.screenPadding, paddingBottom: Spacing.xxxxxl, gap: Spacing.md },
   center: { flex: 1, backgroundColor: Colors.background, alignItems: 'center', justifyContent: 'center' },
   backBtn: { alignSelf: 'flex-start' },
   card: { backgroundColor: Colors.surface, borderRadius: BorderRadius.large, borderWidth: 1, borderColor: Colors.border, ...Shadows.card, padding: Spacing.cardPadding, gap: Spacing.sm },

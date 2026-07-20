@@ -13,6 +13,7 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing } from '../../constants/theme';
 import { LEGAL_DOCS } from '../../constants/legalDocs';
@@ -51,11 +52,12 @@ export function parseMarkdown(markdown: string): Block[] {
 
 export default function LegalDocScreen(): React.ReactElement {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { doc } = useLocalSearchParams<{ doc: string }>();
   const legalDoc = doc ? LEGAL_DOCS[doc] : undefined;
 
   return (
-    <View style={styles.screen} testID="legal-doc-screen">
+    <View style={[styles.screen, { paddingTop: insets.top + Spacing.lg }]} testID="legal-doc-screen">
       <View style={styles.headerRow}>
         <TouchableOpacity
           onPress={() => router.back()}
@@ -98,7 +100,8 @@ export default function LegalDocScreen(): React.ReactElement {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: Colors.background, paddingTop: Spacing.xxxl + Spacing.xl },
+  // paddingTop is set inline (insets.top + Spacing.lg) so the title clears the status bar/Dynamic Island on every device instead of a fixed value.
+  screen: { flex: 1, backgroundColor: Colors.background },
   headerRow: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: Spacing.screenPadding, marginBottom: Spacing.md,

@@ -16,6 +16,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '../components/Avatar';
 import { Badge } from '../components/Badge';
@@ -46,6 +47,7 @@ interface RideResult {
 
 export default function SearchResultsScreen(): React.ReactElement {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{
     from: string; to: string; date: string;
     flexDays: string; seats: string; womenOnly: string;
@@ -174,7 +176,7 @@ export default function SearchResultsScreen(): React.ReactElement {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Spacing.lg }]}
       showsVerticalScrollIndicator={false}
       testID="search-results-screen"
     >
@@ -276,8 +278,9 @@ export default function SearchResultsScreen(): React.ReactElement {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.background },
   scrollContent: {
+    // paddingTop is set inline (insets.top + Spacing.lg) so the title clears
+    // the status bar/Dynamic Island on every device instead of a fixed value.
     paddingHorizontal: Spacing.screenPadding,
-    paddingTop: Spacing.xxxl + Spacing.xl,
     paddingBottom: Spacing.xxxxxl,
     gap: Spacing.md,
   },

@@ -11,6 +11,7 @@ import {
   Platform, ActivityIndicator, Alert, StyleSheet,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, BorderRadius, FontFamily } from '../../constants/theme';
 import { supabase } from '../../lib/supabase';
@@ -27,6 +28,7 @@ interface Message {
 
 export default function ChatScreen(): React.ReactElement {
   const router      = useRouter();
+  const insets      = useSafeAreaInsets();
   const { user }    = useAuth();
   const { booking_id } = useLocalSearchParams<{ booking_id: string }>();
 
@@ -124,7 +126,7 @@ export default function ChatScreen(): React.ReactElement {
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined} testID="chat-screen">
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + Spacing.lg }]}>
         <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back" testID="back-button">
           <Ionicons name="chevron-back" size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
@@ -199,7 +201,8 @@ export default function ChatScreen(): React.ReactElement {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.screenPadding, paddingTop: Spacing.xxxl + Spacing.xl, paddingBottom: Spacing.md },
+  // paddingTop is set inline (insets.top + Spacing.lg) so the header clears the status bar/Dynamic Island on every device instead of a fixed value.
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.screenPadding, paddingBottom: Spacing.md },
   headerTitle: { ...Typography.headingMedium, color: Colors.textPrimary, flex: 1, textAlign: 'center' },
   endChatText: { ...Typography.bodySmall, color: Colors.sos, fontFamily: FontFamily.medium },
   closedBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.screenPadding, paddingVertical: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.border, backgroundColor: Colors.surface },

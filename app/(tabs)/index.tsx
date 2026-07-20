@@ -20,6 +20,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { RouteInput } from '../../components/RouteInput';
 import { DateTimeField } from '../../components/DateTimeField';
@@ -44,6 +45,7 @@ const TOGGLE_TRACK_OFF  = 'rgba(40,30,20,0.15)'; // §9.2 switch — not in pale
 
 export default function SearchScreen(): React.ReactElement {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
   const [mode,       setMode]       = useState<'find' | 'offer'>('find');
@@ -72,7 +74,7 @@ export default function SearchScreen(): React.ReactElement {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Spacing.lg }]}
       showsVerticalScrollIndicator={false}
       testID="search-screen"
     >
@@ -278,8 +280,9 @@ const SAFETY_FEATURES: SafetyFeature[] = [
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.background },
   scrollContent: {
+    // paddingTop is set inline (insets.top + Spacing.lg) so content clears the
+    // status bar/Dynamic Island on every device instead of a fixed value.
     paddingHorizontal: Spacing.screenPadding,
-    paddingTop: Spacing.xxxl + Spacing.xl,
     paddingBottom: Spacing.xxxxxl,
     gap: Spacing.lg,
   },
