@@ -14,6 +14,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '../../components/Avatar';
 import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
+import { PriceBreakdown } from '../../components/PriceBreakdown';
+import { passengerPricing, type PricingRates } from '../../utils/pricingEngine';
+import { fetchPricingRates } from '../../services/pricingRates';
 import { formatCurrency } from '../../utils/currency';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../constants/theme';
 import { supabase } from '../../lib/supabase';
@@ -29,6 +32,7 @@ interface RideDetail {
   cost_per_seat: number; currency: 'EUR' | 'GBP';
   distance_km: number | null;
   women_only: boolean;
+  luggage_note: string | null;
   driver_id: string;
   driver: { full_name: string; is_verified: boolean; university: string | null };
   vehicle: { make: string; model: string; seats: number; hasAC: boolean; dashcam: boolean } | null;
@@ -42,6 +46,7 @@ export default function RideDetailScreen(): React.ReactElement {
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [ride,      setRide]      = useState<RideDetail | null>(null);
+  const [rates,     setRates]     = useState<PricingRates | null>(null);
   const [seatsWant, setSeatsWant] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error,     setError]     = useState<string | null>(null);
@@ -51,6 +56,17 @@ export default function RideDetailScreen(): React.ReactElement {
     setIsLoading(true);
     setError(null);
     try {
+      // Rates come from the DB (sole source of truth). A failed fetch is a HARD
+      // failure — fail loud, never price from a hardcoded fallback.
+      let loadedRates: PricingRates;
+      try {
+        loadedRates = await fetchPricingRates();
+      } catch {
+        setError('Pricing unavailable, please try again.');
+        return;
+      }
+      setRates(loadedRates);
+
       const { data, error: dbErr } = await supabase
         .from('rides')
         .select('*')
@@ -60,18 +76,24 @@ export default function RideDetailScreen(): React.ReactElement {
       if (dbErr || !data) { setError('Ride not found.'); return; }
 
       // Embedded FK relations aren't expressed in the typed schema, so fetch the
-      // driver's name, profile and verification with explicit queries.
-      const { data: driverData } = await supabase
+      // driver's name, profile and verification with explicit queries. A failed
+      // query here must NOT silently render as "unverified"/"no vehicle" — that
+      // would misrepresent a safety-relevant badge, so throw and let the outer
+      // catch surface a retryable error instead of a wrong default.
+      const { data: driverData, error: driverErr } = await supabase
         .from('users').select('full_name').eq('id', data.driver_id).maybeSingle();
+      if (driverErr) throw driverErr;
 
-      const { data: profileData } = await supabase
+      const { data: profileData, error: profileErr } = await supabase
         .from('profiles').select('university, vehicle_details')
         .eq('user_id', data.driver_id).maybeSingle();
+      if (profileErr) throw profileErr;
       const vehicleRaw = (profileData?.vehicle_details as Record<string, unknown> | null) ?? null;
 
-      const { data: vData } = await supabase
+      const { data: vData, error: vErr } = await supabase
         .from('verification').select('id_verified, selfie_verified')
         .eq('user_id', data.driver_id).maybeSingle();
+      if (vErr) throw vErr;
       const isVerified = vData?.id_verified === true && vData?.selfie_verified === true;
 
       setRide({
@@ -85,6 +107,7 @@ export default function RideDetailScreen(): React.ReactElement {
         currency: data.currency,
         distance_km: data.distance_km,
         women_only: data.women_only,
+        luggage_note: data.luggage_note ?? null,
         driver_id: data.driver_id,
         driver: {
           full_name:   driverData?.full_name ?? 'Driver',
@@ -106,16 +129,19 @@ export default function RideDetailScreen(): React.ReactElement {
   useEffect(() => { void fetchRide(); }, [fetchRide]);
 
   if (isLoading) return <View style={styles.center} testID="ride-detail-loading"><ActivityIndicator size="large" color={Colors.primary} /></View>;
-  if (error || !ride) return <View style={styles.center} testID="ride-detail-error"><Text style={styles.errorText}>{error ?? 'Not found'}</Text></View>;
+  if (error || !ride || !rates) return <View style={styles.center} testID="ride-detail-error"><Text style={styles.errorText}>{error ?? 'Not found'}</Text></View>;
 
   const initials = ride.driver.full_name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('');
   const depTime  = new Date(ride.departure_datetime).toLocaleTimeString('en-IE', { hour: '2-digit', minute: '2-digit' });
   const depDate  = new Date(ride.departure_datetime).toLocaleDateString('en-IE', { weekday: 'long', day: 'numeric', month: 'long' });
-  const totalCost = ride.cost_per_seat * seatsWant;
+  // cost_per_seat is the driver's cost-share (base fare). The passenger pays
+  // passengerSeatPrice (base fare + service charge + booking fee) per seat.
+  const { passengerSeatPrice } = passengerPricing(rates, ride.cost_per_seat);
+  const totalCost = passengerSeatPrice * seatsWant;
   const isOwnRide = user?.id === ride.driver_id;
 
   const handleBook = () => {
-    router.push(`/booking-request?rideId=${ride.id}&seats=${seatsWant}&pricePerSeat=${ride.cost_per_seat}&currency=${ride.currency}`);
+    router.push(`/booking-request?rideId=${ride.id}&seats=${seatsWant}&pricePerSeat=${passengerSeatPrice}&currency=${ride.currency}`);
   };
 
   return (
@@ -171,9 +197,21 @@ export default function RideDetailScreen(): React.ReactElement {
         </View>
       )}
 
+      {/* Luggage / bags (Block 8) */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Luggage</Text>
+        {ride.luggage_note ? (
+          <Text style={styles.vehicleText} testID="ride-luggage-note">{ride.luggage_note}</Text>
+        ) : (
+          <Text style={styles.metaText} testID="ride-luggage-none">No luggage note added.</Text>
+        )}
+        <Text style={styles.metaText}>Need to bring something specific? Message the driver in chat after booking.</Text>
+      </View>
+
       {/* Seat selector + booking */}
       {!isOwnRide && ride.seats_available > 0 && (
         <View style={styles.bookingCard}>
+          <PriceBreakdown driverSeatPrice={ride.cost_per_seat} currency={ride.currency} rates={rates} testID="ride-price-breakdown" />
           <View style={styles.seatRow}>
             <Text style={styles.seatLabel}>Seats needed</Text>
             <View style={styles.stepper}>

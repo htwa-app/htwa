@@ -79,6 +79,19 @@ describe('EditProfileScreen — pre-fill', () => {
     await waitFor(() => expect(screen.getByTestId('university-input')).toBeTruthy());
     expect(screen.getByDisplayValue('UCD')).toBeTruthy();
   });
+
+  it('shows an error (not a silently blank form) when the initial load query errors', async () => {
+    mockSingleImpl.mockResolvedValue({ data: null, error: { message: 'db down', code: '500' } });
+    render(<EditProfileScreen />);
+    await waitFor(() => expect(screen.getByTestId('save-error')).toHaveTextContent(/could not load/i));
+  });
+
+  it('does not show an error for a first-time profile (PGRST116 — no row yet)', async () => {
+    mockSingleImpl.mockResolvedValue({ data: null, error: { message: 'no rows', code: 'PGRST116' } });
+    render(<EditProfileScreen />);
+    await waitFor(() => expect(screen.getByTestId('edit-profile-screen')).toBeTruthy());
+    expect(screen.queryByTestId('save-error')).toBeNull();
+  });
 });
 
 // ─── Travel preference chips ──────────────────────────────────────────────────
@@ -140,5 +153,41 @@ describe('EditProfileScreen — navigation', () => {
     await waitFor(() => expect(screen.getByTestId('back-button')).toBeTruthy());
     fireEvent.press(screen.getByTestId('back-button'));
     expect(mockBack).toHaveBeenCalled();
+  });
+});
+
+// ─── Block 6 — mandatory university + verification ──────────────────────────────
+
+describe('EditProfileScreen — Block 6 university verification', () => {
+  it('disables save and shows a hint when university is cleared', async () => {
+    render(<EditProfileScreen />);
+    await waitFor(() => expect(screen.getByTestId('university-input')).toBeTruthy());
+    fireEvent.changeText(screen.getByTestId('university-input'), '');
+    expect(screen.getByTestId('university-required')).toBeTruthy();
+    expect(screen.getByTestId('save-button').props.accessibilityState?.disabled).toBe(true);
+  });
+
+  it('renders the student-card verification status', async () => {
+    mockSingleImpl.mockResolvedValue({
+      data: { bio: '', university: 'UCD', travel_preferences: {}, university_verification_status: 'pending' },
+      error: null,
+    });
+    render(<EditProfileScreen />);
+    await waitFor(() => expect(screen.getByTestId('uni-status')).toHaveTextContent('Pending review'));
+  });
+
+  it('shows the native-module note when the picker is unavailable', async () => {
+    render(<EditProfileScreen />);
+    await waitFor(() => expect(screen.getByTestId('upload-student-card')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('upload-student-card'));
+    await waitFor(() => expect(screen.getByTestId('upload-note')).toBeTruthy());
+  });
+
+  it('centres the input text', async () => {
+    render(<EditProfileScreen />);
+    await waitFor(() => expect(screen.getByTestId('university-input')).toBeTruthy());
+    const input = screen.getByTestId('university-input');
+    const flat = Array.isArray(input.props.style) ? Object.assign({}, ...input.props.style.flat()) : input.props.style;
+    expect(flat.textAlign).toBe('center');
   });
 });

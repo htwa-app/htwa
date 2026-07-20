@@ -3,8 +3,8 @@
  *
  * Stage 33 — Search tab (tab 1). Per DESIGN-SPEC §9.2 and SCREENS.md #7.
  *
- * Toggle between "Find a ride" and "Offer a ride" modes.
- * Find mode: RouteInput, date, seats, women-only filter → Search rides
+ * Toggle between "Find a journey" and "Offer a journey" modes.
+ * Find mode: RouteInput (labelled), date, seats (max 4), women-only filter → Search
  * Offer mode: routes directly to /offer-ride screen
  */
 
@@ -49,6 +49,7 @@ export default function SearchScreen(): React.ReactElement {
   const [from,       setFrom]       = useState('');
   const [to,         setTo]         = useState('');
   const [date,       setDate]       = useState('');
+  const [flexDays,   setFlexDays]   = useState<0 | 1 | 2 | 3>(0);
   const [seats,      setSeats]      = useState(1);
   const [womenOnly,  setWomenOnly]  = useState(false);
 
@@ -58,6 +59,7 @@ export default function SearchScreen(): React.ReactElement {
   const handleSearch = () => {
     const params = new URLSearchParams({
       from, to, date,
+      flexDays: String(flexDays),
       seats: String(seats),
       womenOnly: String(womenOnly),
     });
@@ -97,7 +99,7 @@ export default function SearchScreen(): React.ReactElement {
           testID="mode-find"
         >
           <Text style={[styles.modeTabText, mode === 'find' && styles.modeTabTextActive]}>
-            Find a ride
+            Find a journey
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -107,35 +109,67 @@ export default function SearchScreen(): React.ReactElement {
           testID="mode-offer"
         >
           <Text style={[styles.modeTabText, mode === 'offer' && styles.modeTabTextActive]}>
-            Offer a ride
+            Offer a journey
           </Text>
         </TouchableOpacity>
       </View>
 
       {/* Find mode */}
       {mode === 'find' && (
-        <View testID="find-mode-content">
+        <View testID="find-mode-content" style={styles.findContent}>
+          {/* Origin + destination, with prominent labels */}
           <RouteInput
             from={from}
             to={to}
             onFromChange={setFrom}
             onToChange={setTo}
+            fromLabel="Departing from"
+            toLabel="Destination"
+            fromPlaceholder="City, town or university"
+            toPlaceholder="City, town or university"
             testID="search-route-input"
           />
 
-          <View style={styles.filterRow}>
-            {/* Date */}
-            <View style={styles.filterField}>
-              <Input
-                placeholder="Date (YYYY-MM-DD)"
-                value={date}
-                onChangeText={setDate}
-                keyboardType="numbers-and-punctuation"
-                testID="search-date-input"
-              />
-            </View>
+          {/* When */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>When do you want to travel?</Text>
+            <Input
+              placeholder="Date (YYYY-MM-DD)"
+              value={date}
+              onChangeText={setDate}
+              keyboardType="numbers-and-punctuation"
+              testID="search-date-input"
+            />
+          </View>
 
-            {/* Seats chip */}
+          {/* Date flexibility */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Date flexibility</Text>
+            <View style={styles.flexRow}>
+              {FLEX_OPTIONS.map((opt) => {
+                const active = flexDays === opt.value;
+                return (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[styles.flexChip, active && styles.flexChipActive]}
+                    onPress={() => setFlexDays(opt.value)}
+                    accessibilityRole="button"
+                    accessibilityLabel={opt.a11y}
+                    accessibilityState={{ selected: active }}
+                    testID={`flex-${opt.value}`}
+                  >
+                    <Text style={[styles.flexChipText, active && styles.flexChipTextActive]}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Seats */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Number of seats required</Text>
             <View style={styles.seatsChip}>
               <TouchableOpacity
                 onPress={() => setSeats((s) => Math.max(1, s - 1))}
@@ -147,7 +181,7 @@ export default function SearchScreen(): React.ReactElement {
               </TouchableOpacity>
               <Text style={styles.seatsText} testID="search-seats-value">{seats}</Text>
               <TouchableOpacity
-                onPress={() => setSeats((s) => Math.min(7, s + 1))}
+                onPress={() => setSeats((s) => Math.min(4, s + 1))}
                 testID="search-seats-inc"
                 accessibilityRole="button"
                 accessibilityLabel="Increase seats"
@@ -159,7 +193,7 @@ export default function SearchScreen(): React.ReactElement {
 
           {/* Women-only filter */}
           <View style={styles.womenOnlyRow}>
-            <Text style={styles.womenOnlyLabel}>Women-only rides only</Text>
+            <Text style={styles.womenOnlyLabel}>Women-only journeys</Text>
             <Switch
               value={womenOnly}
               onValueChange={setWomenOnly}
@@ -167,13 +201,13 @@ export default function SearchScreen(): React.ReactElement {
               thumbColor={Platform.OS === 'android' ? Colors.surface : undefined}
               testID="women-only-filter"
               accessibilityRole="switch"
-              accessibilityLabel="Show women-only rides only"
+              accessibilityLabel="Show women-only journeys only"
               accessibilityState={{ checked: womenOnly }}
             />
           </View>
 
           <Button
-            title="Search rides"
+            title="Search"
             onPress={handleSearch}
             disabled={!isSearchValid}
             style={styles.ctaButton}
@@ -189,7 +223,7 @@ export default function SearchScreen(): React.ReactElement {
             Share your journey and split the cost.
           </Text>
           <Button
-            title="Post a ride"
+            title="Post a journey"
             onPress={() => router.push('/offer-ride')}
             style={styles.ctaButton}
             testID="post-ride-button"
@@ -213,6 +247,14 @@ export default function SearchScreen(): React.ReactElement {
     </ScrollView>
   );
 }
+
+// Date-flexibility options for Find mode (±N days around the chosen date).
+const FLEX_OPTIONS: { value: 0 | 1 | 2 | 3; label: string; a11y: string }[] = [
+  { value: 0, label: 'Exact',   a11y: 'Exact date only' },
+  { value: 1, label: '±1 day',  a11y: 'Plus or minus 1 day' },
+  { value: 2, label: '±2 days', a11y: 'Plus or minus 2 days' },
+  { value: 3, label: '±3 days', a11y: 'Plus or minus 3 days' },
+];
 
 type SafetyFeature = {
   title:     string;
@@ -260,13 +302,22 @@ const styles = StyleSheet.create({
     fontSize: 14, fontFamily: FontFamily.semiBold, color: Colors.primary,
   },
   modeTabTextActive: { color: Colors.surface },
-  filterRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md },
-  filterField: { flex: 1 },
-  seatsChip: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+  findContent: { gap: Spacing.lg },
+  fieldGroup: { gap: Spacing.sm },
+  fieldLabel: { ...Typography.headingSmall, color: Colors.textPrimary },
+  flexRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  flexChip: {
     backgroundColor: Colors.primaryLight, borderRadius: BorderRadius.full,
-    paddingHorizontal: Spacing.md,
-    minWidth: 80, justifyContent: 'center',
+    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm,
+  },
+  flexChipActive: { backgroundColor: Colors.primary },
+  flexChipText: { fontSize: 14, fontFamily: FontFamily.semiBold, color: Colors.primary },
+  flexChipTextActive: { color: Colors.surface },
+  seatsChip: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
+    backgroundColor: Colors.primaryLight, borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm,
+    alignSelf: 'flex-start', justifyContent: 'center',
   },
   seatsText: { ...Typography.bodyMedium, color: Colors.primary, minWidth: 20, textAlign: 'center' },
   womenOnlyRow: {

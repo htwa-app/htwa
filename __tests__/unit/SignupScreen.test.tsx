@@ -26,13 +26,14 @@ beforeEach(() => {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Fill all form fields with valid data and select the given home location. */
+/** Fill all form fields with valid data and select the given home location + gender. */
 function fillAll(homeLocation: 'ROI' | 'NI' = 'ROI') {
   fireEvent.changeText(screen.getByPlaceholderText('Your full name'),   'Jane Doe');
   fireEvent.changeText(screen.getByPlaceholderText('you@university.ie'), 'jane@ucd.ie');
   fireEvent.changeText(screen.getByPlaceholderText('+353 ...'),          '+353 087 1234567');
   fireEvent.changeText(screen.getByPlaceholderText('e.g. UCD, TCD, QUB'), 'UCD');
   fireEvent.press(screen.getByRole('button', { name: homeLocation }));
+  fireEvent.press(screen.getByTestId('gender-female')); // Block 5 — gender required
 }
 
 // ─── Smoke ────────────────────────────────────────────────────────────────────
@@ -162,7 +163,24 @@ describe('SignupScreen — validation', () => {
     fireEvent.changeText(screen.getByPlaceholderText('+353 ...'),          '123456789'); // exactly 9 digits
     fireEvent.changeText(screen.getByPlaceholderText('e.g. UCD, TCD, QUB'), 'UCD');
     fireEvent.press(screen.getByRole('button', { name: 'ROI' }));
+    fireEvent.press(screen.getByTestId('gender-female'));
     expect(screen.getByRole('button', { name: 'Continue' })).not.toBeDisabled();
+  });
+
+  it('Continue is disabled when gender is not selected (Block 5)', () => {
+    fireEvent.changeText(screen.getByPlaceholderText('Your full name'),    'Jane Doe');
+    fireEvent.changeText(screen.getByPlaceholderText('you@university.ie'), 'jane@ucd.ie');
+    fireEvent.changeText(screen.getByPlaceholderText('+353 ...'),          '+353 087 1234567');
+    fireEvent.changeText(screen.getByPlaceholderText('e.g. UCD, TCD, QUB'), 'UCD');
+    fireEvent.press(screen.getByRole('button', { name: 'ROI' }));
+    // gender deliberately not selected
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
+  });
+
+  it('shows exactly two gender options and the safety disclaimer (Block 5)', () => {
+    expect(screen.getByTestId('gender-female')).toBeTruthy();
+    expect(screen.getByTestId('gender-male')).toBeTruthy();
+    expect(screen.getByTestId('gender-disclaimer')).toHaveTextContent(/government-issued ID/);
   });
 });
 

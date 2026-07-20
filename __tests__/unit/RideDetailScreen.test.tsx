@@ -45,7 +45,14 @@ jest.mock('../../lib/supabase', () => ({
 const mockUseAuth = jest.fn();
 jest.mock('../../context/AuthContext', () => ({ useAuth: () => mockUseAuth() }));
 
+// Block 4 — rates come from the DB (services/pricingRates). Mocked here.
+const mockFetchRates = jest.fn();
+jest.mock('../../services/pricingRates', () => ({
+  fetchPricingRates: (...a: unknown[]) => mockFetchRates(...a),
+}));
+
 import RideDetailScreen from '../../app/ride/[id]';
+import { TEST_PRICING_RATES } from '../fixtures/pricingRates';
 
 const RIDE = {
   id: 'r1', driver_id: 'd1', from_location: 'Galway', to_location: 'Dublin',
@@ -60,6 +67,7 @@ beforeEach(() => {
   mockUser.mockResolvedValue({ data: { full_name: 'Aoife Murphy' }, error: null });
   mockProfile.mockResolvedValue({ data: { university: 'NUIG', vehicle_details: { make: 'Toyota', model: 'Yaris', seats: 4, hasAC: true, dashcam: false } }, error: null });
   mockVerif.mockResolvedValue({ data: { id_verified: true, selfie_verified: true }, error: null });
+  mockFetchRates.mockResolvedValue(TEST_PRICING_RATES);
 });
 
 describe('RideDetailScreen', () => {
@@ -90,5 +98,36 @@ describe('RideDetailScreen', () => {
     mockRide.mockResolvedValue({ data: null, error: { message: 'nope' } });
     render(<RideDetailScreen />);
     await waitFor(() => expect(screen.getByTestId('ride-detail-error')).toBeTruthy());
+  });
+
+  it('shows the error state (not a false "unverified" driver) when the verification query errors', async () => {
+    // A query error here must never silently render as "not verified" — that
+    // would misrepresent a safety-relevant badge to a passenger.
+    mockVerif.mockResolvedValue({ data: null, error: { message: 'db down' } });
+    render(<RideDetailScreen />);
+    await waitFor(() => expect(screen.getByTestId('ride-detail-error')).toBeTruthy());
+  });
+
+  it('shows the error state (not a silently blank driver name) when the driver-name query errors', async () => {
+    mockUser.mockResolvedValue({ data: null, error: { message: 'db down' } });
+    render(<RideDetailScreen />);
+    await waitFor(() => expect(screen.getByTestId('ride-detail-error')).toBeTruthy());
+  });
+
+  it('shows the error state (not a silently missing vehicle) when the profile query errors', async () => {
+    mockProfile.mockResolvedValue({ data: null, error: { message: 'db down' } });
+    render(<RideDetailScreen />);
+    await waitFor(() => expect(screen.getByTestId('ride-detail-error')).toBeTruthy());
+  });
+
+  it('shows the luggage note when present (Block 8)', async () => {
+    mockRide.mockResolvedValue({ data: { ...RIDE, luggage_note: 'one small case each' }, error: null });
+    render(<RideDetailScreen />);
+    await waitFor(() => expect(screen.getByTestId('ride-luggage-note')).toHaveTextContent('one small case each'));
+  });
+
+  it('shows a no-luggage placeholder when absent (Block 8)', async () => {
+    render(<RideDetailScreen />);
+    await waitFor(() => expect(screen.getByTestId('ride-luggage-none')).toBeTruthy());
   });
 });

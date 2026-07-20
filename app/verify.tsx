@@ -12,12 +12,14 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Button } from '../components/Button';
 import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
 import { supabase } from '../lib/supabase';
-import type { HomeLocation, Currency } from '../types/database';
+import type { HomeLocation, Currency, Gender } from '../types/database';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const OTP_LENGTH              = 6;
 const RESEND_COOLDOWN_SECONDS = 60;
+// Allowlist for the cached gender value — anything outside the union is stored as null.
+const ALLOWED_GENDERS: Gender[] = ['female', 'male', 'non_binary', 'prefer_not_to_say'];
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -54,11 +56,12 @@ export default function VerifyScreen() {
         return;
       }
       // Read user data saved by the signup screen
-      const [fullName, phone, homeLocation, currency] = await Promise.all([
+      const [fullName, phone, homeLocation, currency, gender] = await Promise.all([
         AsyncStorage.getItem('htwa:fullName'),
         AsyncStorage.getItem('htwa:phone'),
         AsyncStorage.getItem('htwa:homeLocation'),
         AsyncStorage.getItem('htwa:currency'),
+        AsyncStorage.getItem('htwa:gender'),
       ]);
       // Create the user profile row
       const { error: usersError } = await supabase.from('users').insert({
@@ -71,6 +74,9 @@ export default function VerifyScreen() {
         // string would violate the DB check constraint on these columns.
         home_location: (homeLocation || 'ROI') as HomeLocation,
         currency:      (currency || 'EUR') as Currency,
+        // Block 5 — gender drives the women-only filter. Validate against the
+        // Gender union (don't trust the raw AsyncStorage string); null if invalid.
+        gender:        ALLOWED_GENDERS.includes(gender as Gender) ? (gender as Gender) : null,
       });
       if (usersError) {
         setVerifyError(usersError.message ?? 'Failed to create account. Please try again.');

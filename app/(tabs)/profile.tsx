@@ -230,16 +230,16 @@ export default function ProfileScreen(): React.ReactElement {
           style={styles.actionButton}
           onPress={() => router.push('/my-rides')}
           accessibilityRole="button"
-          accessibilityLabel="View your rides"
+          accessibilityLabel="View your journeys"
           testID="my-rides-button"
         >
           <Ionicons name="car-outline" size={20} color={Colors.primary} />
-          <Text style={styles.actionButtonText}>My rides</Text>
+          <Text style={styles.actionButtonText}>My journeys</Text>
           <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.actionButton, styles.actionButtonLast]}
+          style={styles.actionButton}
           onPress={() => router.push('/vehicle-details')}
           accessibilityRole="button"
           accessibilityLabel="Manage vehicle details"
@@ -247,6 +247,18 @@ export default function ProfileScreen(): React.ReactElement {
         >
           <Ionicons name="speedometer-outline" size={20} color={Colors.primary} />
           <Text style={styles.actionButtonText}>Vehicle details</Text>
+          <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.actionButton, styles.actionButtonLast]}
+          onPress={() => router.push('/payment-methods')}
+          accessibilityRole="button"
+          accessibilityLabel="Manage payment methods"
+          testID="payment-methods-button"
+        >
+          <Ionicons name="card-outline" size={20} color={Colors.primary} />
+          <Text style={styles.actionButtonText}>Payment methods</Text>
           <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
         </TouchableOpacity>
       </View>

@@ -34,7 +34,7 @@ export default function PaymentConfirmationScreen(): React.ReactElement {
       <View style={styles.receiptCard}>
         <Text style={styles.receiptTitle}>Receipt</Text>
         <View style={styles.receiptRow}>
-          <Text style={styles.receiptLabel}>Ride cost</Text>
+          <Text style={styles.receiptLabel}>Journey cost</Text>
           <Text style={styles.receiptValue} testID="receipt-ride-cost">
             {formatCurrency(rideCost, currency)}
           </Text>
