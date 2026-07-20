@@ -133,6 +133,20 @@ I triggered `@coderabbitai full review` on all 6. Only #29 could actually run �
 
 ---
 
+## 9. Run the demo-data seed script once `op` is responsive again (2 minutes)
+
+**Why:** part of the beta-readiness sweep was a seed script (`scripts/seed-demo-data.mjs`) to populate a handful of demo drivers + realistic Irish-city rides so your walk-throughs and TestFlight testers have something real to see and book. The script is written and ready, but the 1Password service-account CLI (`op`) became unresponsive partway through tonight's session — `op run` calls that had been working (if slowly) earlier on started hanging indefinitely with no error, and even a bare `op whoami` timed out after 30 seconds with total silence. This looks like a connectivity issue between the service account and 1Password's backend, not a bug in the script — nothing else tonight needed `op`, so this is the one and only thing it blocked.
+
+**What to do:** once `op` is working again (try `op whoami` — it should return instantly; if it still hangs, check your Mac's network/1Password app status, or worst case regenerate the service account token per the setup in this file's own §5), run:
+```bash
+op run --env-file=.secrets.env -- node scripts/seed-demo-data.mjs
+```
+It's idempotent (deletes any previously-seeded `@demo.htwa-app.com` accounts first), so it's safe to re-run any time to refresh the ride departure dates.
+
+**Unblocks:** search results actually showing rides for you and testers, instead of an empty list on day one.
+
+---
+
 *Entries are appended as new blockers are hit; nothing above stops the build — every feature behind these has a graceful fallback.*
 
 **Note on Stripe (updated 19 Jul):** test-mode payments are fully working end-to-end — I verified a real test-card charge with the 10% platform fee, a driver-mismatch full refund, and idempotent refund retries against the live backend tonight. Item 2 above only matters when real money starts.

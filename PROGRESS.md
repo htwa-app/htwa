@@ -4,6 +4,38 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 20 July 2026 — OVERNIGHT RUN, Block 4 continued: triaged PR #29's CodeRabbit review (branch `feat/full-sweep`, PR #28)
+
+PR #29's review (79 files, 24 actionable comments, CodeRabbit's own "Estimated code review effort: 5 (Critical) | ~120 minutes") finished processing. Verified every finding against current `feat/full-sweep` rather than blindly applying CodeRabbit's suggested diffs against the frozen 417a848 snapshot.
+
+**Result: 4 findings were already stale** — a lot of `services/bookings.ts`/`services/chat.ts`/retry-button work landed in later commits on this branch after 417a848, so those specific suggested diffs no longer applied. **7 findings were real and fixed** (chat message-load error handling, chat closeChat failure surfacing, payment-methods query-error masking, studentCard upload try/catch, devReset try/finally, journeyConflicts defense-in-depth try/catch, offer-ride pricing-effect guard, edit-profile accessibilityState) plus the `types/database.ts` nullability correction — all in commit `027d1bb`. **5 findings dismissed with reasons** posted directly on the PR (services/payments.ts's deliberate "unavailable" degradation, a seats-cap constant that doesn't cleanly share between two different screens' semantics, one stale accessibility suggestion, and two CodeRabbit-itself-flagged low-value/heavy-lift items). Full reasoning for every dismissal is in the PR #29 comment thread, not just asserted here.
+
+`tsc --noEmit`: 0 errors. Jest: 84/84 suites, 1199/1199 tests (2 new tests, 1 existing test corrected to match the fixed behavior).
+
+**Still open:** PRs #30–#34 remain rate-limited by CodeRabbit (BLOCKERS item 8) — their reviews haven't run yet, so there's nothing to triage on them until `@coderabbitai full review` is re-triggered roughly hourly. Also: since `stack/01-supabase-restore` is a frozen snapshot, these fixes exist on `feat/full-sweep` but haven't been rebased back into the stack branches yet — that's a pre-merge step, not done tonight (documented in BLOCKERS item 8).
+
+---
+
+## 20 July 2026 — OVERNIGHT RUN, Block 6: Beta-readiness sweep (branch `feat/full-sweep`, PR #28)
+
+`tsc --noEmit`: 0 errors. Jest: 84/84 suites, 1199/1199 tests (unchanged — this block is docs + a standalone script, no app code touched).
+
+### 6a. Demo/test data seed script — written, NOT yet run
+New `scripts/seed-demo-data.mjs`: creates 4 demo driver accounts (pre-approved verification, so they show up as legit verified drivers) and 8 realistic rides between real Irish/NI cities (Dublin, Belfast, Cork, Galway, Limerick, Derry) on future dates (2–7 days out), using real coordinates and a Haversine-distance-based demo price (÷5 per the fixed pricing model). Idempotent — deletes any previously-seeded `@demo.htwa-app.com` accounts first, so it can be re-run to refresh dates. Run with `op run --env-file=.secrets.env -- node scripts/seed-demo-data.mjs`.
+
+**Could not actually execute it tonight** — the 1Password service-account CLI (`op`) became unresponsive partway through this block: `op run` calls that had been working earlier in the session (if slowly) started hanging indefinitely, and even a bare `op whoami` diagnostic timed out after 30s with no error, just silence. This is an environment/connectivity issue with the 1Password backend or the service-account session, not a bug in the script or in project code — nothing else tonight depends on `op`, so the rest of the session's work is unaffected. **Full detail in BLOCKERS-FOR-JORDAN.md item 9.** The script itself is untested against the live DB; review it before the first real run, though it was written carefully against the actual `types/database.ts` schema and the project's established fixed-pricing/coords conventions.
+
+### 6b. `docs/beta-testing-guide.md` updated to match the app as built
+Added a new "§0: What a tester actually experiences" section up front — the real OTP-only signup, the mandatory universal ID+selfie verification (manual review, no instant approval — flagged so testers don't think the app is broken during the wait), the separate driver-verification review queue, the Community Safety Pledge waiver gate, live tracking via nominated contact, Stripe test-mode card number, and a pointer to the new seed script so testers have real rides to book on day one.
+
+### 6c. Marketing/store-listing docs checked against reality
+`marketing/app-store-listing.md` was already accurate (17+/18+ age rating, universal ID verification, women-only mode, nominated-contact tracking — all match what's actually built). **Found and fixed a real inconsistency in `marketing/play-store-listing.md`**: its Content Rating was still "Teen (PEGI 12 equivalent)" — inconsistent with the app's hard-enforced 18+ minimum age (client-side check + DB constraint on `verification.date_of_birth`, added 19 Jul) and with the App Store listing's own "17+ (Limited to users 18+)". Corrected to explicitly state the 18+ enforcement, since submitting a mismatched content rating against an adults-only app's actual gating is the kind of thing that causes real store-review friction, not just a copy nitpick.
+
+### Files
+**New:** `scripts/seed-demo-data.mjs`. **Modified:** `docs/beta-testing-guide.md`, `marketing/play-store-listing.md`.
+
+---
+
 ## 20 July 2026 — OVERNIGHT RUN, Block 5: Performance + bundle audit (branch `feat/full-sweep`, PR #28)
 
 Measurement-first, per Jordan's own instruction ("no risky refactors — findings report for the rest"). `tsc --noEmit`: 0 errors. Jest: 84/84 suites, 1196/1196 tests green (unchanged from before this block — see below).
