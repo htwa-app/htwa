@@ -1,7 +1,7 @@
 
 # htwa Privacy Policy
 
-**Last updated:** 17 July 2026 (PLACEHOLDER — PENDING ADVISER REVIEW)  
+**Last updated:** 19 July 2026 (PLACEHOLDER — PENDING ADVISER REVIEW)  
 **Effective date:** To be confirmed on launch
 
 ---
@@ -29,9 +29,12 @@ For the purposes of data protection law:
 - Profile photo (optional)
 
 ### 2.2 Verification Data
-- Government-issued ID (passport or driving licence) — uploaded for identity verification only
-- Selfie photograph (live-captured in-app) — used to match against ID document
-- Verification status (verified/unverified)
+**Every user must complete identity verification before booking or posting a journey** (browsing/search is available while review is pending). This applies equally to passengers and drivers — it is not a driver-only requirement, because it protects everyone on the platform, including female drivers who need assurance about who they are picking up. <!-- ADVISER NOTE: universal identity verification (extended from driver-only) — ADVISER-BRIEFING.md item 11. -->
+- Photo ID (passport, driving licence, or national ID card) — any government-issued photo ID, uploaded for identity verification only; never shown to other users
+- Date of birth — confirmed as part of identity verification
+- Selfie photograph (live-captured in-app) — used to match against ID document, and to confirm your identity to us; review-only and never shown to other users, **except** when you drive on htwa, where it becomes the disclosure photo shown to your booked passengers (see §4)
+- Verification status (pending/approved/rejected)
+- Gender <!-- ADVISER NOTE: collected at signup; used solely to power the women-only journey/filter feature (§4) and safety review — legal basis / equality-law sign-off tracked in ADVISER-BRIEFING.md item 5. -->
 
 **Drivers additionally provide:**
 - Driving licence photo — used to verify driving entitlement only; never shown to other users
@@ -114,8 +117,8 @@ You can revoke location permission at any time in your device settings, but this
 
 ## 6. ID Verification Data
 
-Your government ID and selfie are used solely for identity verification. Once verification is complete:
-- The documents are retained for 12 months in case of disputes or regulatory requests
+Your photo ID, date of birth, and selfie are used solely for identity verification. Once verification is complete:
+- The documents and date of birth are retained for 12 months in case of disputes or regulatory requests
 - After 12 months, they are permanently deleted
 - Verification data is never used for marketing or shared with third parties
 
@@ -128,7 +131,7 @@ Your government ID and selfie are used solely for identity verification. Once ve
 | Account data | Until account deletion + 30 days |
 | Journey history | 3 years (legal/financial records) |
 | Payment records | 7 years (tax and accounting requirements) |
-| ID verification documents | 12 months from verification date¹ |
+| ID verification documents + date of birth | 12 months from verification date¹ |
 | Driver licence photo + vehicle photo | While the user remains an active driver, + 12 months |
 | Live location data | 30 days after trip completion |
 | In-app messages | Retained permanently as a safeguarding and dispute record² |

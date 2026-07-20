@@ -49,6 +49,7 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
     seats: string; pricePerSeat: string; currency: string;
     distanceKm: string; womenOnly: string; luggageNote: string;
     durationSeconds: string;
+    fromLat: string; fromLng: string; toLat: string; toLng: string;
   }>();
 
   const [isPosting, setIsPosting] = useState(false);
@@ -102,6 +103,17 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
   const parsedDuration = parseInt(params.durationSeconds ?? '', 10);
   const durationSeconds = Number.isFinite(parsedDuration) && parsedDuration > 0 ? parsedDuration : null;
 
+  // Only present when the driver picked a real Places suggestion (not typed
+  // free-text) for that field — otherwise the ride's *_coords columns stay
+  // null, same as before this was wired up.
+  const parseCoords = (lat: string | undefined, lng: string | undefined): { lat: number; lng: number } | null => {
+    const parsedLat = parseFloat(lat ?? '');
+    const parsedLng = parseFloat(lng ?? '');
+    return Number.isFinite(parsedLat) && Number.isFinite(parsedLng) ? { lat: parsedLat, lng: parsedLng } : null;
+  };
+  const fromCoords = parseCoords(params.fromLat, params.fromLng);
+  const toCoords   = parseCoords(params.toLat, params.toLng);
+
   const handlePost = async () => {
     if (!user) return;
     setPostError(null);
@@ -121,6 +133,8 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
         driver_id:          user.id,
         from_location:      params.from ?? '',
         to_location:        params.to ?? '',
+        from_coords:        fromCoords,
+        to_coords:          toCoords,
         // Store the canonical UTC ISO so the persisted TIMESTAMPTZ matches the
         // value used by computeWindowEnd / checkDriverOverlap (departureStr is
         // timezone-less and would drift from the overlap-check logic).

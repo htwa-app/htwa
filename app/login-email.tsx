@@ -1,9 +1,8 @@
 /**
  * app/login-email.tsx
  *
- * Returning-user sign-in — email entry step. Reached from login.tsx's
- * "Continue with email" button and signup.tsx's "Already have an account?
- * Log in" link.
+ * Returning-user sign-in — email entry step. Reached from login.tsx's and
+ * signup.tsx's "Already have an account? Log in" link.
  *
  * Deliberately does NOT create a new account: signInWithOtp is called with
  * shouldCreateUser: false, so an email with no existing auth.users record

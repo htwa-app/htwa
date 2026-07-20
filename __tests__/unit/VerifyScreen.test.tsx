@@ -56,7 +56,9 @@ beforeEach(() => {
   mockUsersUpsert.mockResolvedValue({ error: null });
   mockUsersSelect.mockResolvedValue({ data: { id: 'user-123' }, error: null });
   mockVerificationUpsert.mockResolvedValue({ error: null });
-  mockVerificationSelect.mockResolvedValue({ data: { id_verified: false, selfie_verified: false }, error: null });
+  // No row yet = never submitted identity verification (verify.tsx no longer
+  // pre-creates a stub row — see the comment in routeByCurrentState).
+  mockVerificationSelect.mockResolvedValue({ data: null, error: null });
   mockProfilesSelect.mockResolvedValue({ data: null, error: null });
   mockResend.mockResolvedValue({ error: null });
 });
@@ -201,14 +203,11 @@ describe('VerifyScreen — fresh signup', () => {
     );
   });
 
-  it('upserts verification with onConflict "user_id" and ignoreDuplicates so an existing row is never clobbered', async () => {
+  it('does not write to public.verification on signup — id-verify.tsx is the sole writer of that row', async () => {
     render(<VerifyScreen />);
     fillDigits(6);
-    await waitFor(() => expect(mockVerificationUpsert).toHaveBeenCalledTimes(1));
-    expect(mockVerificationUpsert).toHaveBeenCalledWith(
-      expect.objectContaining({ user_id: 'user-123', id_verified: false, selfie_verified: false }),
-      { onConflict: 'user_id', ignoreDuplicates: true },
-    );
+    await waitFor(() => expect(mockUsersUpsert).toHaveBeenCalledTimes(1));
+    expect(mockVerificationUpsert).not.toHaveBeenCalled();
   });
 
   it('routes to /id-verify when not yet verified (the normal fresh-signup case)', async () => {
@@ -233,14 +232,6 @@ describe('VerifyScreen — fresh signup', () => {
     expect(screen.getByTestId('verify-error')).toHaveTextContent(/went wrong/i);
   });
 
-  it('shows a friendly message (not the raw DB error) when the verification upsert fails', async () => {
-    mockVerificationUpsert.mockResolvedValueOnce({ error: { message: 'permission denied for table verification' } });
-    render(<VerifyScreen />);
-    fillDigits(6);
-    await waitFor(() => expect(screen.getByTestId('verify-error')).toBeTruthy());
-    expect(screen.queryByText(/permission denied/i)).toBeNull();
-  });
-
   it('Verify button navigates to /id-verify when pressed with all 6 digits', async () => {
     render(<VerifyScreen />);
     fillDigits(6);
@@ -249,7 +240,7 @@ describe('VerifyScreen — fresh signup', () => {
     jest.clearAllMocks();
     mockUsersUpsert.mockResolvedValue({ error: null });
     mockVerificationUpsert.mockResolvedValue({ error: null });
-    mockVerificationSelect.mockResolvedValue({ data: { id_verified: false, selfie_verified: false }, error: null });
+    mockVerificationSelect.mockResolvedValue({ data: null, error: null });
     mockProfilesSelect.mockResolvedValue({ data: null, error: null });
     fireEvent.press(screen.getByRole('button', { name: 'Verify' }));
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/id-verify'));
@@ -280,21 +271,22 @@ describe('VerifyScreen — interrupted-signup retry', () => {
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/id-verify'));
   });
 
-  it('does not reset an already-verified user back to unverified on retry', async () => {
-    // The verification row already exists and is fully verified from a
-    // PRIOR run of this exact flow (e.g. the user got all the way to
-    // id-verify before, then somehow ended up back on /verify). Because the
-    // upsert uses ignoreDuplicates, the existing true/true row is left
-    // alone, and the routing read below reflects that real state.
-    mockVerificationSelect.mockResolvedValue({ data: { id_verified: true, selfie_verified: true }, error: null });
+  it('does not reset an already-approved user back to unsubmitted on retry', async () => {
+    // The verification row already exists and is approved from a PRIOR run
+    // of this exact flow (e.g. the user got all the way through id-verify
+    // before, then somehow ended up back on /verify). verify.tsx no longer
+    // writes to public.verification at all on this path, so the existing
+    // approved row is left alone, and the routing read below reflects that
+    // real state.
+    mockVerificationSelect.mockResolvedValue({ data: { status: 'approved' }, error: null });
     mockProfilesSelect.mockResolvedValue({ data: { user_id: 'user-123' }, error: null });
     render(<VerifyScreen />);
     fillDigits(6);
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/(tabs)'));
   });
 
-  it('routes to /profile-setup when the retry finds the user verified but without a profile yet', async () => {
-    mockVerificationSelect.mockResolvedValue({ data: { id_verified: true, selfie_verified: true }, error: null });
+  it('routes to /profile-setup when the retry finds the user approved but without a profile yet', async () => {
+    mockVerificationSelect.mockResolvedValue({ data: { status: 'approved' }, error: null });
     mockProfilesSelect.mockResolvedValue({ data: null, error: null });
     render(<VerifyScreen />);
     fillDigits(6);
@@ -323,23 +315,23 @@ describe('VerifyScreen — returning user (mode: login)', () => {
     expect(mockVerificationUpsert).not.toHaveBeenCalled();
   });
 
-  it('routes a fully verified, fully set-up returning user straight to /(tabs)', async () => {
-    mockVerificationSelect.mockResolvedValue({ data: { id_verified: true, selfie_verified: true }, error: null });
+  it('routes a fully approved, fully set-up returning user straight to /(tabs)', async () => {
+    mockVerificationSelect.mockResolvedValue({ data: { status: 'approved' }, error: null });
     mockProfilesSelect.mockResolvedValue({ data: { user_id: 'user-123' }, error: null });
     render(<VerifyScreen />);
     fillDigits(6);
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/(tabs)'));
   });
 
-  it('routes an unverified returning user to /id-verify', async () => {
-    mockVerificationSelect.mockResolvedValue({ data: { id_verified: false, selfie_verified: false }, error: null });
+  it('routes a returning user who never submitted identity verification to /id-verify', async () => {
+    mockVerificationSelect.mockResolvedValue({ data: null, error: null });
     render(<VerifyScreen />);
     fillDigits(6);
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/id-verify'));
   });
 
-  it('routes a verified returning user with no profile to /profile-setup', async () => {
-    mockVerificationSelect.mockResolvedValue({ data: { id_verified: true, selfie_verified: true }, error: null });
+  it('routes a returning user with a pending review and no profile to /profile-setup (browsing is allowed pre-approval)', async () => {
+    mockVerificationSelect.mockResolvedValue({ data: { status: 'pending' }, error: null });
     mockProfilesSelect.mockResolvedValue({ data: null, error: null });
     render(<VerifyScreen />);
     fillDigits(6);

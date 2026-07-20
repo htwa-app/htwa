@@ -22,6 +22,7 @@ import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { PriceBreakdown } from '../../components/PriceBreakdown';
 import { DriverVerifyPanel } from '../../components/DriverVerifyPanel';
+import { JourneyMap } from '../../components/JourneyMap';
 import { passengerPricing, type PricingRates } from '../../utils/pricingEngine';
 import { fetchPricingRates } from '../../services/pricingRates';
 import { cancelBookingAsPassenger } from '../../services/bookings';
@@ -35,6 +36,8 @@ import { useAuth } from '../../context/AuthContext';
 interface RideDetail {
   id: string;
   from_location: string; to_location: string;
+  from_coords: { lat: number; lng: number } | null;
+  to_coords: { lat: number; lng: number } | null;
   departure_datetime: string;
   seats_available: number; seats_total: number;
   cost_per_seat: number; currency: 'EUR' | 'GBP';
@@ -104,10 +107,10 @@ export default function RideDetailScreen(): React.ReactElement {
       const vehicleRaw = (profileData?.vehicle_details as Record<string, unknown> | null) ?? null;
 
       const { data: vData, error: vErr } = await supabase
-        .from('verification').select('id_verified, selfie_verified')
+        .from('verification').select('status')
         .eq('user_id', data.driver_id).maybeSingle();
       if (vErr) throw vErr;
-      const isVerified = vData?.id_verified === true && vData?.selfie_verified === true;
+      const isVerified = vData?.status === 'approved';
 
       // The viewer's own booking on this journey (drives the booked-state UI).
       if (user) {
@@ -126,6 +129,8 @@ export default function RideDetailScreen(): React.ReactElement {
         id: data.id,
         from_location: data.from_location,
         to_location: data.to_location,
+        from_coords: data.from_coords ?? null,
+        to_coords: data.to_coords ?? null,
         departure_datetime: data.departure_datetime,
         seats_available: data.seats_available,
         seats_total: data.seats_total,
@@ -247,6 +252,15 @@ export default function RideDetailScreen(): React.ReactElement {
         </View>
         <Text style={styles.dateText} testID="ride-datetime">{depDate} · {depTime}</Text>
         {ride.distance_km && <Text style={styles.metaText}>{ride.distance_km.toFixed(1)} km</Text>}
+        {(ride.from_coords || ride.to_coords) && (
+          <JourneyMap
+            from={ride.from_coords}
+            to={ride.to_coords}
+            stubText="Route preview"
+            style={styles.routeMap}
+            testID="ride-route-map"
+          />
+        )}
       </View>
 
       {/* Vehicle */}
@@ -378,6 +392,7 @@ const styles = StyleSheet.create({
   routeText: { ...Typography.bodyMedium, color: Colors.textPrimary, flex: 1 },
   dateText: { ...Typography.bodyMedium, color: Colors.textSecondary },
   metaText: { ...Typography.bodySmall, color: Colors.textTertiary },
+  routeMap: { height: 160, borderRadius: BorderRadius.large, marginTop: Spacing.sm, overflow: 'hidden' },
   vehicleText: { ...Typography.bodyMedium, color: Colors.textPrimary },
   vehicleChips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   chip: { backgroundColor: Colors.primaryLight, borderRadius: BorderRadius.full, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs },

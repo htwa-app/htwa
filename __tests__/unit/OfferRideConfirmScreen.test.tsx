@@ -148,8 +148,27 @@ describe('OfferRideConfirmScreen', () => {
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/ride-posted'));
     // 2A-d: driver acceptance recorded against the posted journey.
     expect(mockRecordWaiver).toHaveBeenCalledWith({ userId: 'u1', role: 'driver', rideId: 'ride-new' });
+    // 20 Jul: no Places suggestion was picked for this test's params, so coords stay null.
+    expect(payload.from_coords).toBeNull();
+    expect(payload.to_coords).toBeNull();
     // 2A-c: journey contact seeded from the driver's default.
     expect(mockSetJourneyContact).toHaveBeenCalledWith('ride-new', 'u1', { name: 'Mam', phone: '+353871' });
+  });
+
+  it('inserts real from_coords/to_coords when the driver picked Places suggestions', async () => {
+    mockParams = {
+      ...BASE_PARAMS,
+      fromLat: '53.2707', fromLng: '-9.0568',
+      toLat: '53.3498', toLng: '-6.2603',
+    };
+    render(<OfferRideConfirmScreen />);
+    await waitForVehicleOk();
+    acceptWaiver();
+    fireEvent.press(screen.getByTestId('post-button'));
+    await waitFor(() => expect(mockInsert).toHaveBeenCalled());
+    const payload = mockInsert.mock.calls[0][0];
+    expect(payload.from_coords).toEqual({ lat: 53.2707, lng: -9.0568 });
+    expect(payload.to_coords).toEqual({ lat: 53.3498, lng: -6.2603 });
   });
 
   it('cannot post without accepting the driver acknowledgment', async () => {

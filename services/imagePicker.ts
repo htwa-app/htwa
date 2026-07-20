@@ -56,6 +56,11 @@ export async function pickLicencePhoto(): Promise<Uint8Array | null> {
   return pickFromLibrary(undefined);
 }
 
+/** Any government photo ID (identity verification — review-only, never shown to other users). */
+export async function pickIdentityDocument(): Promise<Uint8Array | null> {
+  return pickFromLibrary(undefined);
+}
+
 /** Car photo with the registration plate visible (driver verification — review-only). */
 export async function pickCarPhoto(): Promise<Uint8Array | null> {
   return pickFromLibrary(undefined);

@@ -72,6 +72,11 @@ export default function OfferRideScreen(): React.ReactElement {
 
   const [from,          setFrom]          = useState('');
   const [to,            setTo]            = useState('');
+  // Populated only when the driver picks a real Places suggestion (not typed
+  // free-text) — passed through to the confirm screen so the ride's
+  // from_coords/to_coords columns get real data instead of staying null.
+  const [fromCoords,    setFromCoords]    = useState<{ lat: number; lng: number } | null>(null);
+  const [toCoords,      setToCoords]      = useState<{ lat: number; lng: number } | null>(null);
   const [distance,      setDistance]      = useState<number | null>(null);
   const [durationSeconds, setDurationSeconds] = useState<number | null>(null); // Change 2 — overlap window
   const [distanceState, setDistanceState] = useState<DistanceState>('idle');
@@ -266,6 +271,10 @@ export default function OfferRideScreen(): React.ReactElement {
       womenOnly: String(womenOnly),
       luggageNote: luggageNote.trim(),
       durationSeconds: durationSeconds != null ? String(durationSeconds) : '',
+      fromLat: fromCoords ? String(fromCoords.lat) : '',
+      fromLng: fromCoords ? String(fromCoords.lng) : '',
+      toLat: toCoords ? String(toCoords.lat) : '',
+      toLng: toCoords ? String(toCoords.lng) : '',
     });
     router.push(`/offer-ride-confirm?${params.toString()}`);
   };
@@ -349,8 +358,10 @@ export default function OfferRideScreen(): React.ReactElement {
         <RouteInput
           from={from}
           to={to}
-          onFromChange={setFrom}
-          onToChange={setTo}
+          onFromChange={(v) => { setFrom(v); setFromCoords(null); }}
+          onToChange={(v) => { setTo(v); setToCoords(null); }}
+          onFromPlaceSelect={setFromCoords}
+          onToPlaceSelect={setToCoords}
           testID="route-input"
         />
       </View>

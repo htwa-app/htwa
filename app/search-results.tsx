@@ -108,14 +108,14 @@ export default function SearchResultsScreen(): React.ReactElement {
       const { data: verifs, error: verifsError } = driverIds.length > 0
         ? await supabase
             .from('verification')
-            .select('user_id, id_verified, selfie_verified')
+            .select('user_id, status')
             .in('user_id', driverIds)
         : { data: [], error: null };
       if (verifsError) { setError('Could not load journeys. Please try again.'); return; }
 
       const verifiedSet = new Set(
         (verifs ?? [])
-          .filter((v: Record<string, unknown>) => v.id_verified === true && v.selfie_verified === true)
+          .filter((v: Record<string, unknown>) => v.status === 'approved')
           .map((v: Record<string, unknown>) => v.user_id as string),
       );
 

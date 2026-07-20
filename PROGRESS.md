@@ -4,6 +4,188 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 20 July 2026 — OVERNIGHT RUN, Block 1: Maps follow-through (branch `feat/full-sweep`, PR #28)
+
+Jordan unavailable tonight — autonomous run per his ground rules (nothing merges to main, commit-per-block, tsc+Jest green throughout, push regularly, PROGRESS + BLOCKERS at the end). This is Block 1 of 7; see the top of BLOCKERS-FOR-JORDAN.md for the full priority list and honesty check once all blocks are done.
+
+### 1a. Places autocomplete — DONE, code-complete + unit-tested
+`services/places.ts` (new) + `components/RouteInput.tsx` upgraded: debounced (400ms), session-tokened Google Places autocomplete biased to Ireland+UK. Selecting a suggestion resolves real coordinates and threads them through `offer-ride.tsx` → `offer-ride-confirm.tsx` → the `rides` insert (`from_coords`/`to_coords`, previously always null regardless of input method). Free-text entry with no selection is unchanged — zero caller changes needed, matching the upgrade path the original stub was built for. 26 new/updated tests.
+
+### 1b. Real map views — DONE, live-verified where possible
+- `app/ride/[id].tsx`: had **no map at all** before tonight (not even a stub) — added a route-preview `JourneyMap` card.
+- `app/track/[token].tsx`: added a route + live-position map above the existing text summary.
+- `website/track/index.html`: real Google Maps JS embed (markers, polyline, live position, auto-fit bounds), gated behind a `GOOGLE_MAPS_JS_KEY` placeholder — safe to hardcode once real, since a Maps *JavaScript* key is designed to be public/client-visible (HTTP-referrer restricted), unlike the app's mobile key. **Live-verified over a local HTTP server** against a real ride+token from the live DB: correct data rendered, map correctly stays hidden with the placeholder key, zero console errors. (`file://` broke the URL-fragment/fetch path in the preview tool — unrelated to the code; confirmed working the moment it was served over real HTTP, matching how Netlify serves it in production.)
+
+### 1c. Routes API distance/duration end-to-end — BLOCKED, not my code
+**Discovered mid-session: the Google Maps key that worked earlier tonight is now rejected by Google as invalid.** Tested three ways (Routes API, Geocoding API, with/without an iOS bundle-identifier header) — all return `API_KEY_INVALID`/`REQUEST_DENIED`. Full detail and likely causes (including a mistake I made earlier this session — see below) in BLOCKERS-FOR-JORDAN.md item 1. Could not live-verify a real Belfast→Dublin price calculation as asked; the code path itself (`services/routes.ts`) is unchanged and was already confirmed correct earlier this session, before the key died.
+
+**Self-report, not buried:** earlier tonight I printed this exact key's full value in plaintext in the transcript twice while verifying an unrelated config change — a mistake I flagged in-session both times. Google actively scans for exposed keys and auto-revokes them; if that's what happened here, it's a direct consequence of that mistake, not bad luck. Told to Jordan plainly in BLOCKERS-FOR-JORDAN.md rather than left implicit.
+
+### 1d. Tolls — investigated, NOT implemented, here's why
+Researched Google's Routes API toll support directly against their reference docs (`TollPass` enum, the definitive list of countries/regions Google actually has toll data for): **Ireland and the UK are not represented at all** — the enum covers Australia, Argentina, Brazil, US/Canada, Indonesia, India, Japan, Mexico, and US states, with zero IE/GB entries. This means requesting `extraComputations: ["TOLLS"]` on a htwa route would almost certainly return no toll data even with a working key — not worth implementing against an API that doesn't cover our market. `offer-ride.tsx` still passes `tolls: 0` to the pricing engine, unchanged. If real toll pricing (M50 barrier-free toll, Dublin Port Tunnel, etc.) is wanted later, it would need a small static lookup table of known Irish/NI toll roads and prices — genuinely different, separate work from "wire up the API," and not attempted tonight.
+
+### Also found in passing (not fixed — out of scope tonight)
+`components/RouteMapPlaceholder.tsx` is dead code — defined and unit-tested but never imported/used anywhere in the actual app. Left alone since removing it wasn't asked for and touches unrelated files.
+
+### Files
+**New:** `services/places.ts`, `__tests__/unit/places.test.ts`.
+**Modified:** `components/RouteInput.tsx`, `app/offer-ride.tsx`, `app/offer-ride-confirm.tsx`, `app/ride/[id].tsx`, `app/track/[token].tsx`, `website/track/index.html`, `BLOCKERS-FOR-JORDAN.md`, plus test files for all of the above.
+
+### What could go wrong / what to verify by hand once the key is fixed
+- Autocomplete suggestions, coordinate resolution, and the Belfast→Dublin distance/price calc are all **code-complete and unit-tested with mocks, but zero live verification against the real Google API** — needs a full pass the moment BLOCKERS item 1 is resolved.
+- The web tracking page's actual Google Maps rendering (not just the graceful-fallback path) also needs a real `GOOGLE_MAPS_JS_KEY` before it's ever been seen rendering a real map — only the no-key path was live-tested.
+
+---
+
+## 20 July 2026 (very early, continued) — id-verify title collided with the status bar (branch `feat/full-sweep`, PR #28)
+
+Spotted in Jordan's own screenshot while testing the crash fix above: "Verify your identity" rendered underneath the clock/status bar on his device. `tsc --noEmit`: 0 errors. Jest: 83/83 suites, 1172/1172 tests green.
+
+### Root cause
+The app has **no screen anywhere** using safe-area-aware padding — every screen manages its own top spacing with a fixed `Spacing.*` token, and the root `_layout.tsx` runs `headerShown: false` globally so there's no navigation header reserving space either. `id-verify.tsx`'s `paddingTop: Spacing.xxxl` (32px) is comfortably less than a real device's safe-area top inset (~44–59px depending on notch/Dynamic Island), so its title collided with the status bar. Other screens likely happen to use larger fixed values that clear it by coincidence, not by design — a fragile pattern, but out of scope to fix everywhere right now.
+
+### Fix (scoped to the one reported screen)
+- Added `SafeAreaProvider` (from `react-native-safe-area-context`, already a direct dependency) around the whole app in `app/_layout.tsx` — previously absent entirely, so `useSafeAreaInsets()` wasn't even usable anywhere in the app.
+- `app/id-verify.tsx` now reads real insets via `useSafeAreaInsets()` and uses `insets.top + Spacing.lg` for the content's top padding instead of a fixed token, so the title clears the status bar/Dynamic Island on any device.
+- New `__mocks__/react-native-safe-area-context.js` — a manual Jest mock (auto-applied by Jest for node_modules packages placed in `<rootDir>/__mocks__`, no per-test `jest.mock()` needed) returning all-zero insets, matching the package's own official test-mock defaults.
+
+### Files
+**New:** `__mocks__/react-native-safe-area-context.js`. **Modified:** `app/_layout.tsx`, `app/id-verify.tsx`.
+
+### What could go wrong / what to verify by hand
+- **Not yet confirmed on-device** — Jordan needs to reload/rebuild and check the title clears the status bar now.
+- **Every other screen still uses fixed top padding**, not real insets — this was a targeted fix for the one screen reported, not an app-wide audit. Worth a dedicated pass later if other screens turn out to have the same issue on Jordan's specific device (Dynamic Island devices are the most likely to expose this, since their safe-area top inset is the largest).
+
+---
+
+## 20 July 2026 (very early) — Fixed a real, reproducible native crash on camera/photo access (branch `feat/full-sweep`, PR #28)
+
+Found live during Jordan's own hands-on testing: tapping the live-selfie tile on id-verify.tsx crashed the app outright ("htwa quit unexpectedly"), reproducibly every time. `tsc --noEmit`: 0 errors (config-only change, no test suite impact).
+
+### Root cause
+`expo-image-picker` is used throughout the app (identity-verification selfie/photo ID, driver-verification selfie/licence/car photos, profile photo) but was never registered as a config plugin. That means the built `ios/htwa/Info.plist` had no `NSCameraUsageDescription` or `NSPhotoLibraryUsageDescription` keys at all — confirmed by grepping the actual generated Info.plist. iOS terminates a process outright the instant it requests camera or photo-library access without the corresponding usage-description string present — this is not a catchable JS error, which is exactly why it was never caught in Jest (the native picker module is always mocked there, so the real OS-level permission check is never exercised) and had apparently been silently present since `expo-image-picker` was first installed.
+
+### Fix
+Added `expo-image-picker` to `app.config.js`'s `plugins` array with `photosPermission`/`cameraPermission` strings (and `microphonePermission: false`, since nothing in the app records audio/video — skips an unused mic permission on both platforms). Verified via `npx expo config --json` that the plugin registers and applies cleanly.
+
+**This requires Jordan to actually rebuild** (`npx expo run:ios` again, or `npx expo prebuild --clean` first if that alone doesn't regenerate `Info.plist`) — Metro's JS-only reload will NOT pick this up, since it's a native Info.plist change applied at prebuild time, not a JS bundle change.
+
+### Files
+**Modified:** `app.config.js`.
+
+### What could go wrong / what to verify by hand
+- Not yet confirmed on-device that the rebuild actually resolves the crash — this is a strong, well-understood root cause (missing Info.plist keys is a textbook iOS crash-on-permission-request), but Jordan needs to rebuild and retry the selfie/photo-ID tiles to confirm.
+- Worth also re-testing the photo-ID (library) picker specifically, not just the selfie (camera) one — both were exposed to the same missing-Info.plist-key issue, just the selfie was the one actually tapped and crashed first.
+
+---
+
+## 20 July 2026 (early hours) — Login screen rebuilt as sign-up-first, mobile removed (branch `feat/full-sweep`, PR #28)
+
+Found during Jordan's own hands-on fresh-signup walkthrough tonight: the root Login screen's "Continue with email" button went to the returning-user login screen, not signup — correct behavior (fixed deliberately in an 18 Jul session to stop ambiguous new-vs-existing handling), but confusing for a brand-new user with no obvious way to reach email signup except detouring through the Apple/Google buttons. Jordan's call: make the whole screen read as sign-up-first, with a clear escape hatch for returning users. `tsc --noEmit`: 0 errors. Jest: 83/83 suites, 1172/1172 tests green.
+
+### What changed
+- **`app/login.tsx`** rebuilt: all three remaining buttons now read "Sign up with Apple / Google / email" (Apple/Google still placeholder → `/signup` pending Phase 15 OAuth; email now also → `/signup`, not `/login-email`). **Mobile number option removed entirely** (button, handler, and its icon). Added a new "Already have an account? **Log in**" link below the buttons → `/login-email`, styled identically to the same link already on `signup.tsx` for consistency.
+- **`__tests__/unit/LoginScreen.test.tsx`** rewritten for the new labels/behavior, plus a new assertion that no mobile-number button exists and that the login link is present and wired correctly.
+- **`app/login-email.tsx`** — updated a stale doc-comment that referenced the old "Continue with email" button.
+- **`DESIGN-SPEC.md`** §login screen updated to match (was still describing the old 4-button layout).
+
+### Also fixed while testing: a real timezone bug in the age-gate tests
+While re-running the suite as part of this change, `__tests__/unit/IdVerifyScreen.test.tsx`'s "one day short of 18th birthday" boundary test started failing — not from tonight's login changes, but because it built test DOBs with `Date#toISOString().slice(0,10)`, which converts to UTC first. Just after midnight in BST (UTC+1), that silently shifted the computed date back by a day, corrupting the exact boundary the test needed. Replaced with a `toLocalDateString()` helper that builds the string from local date parts instead — the same way the app itself parses/formats DOB values. All three date-boundary tests in that file now use it. This was a latent bug since the age-gate work was committed (d78659d) — it just hadn't been triggered by the clock yet.
+
+### Files
+**Modified:** `app/login.tsx`, `app/login-email.tsx`, `DESIGN-SPEC.md`, `__tests__/unit/LoginScreen.test.tsx`, `__tests__/unit/IdVerifyScreen.test.tsx`.
+
+### What could go wrong / what to verify by hand
+- Apple and Google buttons are still non-functional placeholders (routed to `/signup`, no real OAuth) — this hasn't changed, just relabeled. Real implementation is still Phase 15.
+- Worth a quick look on-device that the new "Already have an account? Log in" link doesn't visually collide with the buttons above it or the Terms/Safety-Pledge footer below it on a smaller screen (iPhone SE-class) — only checked via Jest, not the simulator, for this specific change.
+
+---
+
+## 19 July 2026 (latest) — app.json → app.config.js + Android Maps key EAS env fix (branch `feat/full-sweep`, PR #28)
+
+Follow-up to confirming the Google Maps key works: Jordan asked for the Android native Maps SDK key to be wired in properly rather than hardcoded into a committed file. `tsc --noEmit`: 0 errors. Jest: 83/83 suites, 1171/1171 tests green (unaffected — config-only change).
+
+### What changed
+- **`app.json` → `app.config.js`** (converted, not just added alongside): identical config, but `android.config.googleMaps.apiKey` now reads `process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY` (falling back to the older `..._API_KEY` name, same pattern used everywhere else) at build/prebuild time instead of ever needing a real key value pasted into a tracked file. Verified locally via `npx expo config --json` that the key resolves into the android config correctly.
+- **Found and fixed a real, previously-hidden EAS gap while doing this:** all three EAS environments (development/preview/production) had `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=PLACEHOLDER_FILL_IN_REAL_KEY` registered — the OLD variable name, with a fake value, left over from initial project setup. The real key had only ever been added to local `.env.local`, never to EAS. Since the app's fallback (`?? EXPO_PUBLIC_GOOGLE_MAPS_API_KEY`) treats any non-empty string as "key present," a cloud EAS build would have silently baked in the literal string `"PLACEHOLDER_FILL_IN_REAL_KEY"` as a real-looking key and only failed at runtime with a confusing Google API auth error — not the graceful "no key" messaging the app is designed to show. Fixed via `eas env:update`: renamed the variable to `EXPO_PUBLIC_GOOGLE_MAPS_KEY` and set the real value, across all three environments in one record (matches how it was already structured). Confirmed the stale mis-named/placeholder entry no longer exists.
+- Set the new variable's visibility to `sensitive` (matching the existing convention for the other `EXPO_PUBLIC_*` vars in this project, even though this key is technically client-safe) — `eas env:list` redacts it by default now.
+
+### Files
+**New:** `app.config.js`. **Deleted:** `app.json`.
+
+### What could go wrong / what to verify by hand
+- **I printed the real Google Maps key value in plaintext twice this session** while verifying this change (`expo config --json` output once, and an EAS `env:list` grep once before I set its visibility to `sensitive`) — a real slip against my own "never reproduce secret values" rule, though the actual exposure risk is low since this specific key is documented as client-safe (it ships inside the app binary regardless) and isn't in the same class as the Supabase/Stripe/MailerLite secrets, which never touched disk or output this way. Told Jordan directly in-session rather than passing over it quietly. No rotation needed given the low sensitivity classification, but worth Jordan knowing this happened.
+- This was only verified via `expo config` locally and the EAS dashboard's variable listing — **not yet verified with a real EAS cloud build** actually producing a working Android APK with the map rendering. Should confirm on the next Android build (not urgent — no Android testing planned yet per Jordan's stated priority order).
+
+---
+
+## 19 July 2026 (later still) — Real 18+ age gate on identity verification (branch `feat/full-sweep`, PR #28)
+
+Follow-up to the identity-verification entry directly below, same session. Jordan reversed the earlier "no age gate for now" call: 18+ is now a real, DB-enforced minimum age — "safer for all involved." `tsc --noEmit`: 0 errors. Jest: **83 suites, 1171 tests, all green** (2 new suites' worth of edge-case tests added, no suite count change).
+
+### What changed
+- **`app/id-verify.tsx`:** the old `MIN_PLAUSIBLE_AGE = 13` "don't accept an accidental untouched-Done default" sanity check is now a real `MIN_AGE = 18` eligibility gate. Split the DOB validity check in two so the UI can say the right thing: `dobUnderage` (valid date, real age < 18 → "You must be 18 or older to use htwa.", `testID="dob-underage"`) vs `dobFormatValid` (unparseable or future date → the existing generic message, `testID="dob-implausible"`). `canSubmit` still requires both checks to pass alongside photos.
+- **New migration `20260719210001_identity_verification_age_gate.sql`** (applied + live-verified): `CHECK (date_of_birth IS NULL OR date_of_birth <= (CURRENT_DATE - INTERVAL '18 years')::date)` on `public.verification`. `NULL` is exempted so the two accounts already grandfathered to `approved` before the `date_of_birth` column existed aren't retroactively invalidated. This is the real wall — the app-side check is convenience, matching every other gate in this codebase (women-only, waiver, seats, driver/identity approval).
+- **Live-verified against the real Supabase project** (not just Jest): re-authenticated as the `claude-e2e-passenger` test fixture (same account used for the identity-verification gate test) and attempted a real `verification` upsert with a DOB implying age 10 — rejected with Postgres error `23514` (`violates check constraint "verification_min_age_18"`), confirming the constraint is live and actually blocks the write, not just present in the migration file. No row was written, so no cleanup was needed.
+- **Legal docs:** `terms-of-service.md` §5 now states the 18+ eligibility is enforced (was previously softened to avoid an inaccurate claim — the earlier commit's ADVISER NOTE flagged this exact gap as needing a decision). `legal/ADVISER-BRIEFING.md` item 11(d) updated from "flagged gap, needs a decision" to "resolved — please confirm self-report + manual human cross-check of the DOB against the ID document is adequate evidence of age" (the DOB itself is still self-reported and manually cross-checked by Jordan against the uploaded document during review, not automated OCR — that distinction is now explicit in both documents so the adviser question is about evidentiary adequacy, not about whether anything is enforced at all). `constants/legalDocs.ts` regenerated again from the edited markdown.
+- **`CLAUDE.md`** Key Decisions Log: added one entry for the final state (universal verification + 18+ DB-enforced) rather than logging the reversed "no age gate" call and then a second entry undoing it — that would just be noise for future sessions to read through.
+- **Tests:** `__tests__/unit/IdVerifyScreen.test.tsx`'s DOB describe block rewritten as "18+ age gate" with 5 cases including the boundary: a DOB exactly on the 18th birthday is accepted, one day short is rejected.
+
+### Files
+**New:** `supabase/migrations/20260719210001_identity_verification_age_gate.sql`.
+**Modified:** `app/id-verify.tsx`, `legal/terms-of-service.md`, `legal/ADVISER-BRIEFING.md`, `constants/legalDocs.ts`, `CLAUDE.md`, `__tests__/unit/IdVerifyScreen.test.tsx`, `PROGRESS.md`.
+
+### What could go wrong / what to verify by hand
+- The age-gate CHECK constraint reads `CURRENT_DATE` at write time — this is correct (age is evaluated as-of-now, not as-of-signup), but means a user who submitted while 17 and was rejected, then waits until their actual 18th birthday, can resubmit and pass without changing anything else. That's intentional and correct, just worth knowing it's not a permanent block tied to the original submission attempt.
+- Still self-reported DOB — the constraint only proves internal consistency ("this DOB, if true, means 18+"), not that the DOB is truthful. The actual anti-fraud step remains Jordan's manual cross-check of DOB against the photo ID during review, same as before.
+
+---
+
+## 19 July 2026 (late) — Universal identity verification + simulator dev-fallback + ntfy review flow (branch `feat/full-sweep`, PR #28)
+
+Continues directly from the round-2 entry below (same branch/PR). `tsc --noEmit`: 0 errors. Jest: **83 suites, 1169 tests, all green.** Nothing merged to `main` — Jordan merges by hand once he's hands-on tested.
+
+### 1. Simulator dev-fallback for camera-only captures ✅ (commit c838f66)
+iOS Simulators have no camera hardware — `launchCameraAsync` throws "Camera not available on simulator", hard-blocking the identity selfie and driver-verification selfie (both are deliberately camera-only in production, never library uploads, since the disclosure/verification photo must be a live capture). Fix, `__DEV__` builds only: `captureVerificationSelfie` catches that specific failure and falls back to the photo library, tagging the result `source: 'library-dev-fallback'` so the calling screen can label it clearly ("(dev fallback)"). Outside `__DEV__` the error rethrows unchanged — production stays camera-only, no exceptions. Verified via `__tests__/unit/imagePicker.test.ts` (new) plus regression coverage in `DriverVerificationScreen.test.tsx`/`IdVerifyScreen.test.tsx`.
+
+### 2. Push notification for new driver-verification submissions, via ntfy.sh ✅ (commits 2a3f12f, 6582a79)
+MailerLite (the API key already on file) was checked against its real docs first and confirmed to have no single-transactional-send endpoint — that's a different product (MailerSend), no credentials on file, so it was ruled out honestly rather than forced into the wrong role. Built instead: a `pg_net`-based Postgres trigger (`notify_driver_verification_pending`, migration `20260719190001_driver_verification_notify.sql`) that POSTs to ntfy.sh whenever a `driver_verifications` row lands in `pending` (new submission or resubmission after rejection). Live-verified twice against the real table (test insert + `net._http_response` check). Follow-up fix: the notification now includes a `click` URL straight to the Supabase Table Editor, so tapping the phone notification opens the review screen directly instead of just alerting with no way to act on it. Setup + review-workflow instructions for Jordan are in `BLOCKERS-FOR-JORDAN.md` item 7.
+
+### 3. DateTimeField "Done without scrolling" bug ✅ (commit 7045b7d)
+The iOS spinner opens already showing today's date / the current time (the field's fallback for an empty value), but the native picker only fires `onChange` when the user actually scrolls a wheel — tapping "Done" untouched closed the sheet with nothing committed, silently rejecting "post/search for right now" even though that's exactly what was on screen. Fixed with a `handleDone` handler that always re-derives and commits the value shown on the wheel (idempotent if the user did scroll). 8 new regression tests in `DateTimeField.test.tsx`.
+
+### 4. Universal identity verification — every user, not just drivers (uncommitted — this block)
+Jordan's reasoning: keeping female drivers safe from unverified passengers requires the same verification bar on everyone, not only drivers. Every user now confirms date of birth and uploads any government photo ID (passport, licence, or national ID card) plus a live selfie, then waits for manual review — same pending → approved/rejected model as driver verification, reviewed the same way (ntfy alert → Supabase Table Editor).
+- **DB (migration `20260719200001_identity_verification.sql`, applied + live-verified):** `verification` table gains `date_of_birth`, `id_document_path`, `status`/`review_note`/`submitted_at`/`reviewed_at` (replacing the old `id_verified`/`selfie_verified` booleans — existing verified rows grandfathered to `approved`); owner-writes-forced-to-pending trigger (mirrors the driver-verification pattern — self-approval impossible); new `identity-documents` storage bucket (owner + service-role only, never cross-user readable); `notify_identity_verification_pending` trigger (same ntfy topic, distinct title); `user_identity_approved()` SQL function; **`book_ride()` and the rides-insert `enforce_driver_verified()` trigger both now also require identity approval** — DB-enforced, not just UI.
+- **Routing model:** `verificationStatus: 'pending'|'approved'|'rejected'|null` — `null` (never submitted) is the only state that blocks browsing/search (mandatory first-time gate); once submitted, browsing/searching works immediately; only booking a seat or posting a journey requires `'approved'` specifically. Confirmed with Jordan: no minimum-age policy for now — `id-verify.tsx` has a 13-year plausibility floor purely as a sanity check against an accidental untouched-DOB-field default, not an age gate.
+- **`app/id-verify.tsx`** fully rebuilt (was a Stripe-Identity beta placeholder): photo tiles for ID document + live selfie, DOB field (`DateTimeField` with `maximumDate` = today, new prop), status banners, resubmit-after-rejection flow.
+- **`services/identityVerification.ts`** (new, replaces the deleted `services/verificationSelfie.ts`): upload + upsert with orphan-file cleanup on DB failure.
+- Removed a latent bug found during the refactor: `services/driverVerification.ts` used to sync a driver's selfie into the shared `verification` table, which — via the owner-resets-to-pending trigger — would have silently reset a driver's unrelated identity-verification status back to `pending` every time they touched car details. Deleted that block; `get_driver_disclosure` already reads `driver_verifications` first regardless.
+- Removed the stub-row pre-creation in `app/verify.tsx`'s signup path (a bare `{user_id}` upsert would default to `status='pending'`, which would have read as "already submitted" and let brand-new users skip the mandatory gate — `id-verify.tsx`'s own submission is now the sole writer of the first-ever row).
+- Every "verified" consumer updated from the old boolean pair to `status === 'approved'`: `app/(tabs)/profile.tsx`, `app/booking-requests/[rideId].tsx`, `app/search-results.tsx`, `app/ride/[id].tsx`, `app/user-profile/[id].tsx`, `context/AuthContext.tsx`, `app/screens/SplashScreen.tsx`, `utils/authRouting.ts`.
+- **Legal docs updated** (still placeholder text, pending adviser review — `legal/ADVISER-BRIEFING.md` item 11 added): `privacy-policy.md` §2.2/§6/§7 now describe photo ID (any document, not just passport/licence) + DOB collection for every user, with retention folded into the existing 12-month verification-document period; `terms-of-service.md` §2/§5 now describe verification as universal rather than implicitly driver-focused, and browsing-while-pending vs booking-requires-approved. **Flagged, not silently fixed:** Terms previously claimed verification "confirms... you are over 18" — the app has no actual DOB-based age gate (only the 13-year sanity floor), so that claim was softened and the mismatch is now an explicit adviser question (item 11d) rather than left inconsistent.
+- 8 Jest suites broken by the `isVerified` boolean → `verificationStatus` string change, all fixed to match current source behaviour (not just made to pass): `SplashScreen`, `AuthContext`, `authRouting`, `database.types`, `BookingRequestsScreen`, `ProfileScreen`, `RideDetailScreen`, `SearchResultsScreen`, `user-profile/[id]`, `VerifyScreen` (two tests describing a verification-table upsert that no longer happens were replaced, not just patched), `IdVerifyScreen` (full rewrite — the screen itself was rebuilt from scratch).
+
+### Files (this block, all currently uncommitted on `feat/full-sweep`)
+**New:** `services/identityVerification.ts`, `supabase/migrations/20260719200001_identity_verification.sql`.
+**Deleted:** `services/verificationSelfie.ts`.
+**Modified:** `app/id-verify.tsx`, `app/verify.tsx`, `app/(tabs)/profile.tsx`, `app/booking-requests/[rideId].tsx`, `app/search-results.tsx`, `app/ride/[id].tsx`, `app/user-profile/[id].tsx`, `app/screens/SplashScreen.tsx`, `context/AuthContext.tsx`, `utils/authRouting.ts`, `components/DateTimeField.tsx` (added `maximumDate` prop), `services/driverVerification.ts`, `services/imagePicker.ts`, `types/database.ts`, `legal/privacy-policy.md`, `legal/terms-of-service.md`, `legal/ADVISER-BRIEFING.md`, `constants/legalDocs.ts` (regenerated from the edited markdown), `__tests__/unit/{AuthContext,BookingRequestsScreen,IdVerifyScreen,ProfileScreen,RideDetailScreen,SearchResultsScreen,SplashScreen,VerifyScreen,authRouting,database.types}.test.tsx`, `__tests__/unit/user-profile/[id].test.tsx`.
+
+### Live-verified against the real Supabase project (after this block's commit)
+Using the existing e2e test fixtures (`claude-e2e-passenger@htwa-app.com` / `claude-e2e-driver@htwa-app.com`, both with no `verification` row — i.e. genuinely unverified, not just mocked), authenticated via a real admin-generated magic-link session for each (not the service-role key, which both new checks correctly bypass/require a real `auth.uid()` to test):
+- `user_identity_approved()`: `false` for the unverified test passenger, `true` for Jordan's approved account.
+- `book_ride()` against a real active ride: the unverified test passenger's booking attempt was rejected with `identity_not_approved` (HTTP 400) — confirmed via a real authenticated RPC call, not a mock.
+- `rides` INSERT (`enforce_driver_verified()`): the unverified test driver's attempt to post a journey was rejected with `identity_not_approved` (HTTP 400), same real-session pattern.
+No test data was left behind — both attempts failed before writing any row, so no cleanup was needed.
+
+### What could go wrong / what to verify by hand
+- The live tamper-test above only covers the **rejection** path for both gates. The **approved-user path is unchanged pre-existing behaviour** (book_ride/rides-insert worked before this change too) and wasn't re-exercised against production data to avoid creating a real booking/ride under Jordan's live account — worth a quick pass on a real device once Jordan is verified, just to see the happy path once more end-to-end.
+- **Simulator camera fallback** means the identity/driver selfie tiles will silently use the photo library on Jordan's simulator builds — expected, but worth remembering it's not testing the real camera path (only a real device will).
+- **The 18+ Terms claim was softened, not resolved** — flagged to the adviser (item 11d) rather than either building real age-gating or silently leaving the inconsistent claim in place. Needs a decision before launch, not just before adviser sign-off.
+- `constants/legalDocs.ts` was regenerated from the edited markdown (drift-guard `legalDocs.test.ts` passes) — still worth a manual read of the rendered in-app legal screens after this merges, since that test only guards byte-identity with the `legal/` files, not that the content itself reads correctly in context.
+
+---
+
 ## 19 July 2026 (evening) — Hands-on round-2 fixes (branch `feat/full-sweep`, PR #28)
 
 Six fixes from Jordan's walk-through. `tsc --noEmit`: 0 errors; Jest: **1140 passing**; every DB change applied + live-verified; fresh EAS simulator build triggered.

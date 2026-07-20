@@ -28,6 +28,8 @@ interface Props {
   placeholder: string;
   /** Earliest selectable date (mode "date" only). */
   minimumDate?: Date;
+  /** Latest selectable date (mode "date" only) — e.g. today, for a DOB field. */
+  maximumDate?: Date;
   testID?: string;
 }
 
@@ -61,7 +63,7 @@ function displayLabel(mode: 'date' | 'time', value: string): string {
   return d.toLocaleDateString('en-IE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-export function DateTimeField({ mode, value, onChange, placeholder, minimumDate, testID }: Props): React.ReactElement {
+export function DateTimeField({ mode, value, onChange, placeholder, minimumDate, maximumDate, testID }: Props): React.ReactElement {
   const [open, setOpen] = useState(false);
   const baseTestID = testID ?? `${mode}-field`;
 
@@ -114,6 +116,7 @@ export function DateTimeField({ mode, value, onChange, placeholder, minimumDate,
           mode={mode}
           display="default"
           minimumDate={mode === 'date' ? minimumDate : undefined}
+          maximumDate={mode === 'date' ? maximumDate : undefined}
           onChange={handleChange}
           testID={`${baseTestID}-picker`}
         />
@@ -153,6 +156,7 @@ export function DateTimeField({ mode, value, onChange, placeholder, minimumDate,
                 mode={mode}
                 display="spinner"
                 minimumDate={mode === 'date' ? minimumDate : undefined}
+                maximumDate={mode === 'date' ? maximumDate : undefined}
                 onChange={handleChange}
                 testID={`${baseTestID}-picker`}
               />

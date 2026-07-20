@@ -227,7 +227,7 @@ Use `@expo/vector-icons` with the `Ionicons` set throughout. Icon colour follows
 - Tagline: "Heading That Way Anyway?" in `bodyLarge` textSecondary, centred
 - Social proof: row of 3 avatar circles + "2,400+ verified students" in `bodySmall`
 - Small note: "Every account checked against a college email" with a shield icon
-- Buttons (stacked, full width): Continue with Apple (black), Continue with Google (white/bordered), Continue with mobile, Continue with email
+- Buttons (stacked, full width): Sign up with Apple (black), Sign up with Google (white/bordered), Sign up with email — mobile number removed (19 Jul, product decision). Below the buttons: "Already have an account? Log in" link → login-email.tsx (returning users only)
 - All buttons use `radiusFull`
 - Footer: Terms & Community Safety Pledge link in `micro` textTertiary
 

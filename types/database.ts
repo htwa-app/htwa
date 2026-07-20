@@ -53,30 +53,36 @@ export type UserUpdate = {
 
 // ─── verification ─────────────────────────────────────────────────────────────
 
+export type VerificationStatus = 'pending' | 'approved' | 'rejected';
+
 export type VerificationRow = {
-  id:              string;         // uuid
-  user_id:         string;         // uuid → public.users.id
-  id_verified:     boolean;
-  selfie_verified: boolean;
-  selfie_url:      string | null;  // migration 20260719000002 — live-captured selfie (never the ID document)
-  verified_at:     string | null;  // timestamptz or null
+  id:                string;         // uuid
+  user_id:           string;         // uuid → public.users.id
+  selfie_url:        string | null;  // migration 20260719000002 — live-captured selfie (never an ID document)
+  verified_at:       string | null;  // timestamptz or null; legacy — superseded by reviewed_at
+  date_of_birth:     string | null;  // migration 20260719200001 — DATE as YYYY-MM-DD
+  id_document_path:  string | null;  // any government photo ID — private, review-only, never shown to other users
+  status:            VerificationStatus;
+  review_note:       string | null;
+  submitted_at:      string;
+  reviewed_at:       string | null;
 }
 
 export type VerificationInsert = {
-  id?:              string;        // defaults to gen_random_uuid()
-  user_id:          string;
-  id_verified?:     boolean;       // defaults to false
-  selfie_verified?: boolean;       // defaults to false
-  selfie_url?:      string | null;
-  verified_at?:     string | null;
+  id?:                string;        // defaults to gen_random_uuid()
+  user_id:            string;
+  selfie_url?:        string | null;
+  verified_at?:       string | null;
+  date_of_birth?:     string | null;
+  id_document_path?:  string | null;
+  status?:            VerificationStatus; // owner writes forced to 'pending' by trigger
+  review_note?:       string | null;
 }
 
-export type VerificationUpdate = {
-  id_verified?:     boolean;
-  selfie_verified?: boolean;
-  selfie_url?:      string | null;
-  verified_at?:     string | null;
-}
+export type VerificationUpdate = Partial<VerificationInsert> & {
+  // Review-only fields — set by the dashboard/service role, never by app code.
+  reviewed_at?: string | null;
+};
 
 // ─── profiles ─────────────────────────────────────────────────────────────────
 

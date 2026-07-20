@@ -55,12 +55,15 @@ Passengers must accept, per booking, an acknowledgment that: verifying the drive
 **10. Nominated contact data. (NEW)**
 The nominated contact is a third party whose name and phone number the user provides, and who receives live tracking, deviation alerts and SOS alerts (with live or last-known location). The contact may not be an htwa user and has not consented to us processing their details. What is the correct basis and what notice (if any) must we give the contact — e.g. a first-contact SMS explaining what they've been nominated for with an opt-out?
 
+**11. Universal identity verification — extended to all users, not just drivers. (NEW)**
+Previously only drivers went through a manual verification review; passengers just ticked a placeholder. Every user (driver or passenger) must now provide: any government-issued photo ID (passport, driving licence, or national ID card), date of birth, and a live selfie, reviewed manually before that user can book a seat or post a journey (browsing/searching is available while review is pending — see item 8 for the separate, additional driving-licence/vehicle disclosure drivers provide). Rationale: this is a safety measure so that, in particular, female drivers have the same verified-identity assurance about who they are picking up that passengers already have about drivers. Data, retention and manual-review model mirror the existing driver verification (item 8) and are reflected in `privacy-policy.md` §2.2/§6/§7. Questions: (a) is "any photo ID" (rather than a single accepted document type) adequate for verification purposes; (b) is retaining date of birth alongside the ID document for the same 12-month period appropriate, or does DOB need separate/shorter treatment; (c) anything specific to flag for collecting this from passengers who are not driving (i.e. no vehicle/insurance angle, purely identity/safety); (d) **age gate (resolved 19 Jul, was flagged as a gap):** Terms §2/§5 state users must be 18+; the app now enforces this against the self-reported date of birth both client-side (`app/id-verify.tsx` blocks submission) and at the database layer (a CHECK constraint on `verification.date_of_birth`, migration `20260719210001`, live-tested to reject an under-18 DOB). The DOB itself is still self-reported, not OCR'd from the document — Jordan manually cross-checks the stated DOB against the uploaded photo ID during review, same as every other verification field. Please advise whether self-report + manual human cross-check is adequate evidence of age for this purpose, or whether something more (e.g. automated document OCR) is expected in either jurisdiction.
+
 ### C. Commercial terms
 
-**11. Cancellation/refund policy.**
+**12. Cancellation/refund policy.**
 Implemented behaviour: driver cancels → full refund; passenger cancels >24h before departure → full refund; ≤24h → **no refund**; no-show → no refund; passenger declines to travel because driver/vehicle doesn't match verified details → full refund. Is the ≤24h no-refund line acceptable under ROI/UK consumer law (including distance-contract cancellation rules) for this kind of booking?
 
-**12. Governing law split.**
+**13. Governing law split.**
 Terms use Irish law/courts for ROI users and Northern Ireland law/courts for NI users, with a consumer mandatory-protection carve-out. Sensible? Any cross-border wrinkles for journeys that span both jurisdictions?
 
 ### D. Documents to review
@@ -69,8 +72,8 @@ All in the app repository under `legal/`:
 
 | Document | Status |
 |---|---|
-| `terms-of-service.md` | Updated 17 Jul — new §5.1 (driver disclosure), §7A (responsibility waiver), §8A (message retention), refund + governing-law fixes |
-| `privacy-policy.md` | Updated 17 Jul — driver-ID disclosure, per-journey nominated contact, safety-alert data, permanent message retention, account deletion §7A |
+| `terms-of-service.md` | Updated 17 Jul — new §5.1 (driver disclosure), §7A (responsibility waiver), §8A (message retention), refund + governing-law fixes. Updated 19 Jul — §2/§5 extended to universal identity verification (photo ID + DOB + selfie, all users); 18+ eligibility now DB-enforced against self-reported DOB, cross-checked manually against the photo ID during review |
+| `privacy-policy.md` | Updated 17 Jul — driver-ID disclosure, per-journey nominated contact, safety-alert data, permanent message retention, account deletion §7A. Updated 19 Jul — §2.2/§6/§7 extended to cover universal identity verification (photo ID + date of birth + gender, all users, not just drivers) |
 | `verification-responsibility-waiver.md` | New 17 Jul — full in-app acknowledgment text |
 | `community-safety-pledge.md` | Unchanged (plain-English pledge shown at signup) |
 | `cookie-policy.md` | Unchanged (essential cookies only) |
@@ -80,4 +83,4 @@ All in the app repository under `legal/`:
 
 ## What we need back
 
-For each item: sign-off as-is, amended wording, or "stop — structural problem". Items 1–3 are the highest priority (they underpin the legality of the whole model); items 8–10 are next (they gate the safety features we're building now); the rest can follow. We're aiming to freeze legal copy by end of August for a September launch.
+For each item: sign-off as-is, amended wording, or "stop — structural problem". Items 1–3 are the highest priority (they underpin the legality of the whole model); items 8–11 are next (they gate the safety features we're building now); the rest can follow. We're aiming to freeze legal copy by end of August for a September launch.

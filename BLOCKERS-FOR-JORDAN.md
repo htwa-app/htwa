@@ -6,6 +6,17 @@ Things only you can do. Each entry says exactly what I need, how to get it, and 
 
 ## 1. Google Maps API key
 
+**🔴 URGENT UPDATE (20 Jul, overnight run):** the key that was working earlier tonight (confirmed live against the real Routes API) is now rejected by Google as invalid — tested three ways (Routes API, Geocoding API, with and without an iOS bundle-identifier header), all return `API_KEY_INVALID` / `REQUEST_DENIED`. This is not a code issue on my end. Likely causes, most to least likely:
+1. **The key may have been auto-revoked by Google.** Earlier this session I made a mistake and printed the key's full value in plaintext in the Claude Code transcript twice (already flagged to you in-session) — Google actively scans for exposed API keys in various places and can auto-disable them. If this is what happened, I'm sorry — it was avoidable and I should have stuck to length/prefix checks throughout, not just after the first slip.
+2. The key or its restrictions were changed manually in Google Cloud Console (by you, or anyone with access) since the last successful test.
+3. Billing or the Routes/Geocoding APIs got disabled on the project.
+
+**What to do:** open https://console.cloud.google.com → APIs & Services → Credentials → find the key → check if it still exists and is enabled. If it's gone/disabled, generate a new one (same steps as below), update `.env.local`'s `EXPO_PUBLIC_GOOGLE_MAPS_KEY` AND the EAS environment variable (`eas env:update production --variable-name EXPO_PUBLIC_GOOGLE_MAPS_KEY --value <new key>`, then repeat for `preview`/`development` or just re-run for all three). **Do not paste the key into chat** — edit `.env.local` directly yourself, same as last time.
+
+**Impact tonight:** I built the Places autocomplete, real map views, and toll-pricing wiring (see PROGRESS.md) but could NOT live-verify any of it against the real Google API — all of it is code-complete and unit-tested with mocks, but needs a working key before you or beta testers will see real autocomplete suggestions, a real distance calculation, or real map tiles. Everything degrades gracefully to the existing "unavailable" states in the meantime — nothing crashes.
+
+**Original setup instructions below, for a fresh key if needed:**
+
 **I need:** a Google Maps API key with the Routes API and Places API (New) enabled.
 
 **Get it by:**
@@ -71,23 +82,30 @@ I discovered htwa-app.com is already served by Netlify from this repo's `website
 
 ---
 
-## 6. Reviewing driver applications (recurring beta task — not a blocker)
+## 6. Reviewing verification submissions — now TWO tables, not one (recurring beta task — not a blocker)
 
-Drivers now can't post journeys until you approve them. To review:
+**19 Jul update:** identity verification is now universal — every user (not just drivers) submits a photo ID + date of birth + live selfie and needs your approval before they can book a seat or post a journey (they can browse/search while pending, just not book/post). This is a SEPARATE review from driver verification, in a separate table:
 
-1. Go to https://supabase.com/dashboard/project/adrwtjlphjrnrrqjkbfk → **Table Editor** → `driver_verifications` → rows with status `pending`.
-2. Open **Storage** → `driver-verifications` bucket → the driver's folder → check the licence photo and the car photo, and confirm the registration plate in the photo matches the `car_registration` column. Their selfie is in the `verification-selfies` bucket.
-3. Back in the table row: set `status` to `approved` (or `rejected` — put a short reason in `review_note`, the driver sees it in the app) and save.
+**A. Everyone's identity verification** — `public.verification`:
+1. Table Editor → `verification` → rows with status `pending`.
+2. Open **Storage** → `identity-documents` bucket → the user's folder → check their photo ID. Their selfie is in `verification-selfies`.
+3. Check the `date_of_birth` column against the date of birth shown on the photo ID — the app enforces 18+ automatically, but only against what the user typed in, not against the document, so this cross-check is the part only you can do.
+4. Set `status` to `approved` (or `rejected` with a short `review_note` — the user sees it in the app) and save.
 
-That's the whole flow — the app unblocks posting the moment the row says approved. (Only the dashboard/service role can approve; the app physically can't self-approve, I tested the tamper paths.)
+**B. Drivers additionally need** `public.driver_verifications` approved before they can post journeys (on top of A, not instead of it):
+1. Table Editor → `driver_verifications` → rows with status `pending`.
+2. Open **Storage** → `driver-verifications` bucket → the driver's folder → check the licence photo and the car photo, and confirm the registration plate in the photo matches the `car_registration` column.
+3. Set `status` to `approved`/`rejected` the same way.
 
-**You'll now get a push notification the moment someone submits** (see item 7 below) — you don't need to keep checking the table proactively.
+Only the dashboard/service role can set either status to approved — the app physically can't self-approve either one, tamper-tested for both.
+
+**You'll get one push notification per submission for either table** (see item 7 below) — the notification title tells you which one ("driver verification" vs "identity verification"), so you know which table to open.
 
 ---
 
-## 7. Set up the ntfy app to get notified of new driver submissions (2 minutes)
+## 7. Set up the ntfy app to get notified of new verification submissions (2 minutes)
 
-**Why:** MailerLite (the key you already have) turned out not to support sending single one-off emails — that's a separate product (MailerSend) we don't have a key for. As an immediate, zero-signup stand-in, I wired a push notification via ntfy.sh (a free, no-account-needed push service) straight from the database — it fires the moment a `driver_verifications` row enters (or re-enters) review.
+**Why:** MailerLite (the key you already have) turned out not to support sending single one-off emails — that's a separate product (MailerSend) we don't have a key for. As an immediate, zero-signup stand-in, I wired a push notification via ntfy.sh (a free, no-account-needed push service) straight from the database — it fires the moment a `driver_verifications` **or** `verification` row enters (or re-enters) review, tapping the notification opens the Supabase Table Editor directly.
 
 **Get it by:**
 1. Install the free **ntfy** app from the App Store (search "ntfy" — publisher is "ntfy.sh").
@@ -97,9 +115,9 @@ That's the whole flow — the app unblocks posting the moment the row says appro
    ```
 3. Server: leave it as the default `ntfy.sh`. Tap Subscribe.
 
-**Caveat:** ntfy's free tier has no login — that topic name is the only thing keeping these alerts private (anyone who learns the exact string could read them or post fake ones). It's a driver's name/email/car details, not financial data, so the risk is low, but it's worth knowing. If you'd rather have a proper authenticated email instead, get a free API key from **resend.com** (2-minute signup) and tell Claude — it'll swap this trigger for a real "New driver submitted" email to hello@htwa-app.com and this ntfy trigger can be removed.
+**Caveat:** ntfy's free tier has no login — that topic name is the only thing keeping these alerts private (anyone who learns the exact string could read them or post fake submissions). It's identity/driver details, not financial data, so the risk is low, but it's worth knowing. If you'd rather have a proper authenticated email instead, get a free API key from **resend.com** (2-minute signup) and tell Claude — it'll swap this trigger for a real email to hello@htwa-app.com and this ntfy trigger can be removed.
 
-**Unblocks:** knowing the moment a new driver needs review, instead of having to remember to check the dashboard.
+**Unblocks:** knowing the moment anyone needs review, instead of having to remember to check either table proactively.
 
 ---
 

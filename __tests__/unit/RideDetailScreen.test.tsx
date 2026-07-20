@@ -73,6 +73,7 @@ const RIDE = {
   id: 'r1', driver_id: 'd1', from_location: 'Galway', to_location: 'Dublin',
   departure_datetime: '2026-06-01T09:00:00Z', seats_available: 3, seats_total: 4,
   cost_per_seat: 12, currency: 'EUR', distance_km: 200, women_only: false,
+  from_coords: null, to_coords: null,
 };
 
 beforeEach(() => {
@@ -81,7 +82,7 @@ beforeEach(() => {
   mockRide.mockResolvedValue({ data: RIDE, error: null });
   mockUser.mockResolvedValue({ data: { full_name: 'Aoife Murphy' }, error: null });
   mockProfile.mockResolvedValue({ data: { university: 'NUIG', vehicle_details: { make: 'Toyota', model: 'Yaris', seats: 4, hasAC: true, dashcam: false } }, error: null });
-  mockVerif.mockResolvedValue({ data: { id_verified: true, selfie_verified: true }, error: null });
+  mockVerif.mockResolvedValue({ data: { status: 'approved' }, error: null });
   mockMyBooking.mockResolvedValue({ data: null, error: null }); // not booked
   mockCancelBooking.mockResolvedValue({ success: true, refunded: true, message: 'Booking cancelled. Full refund issued within 3–5 business days.' });
   mockFetchRates.mockResolvedValue(TEST_PRICING_RATES);
@@ -100,6 +101,21 @@ describe('RideDetailScreen', () => {
     expect(screen.getByTestId('ride-from')).toHaveTextContent('Galway');
     expect(screen.getByTestId('ride-to')).toHaveTextContent('Dublin');
     expect(screen.getByTestId('driver-verified')).toBeTruthy();
+  });
+
+  it('does not render a route map when neither coordinate is known', async () => {
+    render(<RideDetailScreen />);
+    await waitFor(() => expect(screen.getByTestId('ride-from')).toBeTruthy());
+    expect(screen.queryByTestId('ride-route-map')).toBeNull();
+  });
+
+  it('renders a route map when at least one coordinate is known', async () => {
+    mockRide.mockResolvedValue({
+      data: { ...RIDE, from_coords: { lat: 53.27, lng: -9.05 }, to_coords: { lat: 53.35, lng: -6.26 } },
+      error: null,
+    });
+    render(<RideDetailScreen />);
+    await waitFor(() => expect(screen.getByTestId('ride-route-map')).toBeTruthy());
   });
 
   it('increments the seat selector up to availability and navigates to booking', async () => {

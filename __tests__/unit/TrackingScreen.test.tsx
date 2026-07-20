@@ -67,6 +67,11 @@ describe('TrackingScreen — live', () => {
     render(<TrackingScreen />);
     await waitFor(() => expect(mockRpc).toHaveBeenCalledWith('get_tracking_snapshot', { p_token: 'tok-1' }));
   });
+
+  it('renders the route map when trip coordinates are known', async () => {
+    render(<TrackingScreen />);
+    await waitFor(() => expect(screen.getByTestId('track-map')).toBeTruthy());
+  });
 });
 
 describe('TrackingScreen — signal lost', () => {

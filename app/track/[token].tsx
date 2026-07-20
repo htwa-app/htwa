@@ -19,6 +19,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { JourneyMap } from '../../components/JourneyMap';
 import { Colors, Typography, Spacing, BorderRadius, FontFamily } from '../../constants/theme';
 import { supabase } from '../../lib/supabase';
 import { SIGNAL_LOST_AFTER_MS } from '../../services/tracking';
@@ -165,6 +166,16 @@ export default function TrackingScreen(): React.ReactElement {
         {/* Route + progress */}
         <View style={styles.routeCard}>
           <Text style={styles.routeText}>{trip.from_location} → {trip.to_location}</Text>
+          {(trip.from_coords || trip.to_coords || last) && (
+            <JourneyMap
+              from={trip.from_coords}
+              to={trip.to_coords}
+              current={inProgress ? last : null}
+              stubText={inProgress && last ? 'Live position' : 'Route preview'}
+              style={styles.trackMap}
+              testID="track-map"
+            />
+          )}
           {progressPct !== null && inProgress && !signalLost && (
             <>
               <View style={styles.progressTrack}>
@@ -257,6 +268,7 @@ const styles = StyleSheet.create({
     padding: Spacing.cardPadding, gap: Spacing.sm,
   },
   routeText: { ...Typography.headingSmall, color: Colors.textPrimary },
+  trackMap: { height: 180, borderRadius: BorderRadius.large, overflow: 'hidden' },
   progressTrack: {
     height: 6, borderRadius: 3, backgroundColor: Colors.primaryLight, overflow: 'hidden',
   },

@@ -58,7 +58,7 @@ beforeEach(() => {
   mockDbCalls = { gte: [], lte: [] };
   mockParams = { from: 'Galway', to: 'Dublin', date: '', seats: '1', womenOnly: 'false' };
   mockRidesResult.mockResolvedValue({ data: RIDES, error: null });
-  mockVerifsResult.mockResolvedValue({ data: [{ user_id: 'd1', id_verified: true, selfie_verified: true }], error: null });
+  mockVerifsResult.mockResolvedValue({ data: [{ user_id: 'd1', status: 'approved' }], error: null });
 });
 
 describe('SearchResultsScreen', () => {

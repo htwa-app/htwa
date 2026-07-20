@@ -11,7 +11,7 @@ const BRAND_TAGLINE = 'heading that way anyway.';
 
 export default function SplashScreen() {
   const router = useRouter();
-  const { session, isLoading, isVerified } = useAuth();
+  const { session, isLoading, verificationStatus } = useAuth();
 
   useEffect(() => {
     // Stay on splash while the auth check is in flight
@@ -20,14 +20,15 @@ export default function SplashScreen() {
     if (!session) {
       // No authenticated user — go to login
       router.replace('/login');
-    } else if (!isVerified) {
-      // Logged in but ID verification not complete — go to id-verify
+    } else if (verificationStatus === null) {
+      // Logged in but never submitted identity verification — go to id-verify.
+      // Once submitted (pending/approved/rejected all count), browsing is
+      // allowed straight away — only booking/posting gates on 'approved'.
       router.replace('/id-verify');
     } else {
-      // Fully authenticated and verified — enter the app
       router.replace('/(tabs)');
     }
-  }, [isLoading, session, isVerified, router]);
+  }, [isLoading, session, verificationStatus, router]);
 
   return (
     <View style={styles.container}>

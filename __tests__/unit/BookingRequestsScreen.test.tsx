@@ -84,7 +84,7 @@ beforeEach(() => {
   mockFetchRates.mockResolvedValue(TEST_PRICING_RATES);
   mockBookingsResult.mockResolvedValue({ data: [PENDING_BOOKING], error: null });
   mockUsersResult.mockResolvedValue({ data: [{ id: 'p1', full_name: 'Aoife Murphy' }], error: null });
-  mockVerifsResult.mockResolvedValue({ data: [{ user_id: 'p1', id_verified: true, selfie_verified: true }], error: null });
+  mockVerifsResult.mockResolvedValue({ data: [{ user_id: 'p1', status: 'approved' }], error: null });
 });
 
 describe('BookingRequestsScreen — loading & rendering', () => {

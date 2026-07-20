@@ -63,14 +63,19 @@ export default function VerifyScreen() {
   const routeByCurrentState = async (userId: string): Promise<boolean> => {
     const { data: verifRow, error: verifErr } = await supabase
       .from('verification')
-      .select('id_verified, selfie_verified')
+      .select('status')
       .eq('user_id', userId)
       .maybeSingle();
     if (verifErr) {
       setVerifyError(STATE_ERROR_MESSAGE);
       return false;
     }
-    const isVerified = verifRow?.id_verified === true && verifRow?.selfie_verified === true;
+    // No row at all = never submitted identity verification — the ONLY thing
+    // that gates a brand-new user to id-verify. Do not pre-create a stub row
+    // here: a bare row would default to status='pending' immediately, which
+    // would incorrectly read as "already submitted" and skip the mandatory
+    // gate entirely. id-verify.tsx's own submission is the sole writer.
+    const verificationStatus = verifRow?.status ?? null;
 
     const { data: profileRow, error: profileErr } = await supabase
       .from('profiles')
@@ -83,7 +88,7 @@ export default function VerifyScreen() {
     }
     const hasProfile = profileRow !== null;
 
-    router.replace(resolvePostAuthDestination({ isVerified, hasProfile }));
+    router.replace(resolvePostAuthDestination({ verificationStatus, hasProfile }));
     return true;
   };
 
@@ -157,19 +162,11 @@ export default function VerifyScreen() {
         setVerifyError(ACCOUNT_ERROR_MESSAGE);
         return;
       }
-      // Create the verification row if missing (starts unverified — completed
-      // by id-verify.tsx). ignoreDuplicates so a retry can NEVER clobber an
-      // already-verified row back to false/false — if it exists, leave it
-      // alone entirely; routeByCurrentState below reads whatever is really there.
-      const { error: verificationError } = await supabase.from('verification').upsert({
-        user_id:         userId,
-        id_verified:     false,
-        selfie_verified: false,
-      }, { onConflict: 'user_id', ignoreDuplicates: true });
-      if (verificationError) {
-        setVerifyError(ACCOUNT_ERROR_MESSAGE);
-        return;
-      }
+      // No verification row is pre-created here — id-verify.tsx's own
+      // submission is the sole writer (a bare stub row would default to
+      // status='pending' and incorrectly skip the mandatory gate). A
+      // never-submitted user simply has no row yet, and routeByCurrentState
+      // below sends them to id-verify.
       await routeByCurrentState(userId);
     } catch {
       setVerifyError('Something went wrong. Please try again.');
