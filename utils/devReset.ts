@@ -24,13 +24,16 @@ export async function devResetAndSignOut(): Promise<void> {
   // Hard no-op outside development — there is zero chance this runs in prod.
   if (!__DEV__) return;
 
-  // 1. Sign out of Supabase (this clears the persisted sb-*-auth-token).
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
-
-  // 2. Clear our own onboarding/profile cache + any residual auth-token keys, so
-  //    the next launch starts genuinely fresh.
-  const keys = await AsyncStorage.getAllKeys();
-  const toRemove = keys.filter((k) => RESET_KEY_PREFIXES.some((p) => k.startsWith(p)));
-  if (toRemove.length > 0) await AsyncStorage.multiRemove(toRemove);
+  try {
+    // 1. Sign out of Supabase (this clears the persisted sb-*-auth-token).
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  } finally {
+    // 2. Clear our own onboarding/profile cache + any residual auth-token keys,
+    //    so the next launch starts genuinely fresh — even if signOut above
+    //    failed (e.g. a network timeout), the local cache wipe still runs.
+    const keys = await AsyncStorage.getAllKeys();
+    const toRemove = keys.filter((k) => RESET_KEY_PREFIXES.some((p) => k.startsWith(p)));
+    if (toRemove.length > 0) await AsyncStorage.multiRemove(toRemove);
+  }
 }

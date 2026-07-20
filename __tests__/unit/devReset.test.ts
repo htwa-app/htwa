@@ -33,13 +33,15 @@ describe('devResetAndSignOut', () => {
     expect(remaining).toEqual(['unrelated:key']);
   });
 
-  it('throws when sign-out fails (does not leave a half-cleared state silently)', async () => {
+  it('throws when sign-out fails, but still wipes the local cache (try/finally)', async () => {
     mockSignOut.mockResolvedValue({ error: { message: 'sign-out failed' } });
     await AsyncStorage.setItem('htwa:fullName', 'Jordan');
 
     await expect(devResetAndSignOut()).rejects.toMatchObject({ message: 'sign-out failed' });
-    // sign-out failed before the wipe, so the cache is untouched (caller surfaces it).
-    expect(await AsyncStorage.getItem('htwa:fullName')).toBe('Jordan');
+    // The local wipe must run unconditionally (finally), so a signOut network
+    // failure never leaves the dev-reset flow half-cleared/stuck in limbo —
+    // the error still propagates so the caller can surface it.
+    expect(await AsyncStorage.getItem('htwa:fullName')).toBeNull();
   });
 
   it('is a no-op when there are no matching keys', async () => {

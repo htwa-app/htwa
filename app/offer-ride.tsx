@@ -225,15 +225,24 @@ export default function OfferRideScreen(): React.ReactElement {
   // distance, seats or driver profile change. The driver never edits this.
   useEffect(() => {
     if (distance !== null && distance > 0 && hasProfile && jurisdiction && pricingRates) {
-      const result = calculateJourneyPricing(pricingRates, {
-        jurisdiction,
-        engineCc: engineCc ?? undefined,
-        cumulativeBefore: cumulative,
-        distance,
-        tolls: 0, // tolls wiring deferred — see PROGRESS Block 4
-        seatsOffered: seats,
-      });
-      setDriverSeatPrice(result.driverSeatPrice);
+      // calculateJourneyPricing/effectiveRate can throw on a malformed
+      // DB-sourced rates payload — this screen never validates pricingRates
+      // itself, so a throw here must degrade to "pricing unavailable"
+      // rather than an uncaught render error.
+      try {
+        const result = calculateJourneyPricing(pricingRates, {
+          jurisdiction,
+          engineCc: engineCc ?? undefined,
+          cumulativeBefore: cumulative,
+          distance,
+          tolls: 0, // tolls wiring deferred — see PROGRESS Block 4
+          seatsOffered: seats,
+        });
+        setDriverSeatPrice(result.driverSeatPrice);
+      } catch {
+        setDriverSeatPrice(null);
+        setRatesError(true);
+      }
     } else {
       setDriverSeatPrice(null);
     }

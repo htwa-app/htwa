@@ -44,6 +44,17 @@ describe('PaymentMethodsScreen', () => {
     expect(screen.getByTestId('add-card')).toBeTruthy();
   });
 
+  it('shows a retryable error state instead of a fake "not set up" default when the load fails', async () => {
+    mockGetAccount.mockRejectedValue(new Error('network down'));
+    render(<PaymentMethodsScreen />);
+    await waitFor(() => expect(screen.getByTestId('payment-methods-error')).toBeTruthy());
+    expect(screen.queryByTestId('connect-status')).toBeNull();
+
+    mockGetAccount.mockResolvedValue({ connect_status: 'active', has_payment_method: true, payment_method_brand: 'Visa', payment_method_last4: '4242' });
+    fireEvent.press(screen.getByTestId('payment-methods-retry'));
+    await waitFor(() => expect(screen.getByTestId('connect-status')).toHaveTextContent('Active'));
+  });
+
   it('shows active payout + saved card status', async () => {
     mockGetAccount.mockResolvedValue({ connect_status: 'active', has_payment_method: true, payment_method_brand: 'Visa', payment_method_last4: '4242' });
     render(<PaymentMethodsScreen />);

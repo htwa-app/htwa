@@ -39,24 +39,21 @@ export default function PaymentMethodsScreen(): React.ReactElement {
   const { user } = useAuth();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
-  const [account, setAccount] = useState<PaymentAccount | null>(null);
-  const [busy, setBusy]       = useState<'connect' | 'card' | null>(null);
-  const [note, setNote]       = useState<string | null>(null);
+  const [account, setAccount]     = useState<PaymentAccount | null>(null);
+  const [busy, setBusy]           = useState<'connect' | 'card' | null>(null);
+  const [note, setNote]           = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
     if (!user) return;
+    setLoadError(false);
     try {
       setAccount(await getPaymentAccount(user.id));
     } catch {
-      // Fall back to a safe default so the screen renders (never stuck on the
-      // spinner) and surface a retry note.
-      setNote('Could not load your payment methods. Please try again.');
-      setAccount({
-        connect_status: 'none',
-        has_payment_method: false,
-        payment_method_brand: null,
-        payment_method_last4: null,
-      });
+      // A failed fetch must not be presented as "Not set up"/"No card on
+      // file" — that's indistinguishable from genuinely-empty real data.
+      // Surface a retryable error state instead of a fake default account.
+      setLoadError(true);
     }
   }, [user]);
 
@@ -122,7 +119,14 @@ export default function PaymentMethodsScreen(): React.ReactElement {
         <View style={{ width: 24 }} />
       </View>
 
-      {!account ? (
+      {loadError ? (
+        <View style={styles.errorState} testID="payment-methods-error">
+          <Text style={styles.cardHint}>Could not load your payment methods.</Text>
+          <TouchableOpacity style={styles.actionBtn} onPress={load} accessibilityRole="button" testID="payment-methods-retry">
+            <Text style={styles.actionBtnText}>Try again</Text>
+          </TouchableOpacity>
+        </View>
+      ) : !account ? (
         <ActivityIndicator color={Colors.primary} testID="payment-methods-loading" />
       ) : (
         <>
@@ -192,4 +196,5 @@ const styles = StyleSheet.create({
   },
   actionBtnText: { ...Typography.bodyMedium, color: Colors.primary },
   note: { ...Typography.bodySmall, color: Colors.textSecondary, textAlign: 'center' },
+  errorState: { alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.xl },
 });

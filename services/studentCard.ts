@@ -70,28 +70,32 @@ export async function uploadStudentCard(
 ): Promise<UploadStudentCardResult> {
   const path = `${userId}/student-card-${Date.now()}.jpg`;
 
-  const { error: uploadError } = await supabase.storage
-    .from('student-cards')
-    .upload(path, fileBytes, { contentType, upsert: true });
-  if (uploadError) return { ok: false, status: 'unverified', error: uploadError.message };
+  try {
+    const { error: uploadError } = await supabase.storage
+      .from('student-cards')
+      .upload(path, fileBytes, { contentType, upsert: true });
+    if (uploadError) return { ok: false, status: 'unverified', error: uploadError.message };
 
-  // Manual review: OCR isn't built, so we cannot auto-confirm the name match.
-  // Upsert (not update) so a missing profile row can't make this silently report
-  // success with zero rows affected.
-  const { error: dbError } = await supabase
-    .from('profiles')
-    .upsert(
-      { user_id: userId, student_card_url: path, university_verification_status: 'pending' },
-      { onConflict: 'user_id' },
-    );
-  if (dbError) {
-    // The file is uploaded but the DB write failed — remove ONLY the newly
-    // uploaded (versioned, orphaned) file. Any previously-saved photo is at a
-    // different path and is never touched by this rollback.
-    const { error: removeError } = await supabase.storage.from('student-cards').remove([path]);
-    if (removeError) console.error('[StudentCard] orphaned upload cleanup failed:', removeError.message);
-    return { ok: false, status: 'unverified', error: dbError.message };
+    // Manual review: OCR isn't built, so we cannot auto-confirm the name match.
+    // Upsert (not update) so a missing profile row can't make this silently report
+    // success with zero rows affected.
+    const { error: dbError } = await supabase
+      .from('profiles')
+      .upsert(
+        { user_id: userId, student_card_url: path, university_verification_status: 'pending' },
+        { onConflict: 'user_id' },
+      );
+    if (dbError) {
+      // The file is uploaded but the DB write failed — remove ONLY the newly
+      // uploaded (versioned, orphaned) file. Any previously-saved photo is at a
+      // different path and is never touched by this rollback.
+      const { error: removeError } = await supabase.storage.from('student-cards').remove([path]);
+      if (removeError) console.error('[StudentCard] orphaned upload cleanup failed:', removeError.message);
+      return { ok: false, status: 'unverified', error: dbError.message };
+    }
+
+    return { ok: true, status: 'pending', path };
+  } catch (e: unknown) {
+    return { ok: false, status: 'unverified', error: e instanceof Error ? e.message : 'Unexpected upload error' };
   }
-
-  return { ok: true, status: 'pending', path };
 }

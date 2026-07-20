@@ -299,8 +299,8 @@ export type DriverPricingProfileRow = {
   notify_insurer_confirmed: boolean;
   declaration_version:      string | null;
   declaration_accepted_at:  string | null;
-  created_at:               string;
-  updated_at:               string;
+  created_at:               string | null;  // TIMESTAMPTZ DEFAULT NOW(), no NOT NULL
+  updated_at:               string | null;  // TIMESTAMPTZ DEFAULT NOW(), no NOT NULL
 }
 
 export type DriverPricingProfileInsert = {
@@ -322,7 +322,7 @@ export type MileageIncrementRow = {
   amount:     number;
   unit:       DistanceUnitDb;
   source:     MileageSource;
-  created_at: string;
+  created_at: string | null;  // TIMESTAMPTZ DEFAULT NOW(), no NOT NULL
 }
 
 export type MileageIncrementInsert = {
@@ -343,7 +343,7 @@ export type PricingRateRow = {
   unit:         DistanceUnitDb;
   currency:     Currency;
   effective_from: string;
-  created_at:   string;
+  created_at:   string | null;  // TIMESTAMPTZ DEFAULT NOW(), no NOT NULL
 }
 
 export type PricingConfigRow = {
@@ -364,8 +364,8 @@ export type PaymentAccountRow = {
   has_payment_method:        boolean;
   payment_method_brand:      string | null;
   payment_method_last4:      string | null;
-  created_at:                string;
-  updated_at:                string;
+  created_at:                string | null;  // TIMESTAMPTZ DEFAULT NOW(), no NOT NULL
+  updated_at:                string | null;  // TIMESTAMPTZ DEFAULT NOW(), no NOT NULL
 }
 
 export type PaymentAccountInsert = {

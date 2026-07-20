@@ -122,6 +122,17 @@ describe('ChatScreen', () => {
     render(<ChatScreen />);
     await waitFor(() => expect(screen.getByTestId('chat-empty')).toBeTruthy());
   });
+
+  it('shows a retryable error state instead of an empty chat when the messages query fails', async () => {
+    mockOrder.mockResolvedValue({ data: null, error: { message: 'network down' } });
+    render(<ChatScreen />);
+    await waitFor(() => expect(screen.getByTestId('chat-error')).toBeTruthy());
+    expect(screen.queryByTestId('chat-empty')).toBeNull();
+
+    mockOrder.mockResolvedValue({ data: MESSAGES, error: null });
+    fireEvent.press(screen.getByTestId('chat-retry-button'));
+    await waitFor(() => expect(screen.getByTestId('message-m1')).toBeTruthy());
+  });
 });
 
 describe('ChatScreen — Change 3 lifecycle', () => {
@@ -160,6 +171,23 @@ describe('ChatScreen — Change 3 lifecycle', () => {
     fireEvent.press(screen.getByTestId('end-chat-button'));
     await waitFor(() => expect(mockCloseChat).toHaveBeenCalledWith('b1'));
     await waitFor(() => expect(screen.getByTestId('chat-closed-banner')).toBeTruthy());
+    alertSpy.mockRestore();
+  });
+
+  it('surfaces a failure alert instead of silently no-op-ing when closeChat fails', async () => {
+    mockGetChatMeta.mockResolvedValue({ chatStatus: 'open', rideStatus: 'completed' });
+    mockCloseChat.mockResolvedValue({ ok: false, error: 'journey_not_complete' });
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, buttons) => {
+      const endBtn = (buttons ?? []).find((b) => b.style === 'destructive');
+      void endBtn?.onPress?.();
+    });
+    render(<ChatScreen />);
+    await waitFor(() => expect(screen.getByTestId('end-chat-button')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('end-chat-button'));
+    await waitFor(() => expect(mockCloseChat).toHaveBeenCalledWith('b1'));
+    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith('Could not end chat', 'journey_not_complete'));
+    // Chat status must NOT flip to closed on a failed close.
+    expect(screen.queryByTestId('chat-closed-banner')).toBeNull();
     alertSpy.mockRestore();
   });
 });

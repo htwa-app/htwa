@@ -36,6 +36,7 @@ export default function ChatScreen(): React.ReactElement {
   const [text,        setText]        = useState('');
   const [isLoading,   setIsLoading]   = useState(true);
   const [isSending,   setIsSending]   = useState(false);
+  const [loadError,   setLoadError]   = useState(false);
   const [chatStatus,  setChatStatus]  = useState<ChatStatus>('open');
   const [rideStatus,  setRideStatus]  = useState<RideStatus | null>(null);
   const listRef = useRef<FlatList<Message>>(null);
@@ -45,8 +46,9 @@ export default function ChatScreen(): React.ReactElement {
   const loadMessages = useCallback(async () => {
     if (!booking_id) return;
     setIsLoading(true);
+    setLoadError(false);
     try {
-      const [{ data }, meta] = await Promise.all([
+      const [{ data, error: messagesErr }, meta] = await Promise.all([
         supabase
           .from('messages')
           .select('id, sender_id, content, created_at')
@@ -54,11 +56,14 @@ export default function ChatScreen(): React.ReactElement {
           .order('created_at', { ascending: true }),
         getChatMeta(booking_id),
       ]);
+      // A failed messages query must not read as "no messages yet" — that
+      // would hide a real fetch failure behind an empty-chat UI.
+      if (messagesErr) { setLoadError(true); return; }
       setMessages((data as Message[]) ?? []);
       if (meta) { setChatStatus(meta.chatStatus); setRideStatus(meta.rideStatus); }
     } catch {
-      // getChatMeta now throws on query failure; don't leave the screen spinning.
-      // Leave any already-loaded messages in place and fall back to an open chat.
+      // getChatMeta throws on query failure; don't leave the screen spinning.
+      setLoadError(true);
     } finally {
       setIsLoading(false);
     }
@@ -78,6 +83,7 @@ export default function ChatScreen(): React.ReactElement {
           onPress: async () => {
             const res = await closeChat(booking_id);
             if (res.ok) setChatStatus('closed');
+            else Alert.alert('Could not end chat', res.error ?? 'Please try again.');
           },
         },
       ],
@@ -137,12 +143,19 @@ export default function ChatScreen(): React.ReactElement {
             <Text style={styles.endChatText}>End chat</Text>
           </TouchableOpacity>
         ) : (
-          <View style={{ width: 24 }} />
+          <View style={styles.headerSpacer} />
         )}
       </View>
 
       {isLoading ? (
         <ActivityIndicator size="large" color={Colors.primary} style={{ flex: 1 }} testID="chat-loading" />
+      ) : loadError ? (
+        <View style={styles.errorState} testID="chat-error">
+          <Text style={styles.emptyText}>Could not load messages.</Text>
+          <TouchableOpacity onPress={() => void loadMessages()} accessibilityRole="button" testID="chat-retry-button">
+            <Text style={styles.endChatText}>Try again</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <FlatList
           ref={listRef}
@@ -205,6 +218,8 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.screenPadding, paddingBottom: Spacing.md },
   headerTitle: { ...Typography.headingMedium, color: Colors.textPrimary, flex: 1, textAlign: 'center' },
   endChatText: { ...Typography.bodySmall, color: Colors.sos, fontFamily: FontFamily.medium },
+  headerSpacer: { width: 24 },
+  errorState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
   closedBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.screenPadding, paddingVertical: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.border, backgroundColor: Colors.surface },
   closedText: { ...Typography.bodySmall, color: Colors.textSecondary },
   messageList: { paddingHorizontal: Spacing.screenPadding, paddingVertical: Spacing.md, gap: Spacing.sm },

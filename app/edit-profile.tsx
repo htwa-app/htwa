@@ -201,6 +201,8 @@ export default function EditProfileScreen(): React.ReactElement {
       if (!result.ok) { setUploadNote('Upload failed. Please try again.'); return; }
       setUniStatus(result.status);
       setUploadNote('Student card uploaded — we’ll review it shortly.');
+    } catch {
+      setUploadNote('Upload failed. Please try again.');
     } finally {
       setUploading(false);
     }
@@ -329,6 +331,7 @@ export default function EditProfileScreen(): React.ReactElement {
           onPress={handleUploadStudentCard}
           disabled={uploading}
           accessibilityRole="button"
+          accessibilityState={{ disabled: uploading }}
           testID="upload-student-card"
         >
           <Ionicons name="cloud-upload-outline" size={18} color={Colors.primary} />
