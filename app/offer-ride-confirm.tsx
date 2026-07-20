@@ -10,7 +10,7 @@
  *   - "Post ride" button → inserts to rides table → routes to /ride-posted
  */
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../components/Button';
 import { Badge } from '../components/Badge';
+import { WaiverAcceptance } from '../components/WaiverAcceptance';
 import { formatCurrency } from '../utils/currency';
 import {
   Colors,
@@ -35,6 +36,9 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { checkDriverOverlap } from '../services/journeyConflicts';
 import { computeWindowEnd } from '../utils/journeyWindow';
+import { recordWaiverAcceptance } from '../services/waivers';
+import { getDefaultContact, setJourneyContact } from '../services/tracking';
+import { vehicleDetailsComplete, type VehicleDetails } from './vehicle-details';
 
 export default function OfferRideConfirmScreen(): React.ReactElement {
   const router = useRouter();
@@ -48,6 +52,30 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
 
   const [isPosting, setIsPosting] = useState(false);
   const [postError, setPostError] = useState<string | null>(null);
+  const [waiverAccepted, setWaiverAccepted] = useState(false);
+  // 2A-a: null = still checking, false = incomplete (blocks posting), true = ok.
+  const [vehicleOk, setVehicleOk] = useState<boolean | null>(null);
+  const [vehicleCheckError, setVehicleCheckError] = useState(false);
+
+  const checkVehicle = useCallback(async () => {
+    if (!user) return;
+    setVehicleCheckError(false);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('vehicle_details')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      // A failed check must block posting WITH a retry — not silently pass or
+      // wrongly tell an onboarded driver their vehicle is missing.
+      if (error) { setVehicleCheckError(true); return; }
+      setVehicleOk(vehicleDetailsComplete(data?.vehicle_details as Partial<VehicleDetails> | null));
+    } catch {
+      setVehicleCheckError(true);
+    }
+  }, [user]);
+
+  useEffect(() => { void checkVehicle(); }, [checkVehicle]);
 
   const seats        = parseInt(params.seats ?? '1', 10);
   const pricePerSeat = parseFloat(params.pricePerSeat ?? '0');
@@ -73,7 +101,7 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
       const overlap = await checkDriverOverlap(user.id, departureISO, durationSeconds);
       if (!overlap.ok) { setPostError(overlap.message ?? 'This journey overlaps another of yours.'); return; }
 
-      const { error } = await supabase.from('rides').insert({
+      const { data: posted, error } = await supabase.from('rides').insert({
         driver_id:          user.id,
         from_location:      params.from ?? '',
         to_location:        params.to ?? '',
@@ -91,14 +119,28 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
         estimated_duration_seconds: durationSeconds,
         window_end:         windowEnd,
         status:             'active',
-      });
-      if (error) {
+      }).select('id').single();
+      if (error || !posted) {
         // The DB trigger raises 'JOURNEY_OVERLAP: …' if a concurrent overlap slipped past.
-        setPostError(error.message?.includes('JOURNEY_OVERLAP')
+        setPostError(error?.message?.includes('JOURNEY_OVERLAP')
           ? 'This journey overlaps another of your journeys. Choose a different time.'
-          : error.message);
+          : error?.message ?? 'Failed to post journey. Please try again.');
         return;
       }
+
+      // The journey is live from here — acknowledgment + contact seeding are
+      // recorded against it; failures are logged, not shown as a post failure.
+      const waiverRes = await recordWaiverAcceptance({ userId: user.id, role: 'driver', rideId: posted.id });
+      if (!waiverRes.ok) console.error('[OfferConfirm] driver waiver record failed:', waiverRes.message);
+
+      // Seed this journey's nominated contact from the driver's default; they
+      // can change it on the Live Trip tab before departure.
+      const defaultContact = await getDefaultContact(user.id);
+      if (defaultContact) {
+        const contactRes = await setJourneyContact(posted.id, user.id, defaultContact);
+        if (!contactRes.ok) console.error('[OfferConfirm] journey contact seed failed:', contactRes.message);
+      }
+
       router.replace('/ride-posted');
     } catch (e: unknown) {
       setPostError(e instanceof Error ? e.message : 'Failed to post journey. Please try again.');
@@ -184,14 +226,42 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
         </Text>
       </View>
 
+      {/* Vehicle completeness gate (2A-a) */}
+      {vehicleCheckError && (
+        <View style={styles.vehicleGate} testID="vehicle-check-error">
+          <Text style={styles.vehicleGateText}>Couldn't check your vehicle details.</Text>
+          <TouchableOpacity onPress={checkVehicle} accessibilityRole="button" testID="vehicle-check-retry">
+            <Text style={styles.vehicleGateLink}>Try again</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      {vehicleOk === false && !vehicleCheckError && (
+        <View style={styles.vehicleGate} testID="vehicle-incomplete">
+          <Text style={styles.vehicleGateText}>
+            Before posting, add your vehicle's make, model, colour and registration —
+            passengers use them to verify your car.
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push('/vehicle-details')}
+            accessibilityRole="button"
+            testID="vehicle-complete-link"
+          >
+            <Text style={styles.vehicleGateLink}>Complete vehicle details</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Driver acknowledgment (2A-d) */}
+      <WaiverAcceptance role="driver" accepted={waiverAccepted} onChange={setWaiverAccepted} />
+
       {postError ? (
         <Text style={styles.errorText} testID="post-error">{postError}</Text>
       ) : null}
 
       <Button
-        title={isPosting ? 'Posting…' : 'Post ride'}
+        title={isPosting ? 'Posting…' : 'Post journey'}
         onPress={handlePost}
-        disabled={isPosting}
+        disabled={isPosting || !waiverAccepted || vehicleOk !== true}
         style={styles.ctaButton}
         testID="post-button"
       />
@@ -235,5 +305,11 @@ const styles = StyleSheet.create({
   },
   legalText: { ...Typography.bodySmall, color: Colors.textSecondary, flex: 1 },
   errorText: { ...Typography.bodySmall, color: Colors.sos, textAlign: 'center' },
+  vehicleGate: {
+    backgroundColor: Colors.amberLight, borderRadius: BorderRadius.medium,
+    padding: Spacing.cardPadding, gap: Spacing.sm,
+  },
+  vehicleGateText: { ...Typography.bodySmall, color: Colors.textPrimary },
+  vehicleGateLink: { ...Typography.bodyMedium, color: Colors.primary },
   ctaButton: {},
 });

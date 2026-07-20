@@ -52,6 +52,7 @@ const _verificationRow: VerificationRow = {
   user_id:         'uuid-1',
   id_verified:     false,
   selfie_verified: false,
+  selfie_url:      null,
   verified_at:     null,
 };
 
@@ -76,6 +77,8 @@ const _profileRow: ProfileRow = {
   women_only_mode:    false,
   university_verification_status: 'unverified',
   student_card_url:   null,
+  avatar_url:         null,
+  notification_prefs: {},
 };
 
 const _profileInsert: ProfileInsert = {
@@ -295,6 +298,7 @@ const _bookingRow: BookingRow = {
   chat_status:    'open',
   chat_closed_at: null,
   chat_closed_by: null,
+  payment_intent_id: null,
   created_at:   null,
 };
 

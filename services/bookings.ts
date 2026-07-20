@@ -7,10 +7,16 @@
  *   - Driver cancels: full refund regardless of timing
  *   - Passenger cancels > 24h before departure: full refund
  *   - Passenger cancels ≤ 24h before departure: no refund
+ *   - Driver/vehicle did not match verified details (2A-e): full refund
+ *     regardless of the 24h window + the driver's account is flagged for
+ *     review (handled server-side by the create-refund Edge Function)
  *
- * Refund is issued via a Supabase Edge Function that calls the Stripe Refund API.
- * The Edge Function is stubbed — actual implementation requires the webhook
- * and PaymentIntent ID to be stored on the booking row (Phase 15).
+ * Refunds run through the create-refund Edge Function (deployed): it locates
+ * the booking's PaymentIntent (stored id or Stripe metadata search), refunds
+ * in full with the transfer reversed and platform fee refunded, and treats an
+ * already-refunded charge as success (idempotent retry). A booking that was
+ * never paid (e.g. still pending) reports "no payment found" — that is not an
+ * error for cancellation purposes.
  */
 
 import { supabase } from '../lib/supabase';
@@ -22,6 +28,34 @@ export interface CancellationResult {
   success:   boolean;
   refunded:  boolean;
   message:   string;
+}
+
+export type RefundReason = 'driver_cancelled' | 'passenger_cancelled' | 'driver_mismatch';
+
+type RefundOutcome = 'refunded' | 'no_payment' | 'failed';
+
+/**
+ * Execute a full refund for a booking via the create-refund Edge Function.
+ * The cancellation that triggers this has ALWAYS already committed — so a
+ * refund failure is reported distinctly (the caller tells the user to contact
+ * support) rather than failing the whole cancellation.
+ */
+async function requestRefund(bookingId: string, reason: RefundReason): Promise<RefundOutcome> {
+  try {
+    const { data, error } = await supabase.functions.invoke('create-refund', {
+      body: { bookingId, reason },
+    });
+    if (!error && (data as { refundId?: string } | null)?.refundId) return 'refunded';
+    // supabase-js surfaces non-2xx as FunctionsHttpError; a 404 "no payment"
+    // means the booking was never paid — nothing to refund.
+    const status = (error as { context?: { status?: number } } | null)?.context?.status;
+    if (status === 404) return 'no_payment';
+    console.error('[Bookings] refund failed:', bookingId, reason, error?.message ?? data);
+    return 'failed';
+  } catch (e) {
+    console.error('[Bookings] refund threw:', e instanceof Error ? e.message : e);
+    return 'failed';
+  }
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -87,20 +121,29 @@ export async function cancelRideAsDriver(
     // Cancel all bookings on this ride. A query error here must not be reported
     // as a successful cancellation — passengers would be left thinking their
     // seat is still booked while the driver believes they were refunded.
-    const { error: bookingsErr } = await supabase
+    const { data: cancelledBookings, error: bookingsErr } = await supabase
       .from('bookings')
       .update({ status: 'cancelled' })
       .eq('ride_id', rideId)
-      .in('status', ['pending', 'confirmed']);
+      .in('status', ['pending', 'confirmed'])
+      .select('id');
 
     if (bookingsErr) return { success: false, refunded: false, message: bookingsErr.message };
 
-    // TODO (Phase 15): iterate bookings, call create-refund edge function for each confirmed booking
+    // Full refund for every cancelled booking that was paid. The ride and
+    // bookings are already cancelled — refund failures are collected, not
+    // allowed to flip the cancellation into a phantom failure.
+    let refundFailures = 0;
+    for (const b of cancelledBookings ?? []) {
+      if (await requestRefund(b.id, 'driver_cancelled') === 'failed') refundFailures += 1;
+    }
 
     return {
       success:  true,
-      refunded: true,
-      message:  'Ride cancelled. All passengers will receive a full refund.',
+      refunded: refundFailures === 0,
+      message:  refundFailures === 0
+        ? 'Journey cancelled. All passengers will receive a full refund.'
+        : 'Journey cancelled, but some refunds could not be processed automatically — htwa support will resolve them.',
     };
   } catch (e: unknown) {
     return {
@@ -115,14 +158,18 @@ export async function cancelRideAsDriver(
 
 /**
  * Passenger cancels their booking.
- * Refund eligibility depends on time until departure.
+ * Refund eligibility depends on time until departure — unless the reason is
+ * 'driver_mismatch' ("driver/vehicle did not match verified details", 2A-e),
+ * which is ALWAYS a full refund and flags the driver's account for review
+ * (the Edge Function records the account flag server-side).
  */
 export async function cancelBookingAsPassenger(
   bookingId:         string,
   passengerId:       string,
   departureDateTime: string,
+  reason:            'standard' | 'driver_mismatch' = 'standard',
 ): Promise<CancellationResult> {
-  const refundEligible = isFullRefundEligible(departureDateTime);
+  const refundEligible = reason === 'driver_mismatch' || isFullRefundEligible(departureDateTime);
 
   try {
     // .in('status', ...) guards against re-cancelling an already-cancelled or
@@ -145,14 +192,32 @@ export async function cancelBookingAsPassenger(
 
     await restoreRideSeats(bookingData.ride_id, bookingData.seats_booked);
 
-    // TODO (Phase 15): if refundEligible, call create-refund edge function
+    let refundOutcome: RefundOutcome | null = null;
+    if (refundEligible) {
+      refundOutcome = await requestRefund(
+        bookingId,
+        reason === 'driver_mismatch' ? 'driver_mismatch' : 'passenger_cancelled',
+      );
+    }
+
+    if (reason === 'driver_mismatch') {
+      return {
+        success:  true,
+        refunded: refundOutcome === 'refunded' || refundOutcome === 'no_payment',
+        message:  refundOutcome === 'failed'
+          ? 'Booking cancelled and the driver reported. Your refund could not be processed automatically — htwa support will resolve it.'
+          : 'Booking cancelled and the driver reported. You will receive a full refund.',
+      };
+    }
 
     return {
       success:  true,
-      refunded: refundEligible,
-      message:  refundEligible
-        ? 'Booking cancelled. Full refund issued within 3–5 business days.'
-        : 'Booking cancelled. No refund applies within 24h of departure.',
+      refunded: refundEligible && refundOutcome !== 'failed',
+      message:  !refundEligible
+        ? 'Booking cancelled. No refund applies within 24h of departure.'
+        : refundOutcome === 'failed'
+          ? 'Booking cancelled, but your refund could not be processed automatically — htwa support will resolve it.'
+          : 'Booking cancelled. Full refund issued within 3–5 business days.',
     };
   } catch (e: unknown) {
     return {

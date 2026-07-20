@@ -5,19 +5,28 @@
  * Creates a bookings row (status: pending) and decrements seats_available.
  * Handles duplicate booking gracefully.
  * Routes to /booking-success on completion.
+ *
+ * 2A-c/d: before the booking can proceed the passenger must set the journey's
+ * nominated contact and accept the safety waiver. The acceptance row is
+ * recorded FIRST — book_ride() itself refuses to book without it
+ * ('waiver_required'), so the gate is DB-enforced, not just UI.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../components/Button';
+import { WaiverAcceptance } from '../components/WaiverAcceptance';
+import { NominatedContactCard } from '../components/NominatedContactCard';
 import { formatCurrency } from '../utils/currency';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { hasAcceptedWaiver, recordWaiverAcceptance } from '../services/waivers';
+import type { JourneyContactRow } from '../types/database';
 
 export default function BookingRequestScreen(): React.ReactElement {
   const router = useRouter();
@@ -28,17 +37,44 @@ export default function BookingRequestScreen(): React.ReactElement {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error,        setError]        = useState<string | null>(null);
+  const [waiverAccepted, setWaiverAccepted] = useState(false);
+  const [alreadyAccepted, setAlreadyAccepted] = useState(false);
+  const [contact, setContact] = useState<JourneyContactRow | null>(null);
 
   const seats        = parseInt(params.seats ?? '1', 10);
   const pricePerSeat = parseFloat(params.pricePerSeat ?? '0');
   const currency     = (params.currency ?? 'EUR') as 'EUR' | 'GBP';
   const total        = pricePerSeat * seats;
 
+  // Idempotent re-entry: a prior acceptance for this journey still counts.
+  useEffect(() => {
+    if (!user || !params.rideId) return;
+    void hasAcceptedWaiver(user.id, params.rideId, 'passenger').then((accepted) => {
+      if (accepted) { setAlreadyAccepted(true); setWaiverAccepted(true); }
+    });
+  }, [user, params.rideId]);
+
   const handleConfirm = async () => {
     if (!user || !params.rideId) return;
     setError(null);
+    if (!contact) {
+      setError('Add your nominated contact for this journey before booking.');
+      return;
+    }
+    if (!waiverAccepted) {
+      setError('You must read and accept the safety acknowledgment to book.');
+      return;
+    }
     setIsSubmitting(true);
     try {
+      // Record the waiver acceptance BEFORE booking — book_ride requires it.
+      if (!alreadyAccepted) {
+        const waiverRes = await recordWaiverAcceptance({
+          userId: user.id, role: 'passenger', rideId: params.rideId,
+        });
+        if (!waiverRes.ok) { setError(waiverRes.message); return; }
+        setAlreadyAccepted(true);
+      }
       // Guard against re-submitting an already-active booking (a fresh book_ride
       // call would decrement seats again). A cancelled booking is fine to revive —
       // the RPC's ON CONFLICT path re-activates it.
@@ -63,9 +99,13 @@ export default function BookingRequestScreen(): React.ReactElement {
       });
       if (rpcErr) {
         setError(
-          rpcErr.message.includes('not_enough_seats')
-            ? 'Sorry, there aren’t enough seats left on this ride.'
-            : rpcErr.message,
+          rpcErr.message.includes('not_enough_seats') ? 'Sorry, there aren’t enough seats left on this journey.'
+          : rpcErr.message.includes('waiver_required') ? 'You must accept the safety acknowledgment to book.'
+          : rpcErr.message.includes('women_only') ? 'This is a women-only journey.'
+          : rpcErr.message.includes('already_booked') ? 'You have already requested to join this journey.'
+          : rpcErr.message.includes('ride_departed') ? 'This journey has already departed.'
+          : rpcErr.message.includes('ride_not_bookable') ? 'This journey can no longer be booked.'
+          : rpcErr.message,
         );
         return;
       }
@@ -102,12 +142,28 @@ export default function BookingRequestScreen(): React.ReactElement {
         </View>
       </View>
 
+      {/* Per-journey nominated contact (2A-c) */}
+      {user && params.rideId && (
+        <NominatedContactCard
+          rideId={params.rideId}
+          userId={user.id}
+          editable
+          onContact={setContact}
+          testID="booking-contact-card"
+        />
+      )}
+
+      {/* Safety acknowledgment (2A-d) */}
+      {!alreadyAccepted && (
+        <WaiverAcceptance role="passenger" accepted={waiverAccepted} onChange={setWaiverAccepted} />
+      )}
+
       {error && <Text style={styles.errorText} testID="booking-error">{error}</Text>}
 
       <Button
         title={isSubmitting ? 'Requesting…' : 'Request to join'}
         onPress={handleConfirm}
-        disabled={isSubmitting}
+        disabled={isSubmitting || !waiverAccepted || !contact}
         testID="confirm-button"
       />
     </ScrollView>

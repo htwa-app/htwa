@@ -65,4 +65,19 @@ Things only you can do. Each entry says exactly what I need, how to get it, and 
 
 ---
 
+## 5. Host the tracking web page at htwa-app.com/track
+
+**I need:** the file `web/track.html` (in the repo) uploaded to wherever htwa-app.com is hosted, reachable at `https://htwa-app.com/track`.
+
+**Get it by:**
+1. Log in to wherever you bought/manage htwa-app.com (your domain registrar or hosting).
+2. If you don't have hosting yet, the free easy option is Cloudflare Pages: go to https://pages.cloudflare.com → sign up → "Upload assets" → drag in the `web` folder from `~/Documents/HTWA` → name the project `htwa` → deploy → then add your domain htwa-app.com under Custom domains.
+3. The page must be reachable at `https://htwa-app.com/track` (Cloudflare Pages: rename `track.html` to `track/index.html` when uploading, or just tell Claude which host you chose and Claude will prepare the exact upload).
+
+**Unblocks:** the safety-contact web link. Right now, when a nominated contact WITHOUT the htwa app taps the tracking link in an SMS, nothing is hosted at that address. Contacts WITH the app already get the in-app live view. (The page itself is finished and tested — it only needs hosting.)
+
+---
+
 *Entries are appended as new blockers are hit; nothing above stops the build — every feature behind these has a graceful fallback.*
+
+**Note on Stripe (updated 19 Jul):** test-mode payments are fully working end-to-end — I verified a real test-card charge with the 10% platform fee, a driver-mismatch full refund, and idempotent refund retries against the live backend tonight. Item 2 above only matters when real money starts.

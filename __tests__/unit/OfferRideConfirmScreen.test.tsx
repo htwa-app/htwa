@@ -18,15 +18,51 @@ jest.mock('@expo/vector-icons', () => {
   return { Ionicons: (p: Record<string, unknown>) => <View testID={`icon-${p.name}`} /> };
 });
 
-const mockInsert = jest.fn();
+const mockInsert = jest.fn();          // rides insert (payload capture)
+const mockInsertResult = jest.fn();    // resolved value of insert().select('id').single()
+const mockVehicleFetch = jest.fn();    // profiles vehicle-details check (2A-a)
 jest.mock('../../lib/supabase', () => ({
-  supabase: { from: () => ({ insert: (...args: unknown[]) => mockInsert(...args) }) },
+  supabase: {
+    from: (table: string) => {
+      if (table === 'profiles') {
+        return { select: () => ({ eq: () => ({ maybeSingle: (...a: unknown[]) => mockVehicleFetch(...a) }) }) };
+      }
+      return {
+        insert: (...args: unknown[]) => {
+          mockInsert(...args);
+          return { select: () => ({ single: () => mockInsertResult() }) };
+        },
+      };
+    },
+  },
 }));
 
 // Change 2 — client-side overlap check (isolated here; its own unit test covers logic)
 const mockCheckOverlap = jest.fn();
 jest.mock('../../services/journeyConflicts', () => ({
   checkDriverOverlap: (...a: unknown[]) => mockCheckOverlap(...a),
+}));
+
+// 2A-d: waiver stub (toggle) + acceptance recorder; contact seeding stubs.
+jest.mock('../../components/WaiverAcceptance', () => {
+  const { View, TouchableOpacity } = require('react-native');
+  return {
+    WaiverAcceptance: (p: { accepted: boolean; onChange: (v: boolean) => void }) => (
+      <View testID="waiver-acceptance">
+        <TouchableOpacity testID="waiver-toggle" onPress={() => p.onChange(!p.accepted)} />
+      </View>
+    ),
+  };
+});
+const mockRecordWaiver = jest.fn();
+jest.mock('../../services/waivers', () => ({
+  recordWaiverAcceptance: (...a: unknown[]) => mockRecordWaiver(...a),
+}));
+const mockGetDefaultContact = jest.fn();
+const mockSetJourneyContact = jest.fn();
+jest.mock('../../services/tracking', () => ({
+  getDefaultContact: (...a: unknown[]) => mockGetDefaultContact(...a),
+  setJourneyContact: (...a: unknown[]) => mockSetJourneyContact(...a),
 }));
 
 const mockUseAuth = jest.fn();
@@ -39,12 +75,26 @@ const BASE_PARAMS = {
   seats: '3', pricePerSeat: '10.75', currency: 'EUR', distanceKm: '208', womenOnly: 'false',
 };
 
+const COMPLETE_VEHICLE = { make: 'Toyota', model: 'Corolla', colour: 'Red', registration: '191-D-1' };
+
+/** Accept the driver waiver via the stubbed checkbox. */
+const acceptWaiver = () => fireEvent.press(screen.getByTestId('waiver-toggle'));
+
+/** Wait for the vehicle gate check to clear so the post button can enable. */
+const waitForVehicleOk = async () =>
+  waitFor(() => expect(screen.queryByTestId('vehicle-incomplete')).toBeNull());
+
 beforeEach(() => {
   jest.clearAllMocks();
   mockParams = { ...BASE_PARAMS };
   mockUseAuth.mockReturnValue({ user: { id: 'u1' } });
-  mockInsert.mockResolvedValue({ error: null });
+  mockInsert.mockReturnValue(undefined);
+  mockInsertResult.mockResolvedValue({ data: { id: 'ride-new' }, error: null });
+  mockVehicleFetch.mockResolvedValue({ data: { vehicle_details: COMPLETE_VEHICLE }, error: null });
   mockCheckOverlap.mockResolvedValue({ ok: true });
+  mockRecordWaiver.mockResolvedValue({ ok: true });
+  mockGetDefaultContact.mockResolvedValue({ name: 'Mam', phone: '+353871' });
+  mockSetJourneyContact.mockResolvedValue({ ok: true, contact: { id: 'jc-1' } });
 });
 
 describe('OfferRideConfirmScreen', () => {
@@ -70,6 +120,8 @@ describe('OfferRideConfirmScreen', () => {
 
   it('inserts the ride with the correct payload and navigates on success', async () => {
     render(<OfferRideConfirmScreen />);
+    await waitForVehicleOk();
+    acceptWaiver();
     fireEvent.press(screen.getByTestId('post-button'));
     await waitFor(() => expect(mockInsert).toHaveBeenCalled());
     const payload = mockInsert.mock.calls[0][0];
@@ -90,11 +142,41 @@ describe('OfferRideConfirmScreen', () => {
     expect(payload.departure_datetime).toBe(expectedISO);
     expect(payload.departure_datetime).toBe(mockCheckOverlap.mock.calls[0][1]);
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/ride-posted'));
+    // 2A-d: driver acceptance recorded against the posted journey.
+    expect(mockRecordWaiver).toHaveBeenCalledWith({ userId: 'u1', role: 'driver', rideId: 'ride-new' });
+    // 2A-c: journey contact seeded from the driver's default.
+    expect(mockSetJourneyContact).toHaveBeenCalledWith('ride-new', 'u1', { name: 'Mam', phone: '+353871' });
+  });
+
+  it('cannot post without accepting the driver acknowledgment', async () => {
+    render(<OfferRideConfirmScreen />);
+    await waitForVehicleOk();
+    fireEvent.press(screen.getByTestId('post-button'));
+    expect(mockInsert).not.toHaveBeenCalled();
+  });
+
+  it('incomplete vehicle details block posting with a link to complete them (2A-a)', async () => {
+    mockVehicleFetch.mockResolvedValue({ data: { vehicle_details: { make: 'Toyota', model: 'Corolla' } }, error: null });
+    render(<OfferRideConfirmScreen />);
+    await waitFor(() => expect(screen.getByTestId('vehicle-incomplete')).toBeTruthy());
+    acceptWaiver();
+    fireEvent.press(screen.getByTestId('post-button'));
+    expect(mockInsert).not.toHaveBeenCalled();
+  });
+
+  it('a failed vehicle check blocks posting with retry — never silently passes', async () => {
+    mockVehicleFetch.mockResolvedValueOnce({ data: null, error: { message: 'down' } });
+    render(<OfferRideConfirmScreen />);
+    await waitFor(() => expect(screen.getByTestId('vehicle-check-error')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('vehicle-check-retry'));
+    await waitFor(() => expect(screen.queryByTestId('vehicle-check-error')).toBeNull());
   });
 
   it('shows an error and does not navigate when insert fails', async () => {
-    mockInsert.mockResolvedValue({ error: { message: 'DB down' } });
+    mockInsertResult.mockResolvedValue({ data: null, error: { message: 'DB down' } });
     render(<OfferRideConfirmScreen />);
+    await waitForVehicleOk();
+    acceptWaiver();
     fireEvent.press(screen.getByTestId('post-button'));
     await waitFor(() => expect(screen.getByTestId('post-error')).toHaveTextContent('DB down'));
     expect(mockReplace).not.toHaveBeenCalled();
@@ -103,6 +185,8 @@ describe('OfferRideConfirmScreen', () => {
   it('includes window_end + duration in the payload (Change 2)', async () => {
     mockParams = { ...BASE_PARAMS, durationSeconds: '3600' };
     render(<OfferRideConfirmScreen />);
+    await waitForVehicleOk();
+    acceptWaiver();
     fireEvent.press(screen.getByTestId('post-button'));
     await waitFor(() => expect(mockInsert).toHaveBeenCalled());
     const payload = mockInsert.mock.calls[0][0];
@@ -114,6 +198,8 @@ describe('OfferRideConfirmScreen', () => {
   it('blocks posting and shows the conflict message when journeys overlap (Change 2)', async () => {
     mockCheckOverlap.mockResolvedValue({ ok: false, message: 'This overlaps your Derry → Dublin journey at 11:00.' });
     render(<OfferRideConfirmScreen />);
+    await waitForVehicleOk();
+    acceptWaiver();
     fireEvent.press(screen.getByTestId('post-button'));
     await waitFor(() => expect(screen.getByTestId('post-error')).toHaveTextContent(/overlaps your Derry/));
     expect(mockInsert).not.toHaveBeenCalled();

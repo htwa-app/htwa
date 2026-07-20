@@ -32,6 +32,16 @@ jest.mock('../../lib/supabase', () => ({
   },
 }));
 
+// Live selfie capture + upload (2A-b) — required before verification proceeds.
+const mockCaptureSelfie = jest.fn();
+jest.mock('../../services/imagePicker', () => ({
+  captureVerificationSelfie: (...a: unknown[]) => mockCaptureSelfie(...a),
+}));
+const mockUploadSelfie = jest.fn();
+jest.mock('../../services/verificationSelfie', () => ({
+  uploadVerificationSelfie: (...a: unknown[]) => mockUploadSelfie(...a),
+}));
+
 beforeEach(() => {
   jest.clearAllMocks();
   // Default: logged-in user
@@ -43,6 +53,9 @@ beforeEach(() => {
   // Default: upsert succeeds
   mockUpsert.mockResolvedValue({ error: null });
   mockRefreshVerification.mockResolvedValue(undefined);
+  // Default: selfie captured + uploaded successfully
+  mockCaptureSelfie.mockResolvedValue(new Uint8Array([1, 2, 3]));
+  mockUploadSelfie.mockResolvedValue({ ok: true, path: 'user-123/selfie-1.jpg' });
 });
 
 // ─── Smoke ────────────────────────────────────────────────────────────────────
@@ -147,5 +160,33 @@ describe('IdVerifyScreen — error', () => {
       expect(screen.getByTestId('id-verify-message')).toBeTruthy(),
     );
     expect(mockReplace).not.toHaveBeenCalledWith('/profile-setup');
+  });
+});
+
+// ─── Live selfie (2A-b) ───────────────────────────────────────────────────────
+
+describe('IdVerifyScreen — live selfie', () => {
+  it('blocks verification when the selfie is cancelled / permission denied', async () => {
+    mockCaptureSelfie.mockResolvedValue(null);
+    render(<IdVerifyScreen />);
+    fireEvent.press(screen.getByRole('button', { name: 'Start verification' }));
+    await waitFor(() => expect(screen.getByTestId('id-verify-message')).toHaveTextContent(/selfie is required/i));
+    expect(mockUpsert).not.toHaveBeenCalled();
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('blocks verification when the selfie upload fails', async () => {
+    mockUploadSelfie.mockResolvedValue({ ok: false, reason: 'upload_failed' });
+    render(<IdVerifyScreen />);
+    fireEvent.press(screen.getByRole('button', { name: 'Start verification' }));
+    await waitFor(() => expect(screen.getByTestId('id-verify-message')).toHaveTextContent(/could not save your selfie/i));
+    expect(mockUpsert).not.toHaveBeenCalled();
+  });
+
+  it('uploads the live selfie before writing verification', async () => {
+    render(<IdVerifyScreen />);
+    fireEvent.press(screen.getByRole('button', { name: 'Start verification' }));
+    await waitFor(() => expect(mockUploadSelfie).toHaveBeenCalledWith('user-123', expect.any(Uint8Array)));
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/profile-setup'));
   });
 });

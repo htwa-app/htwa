@@ -5,6 +5,8 @@ module.exports = {
   moduleNameMapper: {
     '@react-native-async-storage/async-storage':
       require.resolve('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+    '@react-native-community/netinfo':
+      require.resolve('@react-native-community/netinfo/jest/netinfo-mock.js'),
   },
   testMatch: [
     '**/__tests__/**/*.test.(ts|tsx)',

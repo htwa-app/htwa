@@ -4,6 +4,58 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 18–19 July 2026 — Overnight autonomous full-sweep (branch `feat/full-sweep`, PR to follow #27)
+
+Overnight run on `feat/full-sweep` (branched off `feat/journey-overhaul` — **must merge AFTER PR #27**, then this branch soft-reset-rebases per the squash-merge lesson). **Nothing merged to main.** `tsc --noEmit`: 0 errors throughout. Jest: **1021 → 1153 passing** (net 1103 after dead-code removal; every block committed tsc-0 + suite-green). All 8 migrations written AND applied+verified to the live DB; all 7 Edge Functions deployed and test-invoked against the real backend.
+
+### 1. External services — all Edge Functions deployed & verified live ✅
+- Deployed: `create-connect-account` (rewritten to match the app's `{userId}→{url}` contract, reuses accounts, https return URLs — Stripe rejects custom schemes), `create-payment-intent` (**amount now computed server-side** from booking+pricing_config mirroring pricingEngine exactly; client value cross-checked, 409 on mismatch; Connect destination from payment_accounts, never the client; PI id recorded on the booking), `create-setup-intent`, `create-refund` (full refund + transfer reversal + fee refund; `driver_mismatch` flags the driver in `account_flags`; already-refunded = idempotent success), `get-transactions` (Stripe search + refunds), `send-tracking-alert` (Twilio SMS; graceful `{ok:false,reason:'unavailable'}` until creds land), `delete-account` (§7A anonymise-in-place). All JWT-authenticated via shared `_shared/auth.ts` — client-supplied user ids are verified, never trusted.
+- 9/9 authenticated function tests passed live, incl. a real Stripe SetupIntent and a Connect Express onboarding URL (test mode works; Connect platform-profile completion only needed for live money).
+
+### 2. Safety suite ✅ (verified with 24/24 live e2e checks against the real DB)
+- **Migrations (applied):** `trip_locations` (+Realtime, RLS: driver-only insert while in_progress; participants+linked contacts read), `journey_contacts` (per-journey nominated contact, unique tracking token, expiry trigger on completion), `trip_alerts` (append-only audit — no UPDATE/DELETE policies), `get_tracking_snapshot(token)` anon RPC (token is the credential), rides gained `in_progress` status.
+- **`services/tracking.ts`:** contact management (last-used → profile default pre-fill), throttled location publishing with last-known retention, `raiseAlert` (audit-insert-first; realtime + SMS channels recorded), silent `sendSOS` (live GPS → last-published → last-persisted fallback).
+- **`utils/routeCorridor.ts`:** off-course detection — generous straight-line corridor until the Maps key lands, sustained-deviation state machine (6 consecutive samples ≈ 90s), flags exactly once.
+- **Live Trip screen rewritten:** driver start/complete lifecycle (zero-row-guarded), publishing + corridor monitoring while in progress, silent SOS with subtle confirmation, per-journey NominatedContactCard, tokenised share link, passenger live/signal-lost view, watch-cards for journeys you're the nominated contact of.
+- **`app/track/[token].tsx` + `web/track.html`:** tokenised tracking (in-app + static web page for contacts without the app) — live, signal-lost with last-seen time+position, completed, expired-token, invalid-token, SOS/off-course banners. Web page needs hosting (BLOCKERS #5).
+- Live-verified: waiver gate, women-only enforcement inside the RPC, immutable audit, RLS grants/denials, token expiry on completion, anon snapshot.
+
+### 2A. Verification disclosure + waiver flow ✅
+- Vehicle details: `registration` added; make/model/colour/registration required to save and DB-checked before posting (offer-confirm gate with retry).
+- **"Verify your driver" panel** (photo/name/gender/vehicle+reg) via `get_driver_disclosure` RPC — server-enforced to booked passengers of that journey only; selfie storage RLS-gated the same way. Shown on booking-success, ride detail (booked), live-trip.
+- **Live selfie:** id-verify now REQUIRES a front-camera live capture (camera-only picker, never an upload), stored versioned in `verification-selfies`.
+- **Waiver:** verbatim in-app text from `legal/verification-responsibility-waiver.md` (drift-guarded by a test, incl. the pending-adviser marker); `waiver_acceptances` immutable records; **`book_ride()` raises `waiver_required`** — DB-enforced, not just UI. Driver-side acknowledgment before posting; journey contact seeded from default on post.
+- **`book_ride()` hardening** (found while wiring): the SECURITY DEFINER RPC bypassed ALL the RLS guards — women-only, identity, status, departure, self-book, double-book were enforceable only via direct-insert policies it skipped. All now enforced inside the function.
+- Driver-mismatch cancellation: full refund regardless of 24h window + `account_flags` review record; reachable from ride detail's cancel dialog.
+
+### 3. Core loops closed end-to-end ✅ (18/18 live e2e)
+post → search → waiver+book (seats decrement at request) → accept → **pay** (tamper 409; correct amount; real test-card charge; 10% fee verified to the cent) → transaction history (payment+refund; Stripe search indexing lags ~1min) → driver-mismatch refund + flag + idempotent retry → in_progress → completed → both parties review → rollup readable.
+- **Reviews rollup (Stages 56–57):** `services/reviews.ts` + real Rating/Trips/Reviews stats and review lists on user-profile and profile tab.
+- **Notification triggers:** `hooks/useRealtimeNotifications` (mounted in tabs layout) — RLS-scoped realtime → local notifications for new booking requests (driver), accept/decline (passenger), SOS/off-course (nominated contact); respects notification_prefs. Cross-device push needs APNs/FCM (BLOCKERS #4).
+- **Payment entry point:** confirmed bookings show "Pay €X" on ride detail (payment screen was previously unreachable). Driver "Cancel this journey" (full refunds) on booking-requests.
+- **Realtime publication fix:** `messages` was NEVER in the supabase_realtime publication — live chat updates silently never arrived since Stage 44. Fixed (+ `bookings` for notifications).
+- **Ride-visibility RLS fix:** booked passengers lost ride SELECT the moment a ride left `active` (full/in_progress/completed/cancelled) — pre-existing bug; fixed with SECURITY DEFINER helpers after the first attempt exposed rides↔bookings policy recursion (42P17).
+
+### 4. Native modules ✅
+`expo-image-picker` (library picker for student card + profile photo; camera-only live selfie), `@react-native-community/datetimepicker` (`DateTimeField` keeps YYYY-MM-DD / HH:MM contracts; offer-journey + search), `react-native-maps` (`JourneyMap` renders real map only when `EXPO_PUBLIC_GOOGLE_MAPS_KEY` exists, lazy-required; live-trip), `@react-native-community/netinfo` (offline banner). Avatars: `profiles.avatar_url` + private bucket + signed-URL display in edit-profile. Upcoming journeys: my-rides reachable from Profile AND now History.
+
+### 5. Settings screen ✅
+Real settings: notification prefs (`profiles.notification_prefs`), default nominated contact, women-only mode toggle (female users), currency EUR/GBP, sign out, **delete account** (§7A anonymise-in-place via Edge Function: users row tombstoned, identifying fields cleared, photos removed, auth user deleted), legal links. **In-app legal viewer** (`app/legal/[doc]`) renders Terms/Privacy/Safety Pledge byte-identical from `legal/` (drift-guarded); login's dead Terms/Safety-Pledge links fixed.
+
+### 6. Gap sweep ✅
+Driver-side chat list in History (one chat per confirmed passenger); global OfflineBanner in the root layout; **OTP email fix:** the confirmation template still sent a ConfirmationURL link (the verify-screen resend path would have emailed a dead link) — both templates now send the 6-digit code, expiry 3600s→900s; dead code removed (`app/home.tsx`, `utils/tracking.ts`); TODOs triaged (OAuth/Stripe Identity/OCR are Phase 15 + BLOCKERS).
+
+### Files created
+`BLOCKERS-FOR-JORDAN.md`, `app/legal/[doc].tsx`, `app/track/[token].tsx`, `components/DateTimeField.tsx`, `components/DriverVerifyPanel.tsx`, `components/JourneyMap.tsx`, `components/NominatedContactCard.tsx`, `components/OfflineBanner.tsx`, `components/WaiverAcceptance.tsx`, `constants/legalDocs.ts`, `constants/legalWaiver.ts`, `hooks/useRealtimeNotifications.ts`, `services/avatar.ts`, `services/reviews.ts`, `services/tracking.ts`, `services/verificationSelfie.ts`, `services/waivers.ts`, `supabase/functions/_shared/auth.ts`, `supabase/functions/{create-refund,create-setup-intent,delete-account,get-transactions,send-tracking-alert}/index.ts`, `supabase/migrations/20260719000001..8` (safety suite, disclosure/waiver, book_ride hardening, ride visibility, RLS recursion fix, avatars, notification prefs, realtime publication), `utils/routeCorridor.ts`, `web/track.html`, tests: `DriverVerifyPanel/LegalDocScreen/NominatedContactCard/TrackingScreen/legalDocs/legalWaiver/reviewsService/routeCorridor/trackingService` + legal docs (`legal/ADVISER-BRIEFING.md`, `legal/verification-responsibility-waiver.md` — from the legal session, committed here).
+
+### Files modified
+`app.json`, `app/(tabs)/{_layout,history,index,live-trip,profile}.tsx`, `app/_layout.tsx`, `app/booking-request.tsx`, `app/booking-requests/[rideId].tsx`, `app/booking-success.tsx`, `app/edit-profile.tsx`, `app/id-verify.tsx`, `app/login.tsx`, `app/my-rides.tsx`, `app/offer-ride-confirm.tsx`, `app/offer-ride.tsx`, `app/ride/[id].tsx`, `app/settings.tsx`, `app/user-profile/[id].tsx`, `app/vehicle-details.tsx`, `app/verify.tsx`, `jest.config.js`, `legal/{privacy-policy,terms-of-service}.md`, `package.json`, `package-lock.json`, `services/{bookings,imagePicker}.ts`, `supabase/functions/{create-connect-account,create-payment-intent}/index.ts`, `types/database.ts`, ~20 test files. Deleted: `app/home.tsx`, `utils/tracking.ts` + 3 test files.
+
+### Human tasks (see BLOCKERS-FOR-JORDAN.md for exact steps)
+1. Google Maps API key  2. Stripe Connect platform profile (live mode only — test mode verified working)  3. Twilio credentials (SMS to contacts)  4. Apple/Google developer accounts (push + stores)  5. Host `web/track.html` at htwa-app.com/track.
+
+---
+
 ## 14 July 2026 — Resumption session: repo health, Stripe fix, error hardening, booking-acceptance screen
 
 Resumption after ~3.5 weeks of inactivity. Branch `feat/journey-overhaul` (PR [#27](https://github.com/htwa-app/htwa/pull/27)); **not merged to main** — merging only happens after CodeRabbit is clean and Jordan has done the hands-on cold-start test. `tsc --noEmit`: **0 errors** throughout. Jest: **894 → 972 passing** (start-of-session baseline was actually 921, already ahead of the 894 figure quoted at the start of this session — later commits between sessions had already progressed further than CLAUDE.md's last update reflected).

@@ -13,6 +13,7 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing } from '../../constants/theme';
+import { useRealtimeNotifications } from '../../hooks/useRealtimeNotifications';
 
 // ─── Spec-local constants ─────────────────────────────────────────────────────
 
@@ -70,6 +71,9 @@ export const TAB_SCREEN_OPTIONS = {
 // ─── Navigator ────────────────────────────────────────────────────────────────
 
 export default function TabLayout(): React.ReactElement {
+  // In-app notification triggers (booking requests/decisions, safety alerts)
+  // — local delivery until APNs/FCM land (BLOCKERS-FOR-JORDAN.md).
+  useRealtimeNotifications();
   return (
     <Tabs screenOptions={TAB_SCREEN_OPTIONS}>
       {TAB_SCREENS.map(({ name, title, icon, outlineIcon }) => (

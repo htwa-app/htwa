@@ -34,6 +34,20 @@ jest.mock('../../lib/supabase', () => ({
 const mockUseAuth = jest.fn();
 jest.mock('../../context/AuthContext', () => ({ useAuth: () => mockUseAuth() }));
 
+// Pickers + avatar service — native modules, mocked (their own logic is thin).
+const mockPickStudentCard = jest.fn();
+const mockPickProfilePhoto = jest.fn();
+jest.mock('../../services/imagePicker', () => ({
+  pickStudentCardImage: (...a: unknown[]) => mockPickStudentCard(...a),
+  pickProfilePhoto: (...a: unknown[]) => mockPickProfilePhoto(...a),
+}));
+const mockUploadAvatar = jest.fn();
+const mockGetAvatarUrl = jest.fn();
+jest.mock('../../services/avatar', () => ({
+  uploadAvatar: (...a: unknown[]) => mockUploadAvatar(...a),
+  getAvatarUrl: (...a: unknown[]) => mockGetAvatarUrl(...a),
+}));
+
 beforeEach(() => {
   jest.clearAllMocks();
   mockUseAuth.mockReturnValue({ user: { id: 'user-123' } });
@@ -42,6 +56,10 @@ beforeEach(() => {
     error: null,
   });
   mockUpsertImpl.mockResolvedValue({ error: null });
+  mockPickStudentCard.mockResolvedValue(null);
+  mockPickProfilePhoto.mockResolvedValue(null);
+  mockUploadAvatar.mockResolvedValue({ ok: true, path: 'user-123/avatar-1.jpg' });
+  mockGetAvatarUrl.mockResolvedValue(null);
 });
 
 import EditProfileScreen from '../../app/edit-profile';
@@ -176,11 +194,30 @@ describe('EditProfileScreen — Block 6 university verification', () => {
     await waitFor(() => expect(screen.getByTestId('uni-status')).toHaveTextContent('Pending review'));
   });
 
-  it('shows the native-module note when the picker is unavailable', async () => {
+  it('shows the no-photo note when the picker returns nothing (cancel/denied)', async () => {
     render(<EditProfileScreen />);
     await waitFor(() => expect(screen.getByTestId('upload-student-card')).toBeTruthy());
     fireEvent.press(screen.getByTestId('upload-student-card'));
-    await waitFor(() => expect(screen.getByTestId('upload-note')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('upload-note')).toHaveTextContent(/no photo selected/i));
+  });
+
+  it('picks and uploads a profile photo, then shows it', async () => {
+    mockPickProfilePhoto.mockResolvedValue(new Uint8Array([1]));
+    mockGetAvatarUrl.mockResolvedValue('https://signed/avatar.jpg');
+    render(<EditProfileScreen />);
+    await waitFor(() => expect(screen.getByTestId('photo-picker')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('photo-picker'));
+    await waitFor(() => expect(mockUploadAvatar).toHaveBeenCalledWith('user-123', expect.any(Uint8Array)));
+    await waitFor(() => expect(screen.getByTestId('profile-photo')).toBeTruthy());
+  });
+
+  it('a failed avatar upload shows an error, not a silent no-op', async () => {
+    mockPickProfilePhoto.mockResolvedValue(new Uint8Array([1]));
+    mockUploadAvatar.mockResolvedValue({ ok: false, message: 'denied' });
+    render(<EditProfileScreen />);
+    await waitFor(() => expect(screen.getByTestId('photo-picker')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('photo-picker'));
+    await waitFor(() => expect(screen.getByTestId('avatar-error')).toBeTruthy());
   });
 
   it('centres the input text', async () => {

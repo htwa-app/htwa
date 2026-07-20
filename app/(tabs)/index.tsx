@@ -22,6 +22,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { RouteInput } from '../../components/RouteInput';
+import { DateTimeField } from '../../components/DateTimeField';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import {
@@ -130,14 +131,15 @@ export default function SearchScreen(): React.ReactElement {
             testID="search-route-input"
           />
 
-          {/* When */}
+          {/* When — native calendar picker (value contract unchanged: YYYY-MM-DD) */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>When do you want to travel?</Text>
-            <Input
-              placeholder="Date (YYYY-MM-DD)"
+            <DateTimeField
+              mode="date"
               value={date}
-              onChangeText={setDate}
-              keyboardType="numbers-and-punctuation"
+              onChange={setDate}
+              placeholder="Pick a date"
+              minimumDate={new Date()}
               testID="search-date-input"
             />
           </View>

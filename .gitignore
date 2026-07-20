@@ -60,3 +60,6 @@ google-service-account.json
 
 # EAS submission credentials — Apple ASC API key (*.p8 already covered above);
 # Play service-account JSON already covered above. Listed here for clarity.
+
+# Generated deliverables
+htwa-legal-pack.pdf
