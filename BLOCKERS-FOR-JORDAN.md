@@ -121,6 +121,18 @@ Only the dashboard/service role can set either status to approved — the app ph
 
 ---
 
+## 8. CodeRabbit review debt — 5 of 6 stacked PRs still need `@coderabbitai full review` triggered (2 minutes)
+
+**Why:** PR #28 (`feat/full-sweep`) grew to 184 files — over CodeRabbit's 100-file review cap — so tonight I split it into 6 stacked PRs along the existing commit history's natural boundaries (each based on the previous, so every PR's diff is just its own segment, all under the cap): #29 (80 files), #30 (44), #31 (83), #32 (38), #33 (54), #34 (26, top of the branch).
+
+I triggered `@coderabbitai full review` on all 6. Only #29 could actually run — CodeRabbit's plan (Pro Plus) rate-limits full reviews, and #30–#34 all came back "Review limit reached... next review available in 59 minutes." This is a plan-level cooldown, not something I can bypass by retrying sooner.
+
+**What to do:** the fastest fix is to comment `@coderabbitai full review` on #30, then #31, then #32, #33, #34, waiting ~60 minutes between each (or just do it once an hour through the day — they don't expire). Once each posts its findings, triage per the usual rule: fix real issues, dismiss noise with a one-line reason, merge only once every PR in the stack is clean (base branches first, since each depends on the one before it).
+
+**Unblocks:** actually clearing the review debt that's been deferred since PR #8 — this is the first time it's been attempted at all this branch's size.
+
+---
+
 *Entries are appended as new blockers are hit; nothing above stops the build — every feature behind these has a graceful fallback.*
 
 **Note on Stripe (updated 19 Jul):** test-mode payments are fully working end-to-end — I verified a real test-card charge with the 10% platform fee, a driver-mismatch full refund, and idempotent refund retries against the live backend tonight. Item 2 above only matters when real money starts.

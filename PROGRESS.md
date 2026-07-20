@@ -4,6 +4,83 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 20 July 2026 — OVERNIGHT RUN, Block 4: split PR #28 into 6 stacked PRs + CodeRabbit (branch `feat/full-sweep`, PR #28)
+
+Explicitly the priority tiebreaker in Jordan's overnight brief ("if the night runs short, this matters more than blocks 5–7"). `feat/full-sweep` had grown to 184 files against `main` — over CodeRabbit's 100-file review cap — with the stacked-PR plan never executed. Did it tonight.
+
+### What was done
+Confirmed the branch's 79 commits are fully linear (no merges), so split it at 6 natural commit boundaries — each a `docs:`/completed-feature commit already known to be tsc/Jest-green from when it originally landed:
+
+| PR | Branch | Range | Files |
+|----|--------|-------|-------|
+| [#29](https://github.com/htwa-app/htwa/pull/29) | `stack/01-supabase-restore` | `main..417a848` | 80 |
+| [#30](https://github.com/htwa-app/htwa/pull/30) | `stack/02-edge-functions` | `417a848..fadcff2` | 44 |
+| [#31](https://github.com/htwa-app/htwa/pull/31) | `stack/03-overnight-docs` | `fadcff2..99c1309` | 83 |
+| [#32](https://github.com/htwa-app/htwa/pull/32) | `stack/04-driver-alert-fix` | `99c1309..6582a79` | 38 |
+| [#33](https://github.com/htwa-app/htwa/pull/33) | `stack/05-maps-followthrough` | `6582a79..0d55a9f` | 54 |
+| [#34](https://github.com/htwa-app/htwa/pull/34) | `stack/06-android-parity` | `0d55a9f..32cfbf8` (HEAD) | 26 |
+
+Each PR's base is the previous stack branch (not `main`), so GitHub shows only that segment's incremental diff, all comfortably under the 100-file cap. Triggered `@coderabbitai full review` on all 6.
+
+### Result — partial, blocked on CodeRabbit's own rate limit
+Only #29 could actually start a review; #30–#34 all came back "Review limit reached... next review available in 59 minutes" — a Pro Plus plan-level cooldown between full reviews, not something retriable sooner. **Full detail and the exact re-trigger steps are in BLOCKERS-FOR-JORDAN.md item 8.** #29's review was still processing (79 files) when this entry was written — its findings haven't been triaged yet either.
+
+### Nothing merged
+Per standing rule, none of these 6 PRs (or #28 itself) were touched with `git merge`/`gh pr merge` — that's Jordan's call once each is clean.
+
+### What's NOT done yet (be honest)
+- Zero CodeRabbit findings have actually been triaged — the rate limit means this genuinely could not be completed tonight, not that it was skipped.
+- The base-branch-first merge order matters once reviews do complete (01 → 02 → ... → 06) — merging out of order will cause the later PRs' bases to become stale/conflict.
+- `feat/full-sweep`/PR #28 itself was left untouched (still open, still 184 files) — didn't close it, since that's a call for Jordan once the stack replaces it.
+
+---
+
+## 20 July 2026 — OVERNIGHT RUN, app-wide safe-area audit, part 2 of 2 (branch `feat/full-sweep`, PR #28)
+
+Continuation of part 1 below, after two of three background safe-area agents failed mid-task when the account hit its session usage limit (resets 4:30am). Audited the 12 already-committed files from part 1 first (git status, tsc, Jest — all clean except one unrelated transient jest-worker SIGSEGV that passed on isolated retry), found and fixed one incomplete conversion (`app/signup.tsx` had left a stale static `paddingTop` token in its stylesheet despite the JSX/hook changes being correct — harmless at runtime, since RN's style-array override means the inline value still wins, but dead/confusing code), then converted the remaining 13 files myself directly rather than re-dispatching agents: `app/driver-onboarding.tsx`, `app/driver-verification.tsx`, `app/edit-profile.tsx`, `app/offer-ride-confirm.tsx`, `app/offer-ride.tsx`, `app/payment-methods.tsx`, `app/payment.tsx`, `app/profile-setup.tsx`, `app/rate-trip/[booking_id].tsx`, `app/track/[token].tsx`, `app/transaction-history.tsx`, `app/user-profile/[id].tsx`, `app/vehicle-details.tsx`. Same pattern throughout: `useSafeAreaInsets()` + inline `paddingTop: insets.top + Spacing.lg`, static token removed and replaced with a one-line comment. `app/payment-confirmation.tsx` correctly excluded — its only `paddingTop: Spacing.X` match was an unrelated `totalRow` style, not screen-root padding. Total: 26 screens identified via `grep -rln "paddingTop: Spacing\." app/`, 25 converted, 1 correctly excluded. `tsc --noEmit`: 0 errors. Jest: green.
+
+### What could go wrong / what to verify by hand
+- None of these 25 screens have been visually re-verified on a real device/simulator after conversion — the pattern itself was already proven correct on `id-verify.tsx` in an earlier session, but a screenshot pass across all 25 hasn't happened.
+
+---
+
+## 20 July 2026 — OVERNIGHT RUN, app-wide safe-area audit, part 1 of 2 (branch `feat/full-sweep`, PR #28)
+
+Block 3 of the overnight run. The id-verify fix (see the entry further below) exposed that **every screen in the app uses fixed top padding instead of real safe-area insets** — "clears by coincidence, not by design." Dispatched 3 background agents to convert screens to `useSafeAreaInsets()` in parallel groups; 2 of the 3 failed mid-task when parallel agent dispatch hit the account's session usage limit (resets 4:30am) — my own direct tool calls were unaffected, only new agent spawning. The 1 agent that completed (plus what the other 2 had already committed before failing) covered 12 screens: `app/(tabs)/history.tsx`, `app/(tabs)/index.tsx`, `app/(tabs)/profile.tsx`, `app/booking-request.tsx`, `app/booking-requests/[rideId].tsx`, `app/chat/[booking_id].tsx`, `app/legal/[doc].tsx`, `app/my-rides.tsx`, `app/ride/[id].tsx`, `app/search-results.tsx`, `app/settings.tsx`, `app/signup.tsx`. `tsc --noEmit`: 0 errors. Jest: green (one transient/unrelated jest-worker crash on first run, passed cleanly in isolation).
+
+Remaining 13 screens picked up directly — see part 2 above.
+
+---
+
+## 20 July 2026 — OVERNIGHT RUN, Block 2: Android parity pass (branch `feat/full-sweep`, PR #28)
+
+First-ever Android verification of this app. Built a full Android dev environment from scratch on this machine (no prior JDK/cmdline-tools/AVDs, and a broken `avdmanager` due to an SDK-schema-version mismatch — worked around by hand-writing the AVD config files), got a clean Gradle build, and got the app genuinely booting and rendering on the emulator for the first time.
+
+### What works — confirmed live on the emulator
+- App boots, JS bundle loads, login screen renders correctly: cream background, teal `htwa.` logo with amber dot, no layout breakage.
+- Signup form (`app/signup.tsx`) renders correctly: text inputs, ROI/NI + Female/Male chips, safe-area top padding clears the status bar properly (this screen got the safe-area-audit treatment above).
+- Splash screen theme (`Theme.App.SplashScreen`) and adaptive icon generated correctly by `expo prebuild`.
+- Standard permissions (location fine/coarse, storage, notifications) all present and correctly wired in the generated manifest.
+- Google Maps API key correctly lands in `AndroidManifest.xml`'s `com.google.android.geo.API_KEY` meta-data via the `app.config.js` → prebuild pipeline (confirmed by inspection, not printed).
+- `@react-native-community/datetimepicker` usage in `components/DateTimeField.tsx` already correctly branches on `Platform.OS`: Android gets the native modal dialog (`display="default"`, self-dismisses, fires `event.type === 'dismissed'` on cancel), iOS gets a custom bottom-sheet spinner. Reviewed the code — looks correct for Android's fundamentally different (modal vs inline) picker UX — but **not live-verified on-device**, since reaching it requires being signed in past email OTP (see below).
+
+### Real bug found and fixed: Android camera permission was silently missing
+Diffing the generated `AndroidManifest.xml` against `app.config.js`'s `expo-image-picker` plugin config (which explicitly sets `cameraPermission: '...'`) turned up a genuine upstream bug: **`expo-image-picker@17.0.11`'s own Android config plugin never actually adds `android.permission.CAMERA`** — its source (`withImagePicker.ts`) only ever *removes* it (via `withBlockedPermissions`) when explicitly disabled; there's no corresponding line that adds it when enabled, despite the package's own README stating it "automatically adds the CAMERA... permission." Confirmed this wasn't a stale-cache artifact by running `npx expo prebuild --platform android --clean` twice — same result both times.
+
+**Why this matters:** without the manifest declaration, `requestCameraPermissionsAsync()`/`launchCameraAsync()` (used throughout `services/imagePicker.ts` for the mandatory ID/selfie verification flow) would be silently denied on Android — no manifest entry means Android won't even show the runtime permission dialog, regardless of what the JS calls. This would have quietly broken photo-ID and live-selfie capture for every Android user, in the one flow that's mandatory before anyone can use the app at all.
+
+**Fix:** added `permissions: ['android.permission.CAMERA']` directly to `app.config.js`'s `android` block (Expo's documented way to force a permission a plugin should have added but didn't), with a comment explaining why. Verified end-to-end, not just in source: re-ran `expo prebuild`, confirmed `CAMERA` now appears in the generated manifest, did an incremental `expo run:android` rebuild (1m1s, mostly cache hits), and confirmed via `aapt2 dump permissions` on the actual built, installed APK that `android.permission.CAMERA` is genuinely present on-device. `tsc --noEmit`: 0 errors. Jest: 84/84 suites, 1196/1196 tests green.
+
+### What's NOT verified — be honest about this
+- **Could not complete a full signed-in walkthrough.** Reaching the datetimepicker (offer-ride), the camera-permission dialog itself, driver setup, or the tracking screen all require getting past email OTP sign-up/login — and this app's only auth path is `supabase.auth.signInWithOtp`, which needs a real inbox. I don't have (and by standing rule won't use) access to any personal email account to read a real OTP code, and didn't want to burn more time building a throwaway Supabase-admin-generated-link bypass given everything else still pending tonight. **This means the camera-permission fix is verified at the manifest/APK level (which is the part that was actually broken and is deterministic — a declared permission either grants or it doesn't), but the actual "tap take-photo, see the OS permission dialog, grant it, see the camera open" round-trip has not been watched happen live.**
+- Two ANRs ("isn't responding") hit late in this pass — same 8GB-RAM resource-contention pattern already documented in the Lessons Learned table (too many heavy processes — Gradle daemon, qemu, Metro, my own investigation scripts — competing for memory at once), not a regression from tonight's changes. Recovered by dismissing and shutting the emulator down (`adb emu kill`) to free resources for the rest of the night's work rather than re-fighting it.
+- Splash/icon and permissions were checked by static inspection of generated Android resources, not by watching the actual splash animation play on-device (the dev-client build shows Expo's own dev-launcher UI first, not the app's real splash, so this needs a release/standalone build to see properly).
+
+### Files
+**Modified:** `app.config.js` (the camera-permission fix — the only committed code change; `android/` itself is gitignored, regenerated by `expo prebuild`).
+
+---
+
 ## 20 July 2026 — OVERNIGHT RUN, Block 1: Maps follow-through (branch `feat/full-sweep`, PR #28)
 
 Jordan unavailable tonight — autonomous run per his ground rules (nothing merges to main, commit-per-block, tsc+Jest green throughout, push regularly, PROGRESS + BLOCKERS at the end). This is Block 1 of 7; see the top of BLOCKERS-FOR-JORDAN.md for the full priority list and honesty check once all blocks are done.
