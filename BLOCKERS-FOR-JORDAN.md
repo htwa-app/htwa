@@ -63,14 +63,15 @@ Things only you can do. Each entry says exactly what I need, how to get it, and 
 
 ## 4. Apple Developer + Google Play accounts (push notifications & store release)
 
-**I need:** an Apple Developer Program membership ($99/yr) and a Google Play Console account ($25 one-off), both under hello@htwa-app.com.
+### 4a. Google Play — ✅ DONE (confirmed 21 Jul 2026)
+The Play publisher service account key showed up at `~/Documents/HTWA/google-service-account.json` (`htwa-play-publisher@htwa-502918.iam.gserviceaccount.com`) — already gitignored, never committed, confirmed valid JSON. I've wired it into `eas.json`'s `submit.production.android` block (`serviceAccountKeyPath` + `track: "internal"`), so `eas submit --platform android --profile production` is now configured to actually run. **Not yet actually submitted anything** — wiring the config is different from a real submission, which is a store-facing action I'd ask before doing. This unblocks FCM push credentials too (`eas credentials` can now use the same Play Console access) — not yet wired, just unblocked.
 
-**Get them by:**
-1. Apple: https://developer.apple.com/programs/enroll → enroll as an organisation (needs a D-U-N-S number — start this early, it can take days) or as an individual to move faster.
-2. Google: https://play.google.com/console/signup → pay the $25 → verify identity.
-3. Tell Claude when done — Claude will wire APNs/FCM push credentials through EAS (`eas credentials`).
+### 4b. Apple Developer — still open
+**I need:** an Apple Developer Program membership ($99/yr), under hello@htwa-app.com.
 
-**Unblocks:** real push notifications (currently local-notification delivery only, which works while the app is open/backgrounded but can't reach a closed app), TestFlight/Play beta distribution, and eventually the store launch.
+**Get it by:** https://developer.apple.com/programs/enroll → enroll as an organisation (needs a D-U-N-S number — start this early, it can take days) or as an individual to move faster. Tell Claude when done — Claude will wire the App Store Connect API key + APNs push credentials through EAS.
+
+**Unblocks:** real push notifications on iOS (currently local-notification delivery only — works while the app is open/backgrounded, can't reach a closed app), TestFlight distribution, and the eventual App Store launch. This is the actual reason a real-iPhone build (for TestFlight or a QA tester) still can't happen — nothing on the code/build side substitutes for this. Longest lead-time item outstanding — worth starting now if enrolling as an organisation (D-U-N-S lookup can take days).
 
 ---
 

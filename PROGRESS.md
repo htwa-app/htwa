@@ -4,6 +4,21 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 21 July 2026 (later) — Google Play service account key confirmed, wired into eas.json
+
+Jordan reported the Play publisher service account JSON is now saved at `~/Documents/HTWA/google-service-account.json`. Verified: valid JSON, correct type (`service_account`), `client_email` = `htwa-play-publisher@htwa-502918.iam.gserviceaccount.com`, already gitignored (`.gitignore:55`) and confirmed NOT tracked by git (`git ls-files` returns nothing for it) — never at risk of being committed.
+
+Uncommented and filled in `eas.json`'s `submit.production.android` block (`serviceAccountKeyPath: "./google-service-account.json"`, `track: "internal"`), which was previously left inactive pending exactly this credential. Validated the file still parses correctly (`eas config --profile production --platform android` resolves cleanly).
+
+**Not done:** no actual submission attempted. Wiring the config is different from running `eas submit`, which pushes a real build toward Google Play Console — a store-facing action, so I stopped short of doing that without asking first.
+
+This resolves the Google Play half of BLOCKERS item 4 (now split into 4a/DONE and 4b/still-open) — **Apple Developer Program enrollment remains the one open item blocking any real-iPhone build** (TestFlight, ad-hoc, or a QA tester's own phone). Nothing on the code side substitutes for that enrollment.
+
+### Files
+**Modified:** `eas.json`, `BLOCKERS-FOR-JORDAN.md`.
+
+---
+
 ## 21 July 2026 — Post-overnight check-in: EAS build results, CodeRabbit hit the limit again, QA distribution plan
 
 Follow-up session the day after the 20 Jul overnight run (branch `feat/full-sweep`, PR #28 + stack PRs #29–34). No app code changed in this entry — status check + one more CodeRabbit trigger + docs.

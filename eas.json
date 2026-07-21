@@ -65,11 +65,11 @@
         // "appleTeamId": "FILL_IN_APPLE_TEAM_ID"
       },
       "android": {
-        // Requires: a Google Play service account JSON (Play Console -> Setup ->
-        // API access -> create/link a service account, grant release permissions,
-        // download JSON to ./google-service-account.json — already gitignored).
-        // "serviceAccountKeyPath": "./google-service-account.json",
-        // "track": "internal"
+        // Google Play service account JSON confirmed present at this path
+        // (21 Jul 2026) — client_email htwa-play-publisher@htwa-502918.iam.gserviceaccount.com.
+        // Already gitignored; never committed.
+        "serviceAccountKeyPath": "./google-service-account.json",
+        "track": "internal"
       }
     }
   }
