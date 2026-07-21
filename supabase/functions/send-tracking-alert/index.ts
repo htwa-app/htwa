@@ -16,13 +16,12 @@
  * Response: { ok: true, sid } | { ok: false, reason: 'unavailable' | 'invalid' }
  */
 
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { getAuthedUser, json } from '../_shared/auth.ts';
 
 const E164 = /^\+[1-9]\d{6,14}$/;
 const MAX_MESSAGE_LENGTH = 640; // 4 concatenated SMS segments — plenty for any alert
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   const user = await getAuthedUser(req);
