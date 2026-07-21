@@ -4,6 +4,35 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 21 July 2026 (later still) — FCM push credential: file verified, CLI step blocked, and a bigger gap found
+
+Jordan asked me to run `eas credentials -p android` to attach the Firebase service account key (`firebase-service-account.json`, confirmed valid — `firebase-adminsdk-fbsvc@htwa-502918.iam.gserviceaccount.com`, gitignored, not tracked) as the FCM V1 push credential, then confirm push notifications work end-to-end for Android.
+
+### What I could verify/do
+- The key file itself: confirmed present, valid JSON, correctly gitignored — matches exactly what Jordan described.
+
+### What's blocked, and why (not just "should work")
+`eas credentials --platform android` requires a real interactive terminal — it's a full-screen arrow-key menu, not a simple prompt, and errors immediately ("stdin is not readable") outside a real TTY. Piping input doesn't help; it needs actual keypresses. I did not attempt to blind-script past this: the same credentials menu manages the Android keystore/signing key, and guessing my way through menu positions risks landing on a destructive, hard-to-reverse action (touching the signing key would break update compatibility for anyone who's already installed a build) for the sake of a task that takes a person 2 minutes done correctly. **Full instructions for Jordan to do this himself are in BLOCKERS-FOR-JORDAN.md item 4c.**
+
+### A bigger finding: even once the credential is attached, push isn't wired end-to-end
+Checked `services/notifications.ts` (the only place in the codebase that sends notifications) and every Supabase Edge Function. Found:
+- `sendNotification()` only calls `Notifications.scheduleNotificationAsync` — a **local** notification. It fires while the app is open/recently backgrounded on the same device; it cannot reach a closed app. The file's own comment already says this plainly: "server-driven push (Expo push service / APNs / FCM) is wired in Phase 15 once a backend sender exists."
+- `registerForPushNotifications()` fetches an Expo push token but **nothing persists it anywhere** — no database column, no write path.
+- No Edge Function calls Expo's push-send API (`supabase/functions/` has payment/refund/account/tracking functions, nothing push-related).
+
+So attaching the FCM credential (once done) is real, necessary progress — it's what lets Expo's push service authenticate to Firebase — but it's step one of two. The actual send-side (an Edge Function that calls Expo's push API, plus a place to store each user's push token) doesn't exist yet and is separate work. Told to Jordan plainly rather than implying "FCM credential attached" = "push notifications now work."
+
+### Did NOT do (as explicitly instructed)
+No `eas submit`, no Play Store action of any kind.
+
+### Verification
+`tsc --noEmit`: 0 errors. Jest: 84/84 suites, 1199/1199 tests. (No app code changed this entry — this was credential/config investigation only, so these numbers are an unchanged-baseline confirmation, not a result of new work.)
+
+### Files
+**Modified:** `BLOCKERS-FOR-JORDAN.md` (new item 4c). No code changes.
+
+---
+
 ## 21 July 2026 (later) — Google Play service account key confirmed, wired into eas.json
 
 Jordan reported the Play publisher service account JSON is now saved at `~/Documents/HTWA/google-service-account.json`. Verified: valid JSON, correct type (`service_account`), `client_email` = `htwa-play-publisher@htwa-502918.iam.gserviceaccount.com`, already gitignored (`.gitignore:55`) and confirmed NOT tracked by git (`git ls-files` returns nothing for it) — never at risk of being committed.

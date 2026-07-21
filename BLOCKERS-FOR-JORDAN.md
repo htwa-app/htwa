@@ -73,6 +73,20 @@ The Play publisher service account key showed up at `~/Documents/HTWA/google-ser
 
 **Unblocks:** real push notifications on iOS (currently local-notification delivery only — works while the app is open/backgrounded, can't reach a closed app), TestFlight distribution, and the eventual App Store launch. This is the actual reason a real-iPhone build (for TestFlight or a QA tester) still can't happen — nothing on the code/build side substitutes for this. Longest lead-time item outstanding — worth starting now if enrolling as an organisation (D-U-N-S lookup can take days).
 
+### 4c. FCM V1 push credential (Android) — 🔴 needs 2 minutes at a real terminal, not something I can script
+
+The Firebase service account key is confirmed present at `firebase-service-account.json` (valid, gitignored, `firebase-adminsdk-fbsvc@htwa-502918.iam.gserviceaccount.com`) — that part's done. But **attaching it via `eas credentials -p android` needs a real interactive terminal**, and my tool environment doesn't have one: `eas credentials` is a full-screen, arrow-key-navigated menu (not a simple yes/no prompt), and it immediately errors ("stdin is not readable") the moment it isn't run from an actual terminal window. Piping text into it doesn't help — it needs real keypresses, not just readable input.
+
+I also deliberately didn't try to fake my way through it. That same menu is where the **Android keystore/signing key** lives too — the credential that, if regenerated or touched wrong, would break every existing install's ability to receive future updates (a real, hard-to-reverse mistake). Blindly guessing menu positions to reach the FCM option risked landing on the wrong item first. Not worth the risk for something that takes 2 minutes done correctly by a person looking at the screen.
+
+**What I need from you:** open Terminal.app on this Mac, `cd ~/Documents/HTWA`, run:
+```
+npx eas-cli credentials --platform android
+```
+When prompted for a build profile, pick `production`. In the menu that appears, look for something like **"Push Notifications: Manage your FCM Api Key"** (or similarly worded — exact text may vary by CLI version) and select it, then choose the option to set up an FCM V1 service account key and give it the path `./firebase-service-account.json` when asked. Say the word once it's done (or if you hit anything confusing — screenshot it and I'll tell you exactly what to click).
+
+**Also worth knowing before that unblocks anything real:** even once this credential is attached, **no code in this app actually sends a server-driven push yet.** I checked `services/notifications.ts` — today it only calls `Notifications.scheduleNotificationAsync`, which is a *local* notification (fires only while the app is open or recently backgrounded on the same device — nothing reaches a fully closed app). There's no Edge Function that calls Expo's push-send API, and no database column anywhere storing a user's Expo push token (`registerForPushNotifications()` fetches the token but nothing persists it). The code's own comment already says this plainly: *"server-driven push (Expo push service / APNs / FCM) is wired in Phase 15 once a backend sender exists."* That backend sender doesn't exist yet. Attaching the FCM credential is a real, necessary step, but it's step one of two — the actual send-side (an Edge Function + a place to store push tokens) is separate work, not yet built.
+
 ---
 
 ## 5. ~~Host the tracking web page~~ — RESOLVED, no action needed
