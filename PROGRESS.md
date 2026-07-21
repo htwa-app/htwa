@@ -16,6 +16,9 @@ tsc --noEmit: 0 errors. Jest: 84/84 suites, 1203/1203 tests.
 
 Moving to PR #32 next, respecting whatever cooldown CodeRabbit enforces.
 
+### Update: PR #32 rate-limited on first trigger
+Triggered #32 — this time the trigger's own acknowledgment comment was misleading ("Full review finished... 26 minutes", which reads like success) but the actual summary comment (the one CodeRabbit edits in place, the real source of truth) clearly showed "rate limited... Next review available in 26 minutes." Caught this before reporting a false positive to Jordan. Waiting out the cooldown before re-triggering, then continuing to #33/#34 the same way.
+
 ---
 
 ## 21 July 2026 (evening) — Items 8 & 9: seed script re-run, PR #30 fully triaged, PR #31 in progress
