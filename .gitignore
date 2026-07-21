@@ -54,6 +54,9 @@ supabase/.temp/
 # Google Play service account key (never commit)
 google-service-account.json
 
+# Firebase Admin SDK service account key (never commit)
+firebase-service-account.json
+
 # iCloud Drive conflict copies (Documents is synced) — never commit
 *\ 2.*
 *\ 3.*
