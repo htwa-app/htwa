@@ -4,6 +4,17 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 20 July 2026 — Correction to the Block 7 honesty check below: the Maps key is NOT dead
+
+Jordan asked why I was still reporting the Google Maps key as dead when he'd given me an updated one. I hadn't re-tested it before writing the Block 7 entry below — I repeated an hours-old finding from earlier in the session instead of checking current state, which is exactly the kind of stale-but-confident mistake worth calling out plainly rather than leaving quietly wrong. Re-tested live on request:
+- **Routes API: working** — real Belfast→Dublin query returned `distanceMeters: 168932, duration: 7184s`.
+- **Places API (New): working** — real autocomplete suggestions returned.
+- **Geocoding API: not enabled on the project** (`REQUEST_DENIED`) — but the app doesn't use Geocoding anywhere, so this doesn't block anything real.
+
+So item 3 in the honesty check below (originally "Maps/Places/Routes API — still dead key") was wrong by the time it was written. Full correction in BLOCKERS-FOR-JORDAN.md item 1. **Still genuinely unverified:** whether EAS's stored `development` environment variable (used by the two cloud builds kicked off in Block 7) has the same working key, or still has the old dead one — `.env.local` and EAS's copy are separate, and only `.env.local` has been confirmed.
+
+---
+
 ## 20 July 2026 — OVERNIGHT RUN, Block 7: Finish (branch `feat/full-sweep`, PR #28)
 
 Closing out the 7-block overnight brief. `feat/full-sweep` is now 83 commits / 190 files / +20,547 −2,313 vs `main`. Nothing merged to `main` — that stays Jordan's call, per standing rule, for every one of tonight's commits.
@@ -17,7 +28,7 @@ Closing out the 7-block overnight brief. `feat/full-sweep` is now 83 commits / 1
 
 1. **The Android APK / iOS simulator build results themselves** — queued but not watched to completion. Open the EAS dashboard link above first thing.
 2. **The full signed-in app flow on Android** — got the app booting and rendering correctly (login/signup screens, safe-area, splash/icon), found and fixed a real camera-permission bug verified at the APK level — but never got past email OTP sign-in on the emulator (no personal-email access, by standing rule), so datetimepicker-in-actual-use, driver setup, tracking, and the camera permission's real "tap → OS dialog → grant → camera opens" round-trip are still unwatched on Android. Worth a hands-on Android pass once you're at a real device/emulator.
-3. **Maps/Places/Routes API — still dead key.** Everything built tonight (Places autocomplete, real map views, toll research) is code-complete and unit-tested but has never been seen working against the real Google API since the key died earlier this session (my own mistake — see BLOCKERS item 1). Get a working key in first, then this whole surface needs a real look.
+3. ~~Maps/Places/Routes API — still dead key.~~ **Corrected above:** Jordan gave me an updated key and I hadn't re-tested before writing this — the key actually works (Routes + Places both confirmed live). What's still genuinely unverified: whether EAS's `development` environment variable has the same working key as `.env.local` — check this once the two builds above are done.
 4. **The seed script has never actually run.** Written carefully against the real schema, but the 1Password service-account CLI went unresponsive before I could execute it (BLOCKERS item 9) — so there is no live proof it inserts correctly, only that it type-checks and reads correctly against `types/database.ts`.
 5. **CodeRabbit review debt is only 1/6 done.** PR #29 fully triaged (7 real fixes, rest dismissed with reasons). PRs #30–#34 are still waiting on CodeRabbit's hourly rate limit — re-trigger `@coderabbitai full review` on each roughly once an hour (BLOCKERS item 8) and triage as they come back.
 6. **None of tonight's fixes have flowed back into the stacked PR branches.** `stack/01` through `stack/06` are frozen snapshots of the history as it stood when the stack was cut; every fix from tonight (camera permission, the CodeRabbit triage batch, etc.) landed on `feat/full-sweep` directly. Before merging the stack, it needs a rebase pass so the fixes are actually reflected in the PRs being reviewed — right now there's a real gap between "what's fixed on the branch" and "what CodeRabbit is looking at in #30–#34."
