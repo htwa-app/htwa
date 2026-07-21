@@ -11,7 +11,7 @@ Things only you can do. Each entry says exactly what I need, how to get it, and 
 - **Places API (New) autocomplete: working.** Real suggestions returned for a test query.
 - **Geocoding API: `REQUEST_DENIED` — not enabled on the project.** Not used anywhere in the app's code (only Routes + Places are), so this doesn't block anything. Worth enabling anyway for future-proofing (APIs & Services → Library → Geocoding API → Enable) but not urgent.
 
-**One thing still unverified:** `.env.local` (local dev) and EAS's stored `development` environment variable (used by cloud builds, including the two builds kicked off in Block 7 tonight) are two separate places this key lives. I've only confirmed the `.env.local` copy works — I haven't confirmed EAS's copy is the same value. If the EAS build's map screens don't show live data once you check it, that's the first thing to check: `eas env:update development --variable-name EXPO_PUBLIC_GOOGLE_MAPS_KEY --value <the working key>` (repeat for `preview`/`production` if needed).
+**Also confirmed:** EAS's stored `development` environment variable has the exact same value as `.env.local` (verified via matching SHA-256 checksums, without ever printing either raw key). So the two builds kicked off in Block 7 tonight are using the correct, working key — nothing to update.
 
 **Original setup instructions below, for a fresh key if this ever dies again:**
 

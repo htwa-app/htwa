@@ -11,7 +11,7 @@ Jordan asked why I was still reporting the Google Maps key as dead when he'd giv
 - **Places API (New): working** — real autocomplete suggestions returned.
 - **Geocoding API: not enabled on the project** (`REQUEST_DENIED`) — but the app doesn't use Geocoding anywhere, so this doesn't block anything real.
 
-So item 3 in the honesty check below (originally "Maps/Places/Routes API — still dead key") was wrong by the time it was written. Full correction in BLOCKERS-FOR-JORDAN.md item 1. **Still genuinely unverified:** whether EAS's stored `development` environment variable (used by the two cloud builds kicked off in Block 7) has the same working key, or still has the old dead one — `.env.local` and EAS's copy are separate, and only `.env.local` has been confirmed.
+So item 3 in the honesty check below (originally "Maps/Places/Routes API — still dead key") was wrong by the time it was written. Full correction in BLOCKERS-FOR-JORDAN.md item 1. **Also now confirmed:** EAS's stored `development` environment variable has the identical value to `.env.local` (matching SHA-256 checksums, computed without ever printing either raw key) — the two builds kicked off in Block 7 are using the correct, working key.
 
 ---
 
