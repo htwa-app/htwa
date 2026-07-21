@@ -47,32 +47,21 @@ Things only you can do. Each entry says exactly what I need, how to get it, and 
 
 ---
 
-## 3. Twilio credentials (SMS safety alerts to nominated contacts)
+## 3. Twilio — 3 of 4 values wired tonight (22 Jul), one still missing: the phone number
 
-**I need:** a Twilio Account SID, Auth Token, and an SMS-capable phone number.
+**Update:** the credentials were already sitting in 1Password (not what I expected from the original version of this item, which assumed they hadn't been created yet) — under two items: `htwa Twilio (Account SID & Auth Token)` and `htwa Twilio API (SID & Secret key)`. I used the **Restricted API Key** (SID + secret, scoped to Messages Create+Read) for authentication rather than the master Auth Token — same principle as never using a service-role key where a scoped one will do: a leaked/rotated API key can only send/read messages, never touch billing or account settings. `supabase/functions/send-tracking-alert/index.ts` and its Supabase secrets (`TWILIO_ACCOUNT_SID`, `TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET`) are updated and deployed to match.
 
-**Get it by:**
-1. Go to https://console.twilio.com and create an account (hello@htwa-app.com). The free trial includes a phone number and SMS credit (trial SMS can only go to verified numbers — fine for testing).
-2. On the Console home page you'll see **Account SID** and **Auth Token** (click "Show"). Copy both.
-3. Phone Numbers → Manage → **Buy a number** (or use the free trial number) → make sure it has SMS capability → copy it in +E.164 format (e.g. +353...).
-4. Open 1Password → HTWA vault → **+ New Item → API Credential** → title it exactly `htwa twilio credentials` → put the Account SID in the username field, the Auth Token in the password field, and the phone number in the notes → Save.
-5. **The exact, audited provisioning step** (not a chat handoff — this is the same `op run` pattern already used for every other secret in this project, see §5 at the top of CLAUDE.md). Add these three lines to `.secrets.env` (pointers only, never real values):
-   ```
-   TWILIO_ACCOUNT_SID=op://HTWA/htwa twilio credentials/username
-   TWILIO_AUTH_TOKEN=op://HTWA/htwa twilio credentials/password
-   TWILIO_FROM_NUMBER=op://HTWA/htwa twilio credentials/notesPlain
-   ```
-   Then run, from `~/Documents/HTWA`:
-   ```bash
-   op run --env-file=.secrets.env -- npx supabase secrets set \
-     TWILIO_ACCOUNT_SID="$TWILIO_ACCOUNT_SID" \
-     TWILIO_AUTH_TOKEN="$TWILIO_AUTH_TOKEN" \
-     TWILIO_FROM_NUMBER="$TWILIO_FROM_NUMBER" \
-     --project-ref adrwtjlphjrnrrqjkbfk
-   ```
-   This can be run by you directly, or by Claude in a future session (it never needs the credentials typed into chat — `op run` injects them as env vars for that one command's lifetime only). **To verify afterward** without ever printing the values: `npx supabase secrets list --project-ref adrwtjlphjrnrrqjkbfk` shows the secret *names* are set (Supabase never returns values back, by design). **To rotate:** generate a new Auth Token in the Twilio console, update the 1Password item's password field, then re-run the same `secrets set` command — it overwrites in place.
+**Found and fixed a real bug in this file's own previously-documented command** while doing this: `op run --env-file=.secrets.env -- npx supabase secrets set KEY="$VAR"` silently sets **empty-string secrets** — `"$VAR"` gets expanded by the *outer* shell before `op run` ever injects the variable into its child process, so the command that reaches `supabase secrets set` has already substituted an empty string. Confirmed this by checking the secret digests after setting them (all three came back as the well-known SHA-256 hash of an empty string). **The fix:** wrap in a nested shell so the `$VAR` expansion happens inside the process that actually has the injected environment:
+```bash
+op run --env-file=.secrets.env -- sh -c 'npx supabase secrets set \
+  KEY1="$KEY1" KEY2="$KEY2" \
+  --project-ref adrwtjlphjrnrrqjkbfk'
+```
+Re-ran it this way and confirmed via `supabase secrets list` that all three digests are now distinct/non-empty. **If you ever set a Supabase secret this way yourself, use the `sh -c '...'` wrapper, not the bare form** — this exact bug pattern is worth remembering.
 
-**Unblocks:** SMS alerts to nominated contacts (SOS, off-course, journey-complete) for contacts who don't have the htwa app. Until then: in-app alerts to contacts who ARE htwa users work already; SMS returns a graceful "unavailable" and the app records the alert in the audit table regardless.
+**What's still missing:** a Twilio phone number (`TWILIO_FROM_NUMBER`) — I searched both 1Password items, `.env.local`, and the already-set Supabase secrets, and it isn't stored anywhere. **What to do:** Twilio Console → Phone Numbers → Manage → **Buy a number** (or use the free trial number if you haven't already) → confirm it has SMS capability → copy it in E.164 format (e.g. `+353...`). Add it to 1Password (either existing Twilio item's notes field, or a new one) and tell Claude — wiring it in is then a 2-minute repeat of the same `secrets set` pattern above, no code changes needed.
+
+**Unblocks:** SMS alerts to nominated contacts (SOS, off-course, journey-complete) for contacts who don't have the htwa app. Until the phone number lands: in-app alerts to contacts who ARE htwa users work already; SMS returns a graceful "unavailable" and the app records the alert in the audit table regardless — the function is deployed and ready, just missing this one value.
 
 ---
 
