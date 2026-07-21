@@ -99,6 +99,7 @@ export type ProfileRow = {
   student_card_url:     string | null;                    // migration 20260601000002
   avatar_url:           string | null;                    // migration 20260719000006
   notification_prefs:   Record<string, boolean>;          // migration 20260719000007
+  expo_push_token:      string | null;                    // migration 20260722010001
 }
 
 export type UniversityVerificationStatus = 'unverified' | 'pending' | 'verified' | 'rejected';
@@ -116,6 +117,7 @@ export type ProfileInsert = {
   student_card_url?:     string | null;
   avatar_url?:           string | null;
   notification_prefs?:   Record<string, boolean>;
+  expo_push_token?:      string | null;
 }
 
 export type ProfileUpdate = {
@@ -129,6 +131,7 @@ export type ProfileUpdate = {
   student_card_url?:     string | null;
   avatar_url?:           string | null;
   notification_prefs?:   Record<string, boolean>;
+  expo_push_token?:      string | null;
 }
 
 // ─── rides ────────────────────────────────────────────────────────────────────

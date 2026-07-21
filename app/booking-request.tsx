@@ -27,6 +27,7 @@ import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../constants
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { hasAcceptedWaiver, recordWaiverAcceptance } from '../services/waivers';
+import { sendPushToUser } from '../services/notifications';
 import type { JourneyContactRow } from '../types/database';
 
 export default function BookingRequestScreen(): React.ReactElement {
@@ -115,6 +116,23 @@ export default function BookingRequestScreen(): React.ReactElement {
       router.replace(
         `/booking-success?rideId=${params.rideId}&seats=${seats}&total=${total}&currency=${currency}`,
       );
+
+      // Push the driver (backgrounded/killed-app delivery — realtime already
+      // covers them if the app is open). Secondary effect, fired after
+      // navigation: the booking has already committed, so this is wrapped in
+      // its own try/catch and never allowed to block or fail the booking flow.
+      try {
+        const { data, error: rideErr } = await supabase
+          .from('rides')
+          .select('driver_id')
+          .eq('id', params.rideId)
+          .maybeSingle();
+        if (!rideErr && data) {
+          void sendPushToUser(data.driver_id, 'booking_request', { rideId: params.rideId });
+        }
+      } catch (e) {
+        console.error('[BookingRequest] driver push lookup failed:', e instanceof Error ? e.message : e);
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to request booking. Please try again.');
     } finally {

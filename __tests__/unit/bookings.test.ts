@@ -48,6 +48,11 @@ jest.mock('../../lib/supabase', () => {
   };
 });
 
+const mockSendPushToUser = jest.fn();
+jest.mock('../../services/notifications', () => ({
+  sendPushToUser: (...a: unknown[]) => mockSendPushToUser(...a),
+}));
+
 import { isFullRefundEligible, cancelRideAsDriver, cancelBookingAsPassenger, declineBooking } from '../../services/bookings';
 
 beforeEach(() => {
@@ -283,7 +288,7 @@ describe('cancelBookingAsPassenger', () => {
 describe('declineBooking', () => {
   it('declines the booking and restores the seat via the restore_ride_seats RPC on success', async () => {
     mockBookingCancelSelect.mockResolvedValue({
-      data: [{ seats_booked: 1, ride_id: 'r1' }],
+      data: [{ seats_booked: 1, ride_id: 'r1', passenger_id: 'p1' }],
       error: null,
     });
     mockRpc.mockResolvedValue({ error: null });
@@ -291,6 +296,17 @@ describe('declineBooking', () => {
     const res = await declineBooking('b1');
     expect(res).toEqual({ ok: true });
     expect(mockRpc).toHaveBeenCalledWith('restore_ride_seats', { p_ride_id: 'r1', p_seats: 1 });
+  });
+
+  it('pushes the passenger on a successful decline', async () => {
+    mockBookingCancelSelect.mockResolvedValue({
+      data: [{ seats_booked: 1, ride_id: 'r1', passenger_id: 'p1' }],
+      error: null,
+    });
+    mockRpc.mockResolvedValue({ error: null });
+
+    await declineBooking('b1');
+    expect(mockSendPushToUser).toHaveBeenCalledWith('p1', 'booking_declined', { bookingId: 'b1', rideId: 'r1' });
   });
 
   it('fails when the update query errors', async () => {

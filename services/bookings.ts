@@ -20,6 +20,7 @@
  */
 
 import { supabase } from '../lib/supabase';
+import { sendPushToUser } from './notifications';
 import type { SimpleResult } from './chat';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -246,7 +247,7 @@ export async function declineBooking(bookingId: string): Promise<SimpleResult> {
       .update({ status: 'declined' })
       .eq('id', bookingId)
       .eq('status', 'pending')
-      .select('seats_booked, ride_id');
+      .select('seats_booked, ride_id, passenger_id');
 
     if (bookErr) return { ok: false, error: bookErr.message };
     const bookingData = bookingRows?.[0];
@@ -255,6 +256,9 @@ export async function declineBooking(bookingId: string): Promise<SimpleResult> {
     }
 
     await restoreRideSeats(bookingData.ride_id, bookingData.seats_booked);
+
+    // Push the passenger (secondary effect — the decline has already committed).
+    void sendPushToUser(bookingData.passenger_id, 'booking_declined', { bookingId, rideId: bookingData.ride_id });
 
     return { ok: true };
   } catch (e: unknown) {

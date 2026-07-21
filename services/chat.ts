@@ -10,6 +10,7 @@
  */
 
 import { supabase } from '../lib/supabase';
+import { sendPushToUser } from './notifications';
 import type { RideStatus, ChatStatus } from '../types/database';
 
 export interface SimpleResult {
@@ -31,13 +32,17 @@ export async function acceptBooking(bookingId: string): Promise<SimpleResult> {
     .update({ status: 'confirmed' })
     .eq('id', bookingId)
     .eq('status', 'pending')
-    .select('id');
+    .select('id, passenger_id, ride_id');
   if (error) return { ok: false, error: error.message };
   // A non-error response with zero rows updated (e.g. blocked by RLS, the
   // booking no longer exists, or it's no longer pending) must NOT read as success.
   if (!data || data.length === 0) {
     return { ok: false, error: 'Booking could not be accepted (not found, not permitted, or already decided).' };
   }
+  // Push the passenger (secondary effect — the confirm has already committed;
+  // sendPushToUser logs its own failures, never surfaces them here).
+  const booking = data[0];
+  void sendPushToUser(booking.passenger_id, 'booking_accepted', { bookingId, rideId: booking.ride_id });
   return { ok: true };
 }
 

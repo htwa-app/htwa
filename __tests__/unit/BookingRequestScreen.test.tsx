@@ -50,14 +50,25 @@ jest.mock('../../services/waivers', () => ({
 }));
 
 const mockMaybeSingle = jest.fn();
+const mockRideMaybeSingle = jest.fn();
 const mockRpc = jest.fn();
 jest.mock('../../lib/supabase', () => ({
   supabase: {
-    from: () => ({
-      select: () => ({ eq: () => ({ eq: () => ({ maybeSingle: (...a: unknown[]) => mockMaybeSingle(...a) }) }) }),
-    }),
+    from: (table: string) => {
+      if (table === 'rides') {
+        // Driver push lookup: .select('driver_id').eq('id', rideId).maybeSingle() — one .eq().
+        return { select: () => ({ eq: () => ({ maybeSingle: (...a: unknown[]) => mockRideMaybeSingle(...a) }) }) };
+      }
+      // Existing-booking guard: .select('id, status').eq(...).eq(...).maybeSingle() — two .eq()s.
+      return { select: () => ({ eq: () => ({ eq: () => ({ maybeSingle: (...a: unknown[]) => mockMaybeSingle(...a) }) }) }) };
+    },
     rpc: (...a: unknown[]) => mockRpc(...a),
   },
+}));
+
+const mockSendPushToUser = jest.fn();
+jest.mock('../../services/notifications', () => ({
+  sendPushToUser: (...a: unknown[]) => mockSendPushToUser(...a),
 }));
 
 const mockUseAuth = jest.fn();
@@ -73,6 +84,7 @@ beforeEach(() => {
   mockContactValue = { id: 'jc-1' };
   mockUseAuth.mockReturnValue({ user: { id: 'u1' } });
   mockMaybeSingle.mockResolvedValue({ data: null, error: null }); // no existing booking
+  mockRideMaybeSingle.mockResolvedValue({ data: { driver_id: 'd1' }, error: null });
   mockRpc.mockResolvedValue({ error: null });
   mockHasAccepted.mockResolvedValue(false);
   mockRecordWaiver.mockResolvedValue({ ok: true });
@@ -97,6 +109,22 @@ describe('BookingRequestScreen', () => {
     await waitFor(() =>
       expect(mockReplace).toHaveBeenCalledWith(expect.stringContaining('/booking-success')),
     );
+    await waitFor(() =>
+      expect(mockSendPushToUser).toHaveBeenCalledWith('d1', 'booking_request', { rideId: 'r1' }),
+    );
+  });
+
+  it('a failed driver lookup for the push does not block navigation (logged, not surfaced)', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockRideMaybeSingle.mockResolvedValue({ data: null, error: { message: 'db down' } });
+    render(<BookingRequestScreen />);
+    acceptWaiver();
+    fireEvent.press(screen.getByTestId('confirm-button'));
+    await waitFor(() =>
+      expect(mockReplace).toHaveBeenCalledWith(expect.stringContaining('/booking-success')),
+    );
+    expect(mockSendPushToUser).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 
   it('cannot book without accepting the waiver (button disabled)', () => {

@@ -11,8 +11,9 @@ jest.mock('../../lib/supabase', () => ({
   supabase: {
     from: () => ({
       // acceptBooking now chains .update().eq('id',...).eq('status','pending')
-      // .select('id') so it can verify a row was actually affected AND that it
-      // was still pending (not already declined/cancelled).
+      // .select('id, passenger_id, ride_id') so it can verify a row was
+      // actually affected AND that it was still pending (not already
+      // declined/cancelled), and so it knows who to push-notify.
       update: (arg: unknown) => {
         mockUpdate(arg);
         const chain = { eq: (col: string, val: string) => { mockUpdateEq(col, val); return chain; }, select: () => mockUpdateSelect() };
@@ -24,20 +25,25 @@ jest.mock('../../lib/supabase', () => ({
   },
 }));
 
+const mockSendPushToUser = jest.fn();
+jest.mock('../../services/notifications', () => ({
+  sendPushToUser: (...a: unknown[]) => mockSendPushToUser(...a),
+}));
+
 import { acceptBooking, canCloseChat, closeChat, getChatMeta } from '../../services/chat';
 
 beforeEach(() => jest.clearAllMocks());
 
 describe('acceptBooking', () => {
   it('sets the booking status to confirmed when a row is updated', async () => {
-    mockUpdateSelect.mockResolvedValue({ data: [{ id: 'b1' }], error: null });
+    mockUpdateSelect.mockResolvedValue({ data: [{ id: 'b1', passenger_id: 'p1', ride_id: 'r1' }], error: null });
     const res = await acceptBooking('b1');
     expect(res.ok).toBe(true);
     expect(mockUpdate).toHaveBeenCalledWith({ status: 'confirmed' });
     expect(mockUpdateEq).toHaveBeenCalledWith('id', 'b1');
   });
   it('guards the update with status = pending, so an already-declined/cancelled booking cannot be re-confirmed', async () => {
-    mockUpdateSelect.mockResolvedValue({ data: [{ id: 'b1' }], error: null });
+    mockUpdateSelect.mockResolvedValue({ data: [{ id: 'b1', passenger_id: 'p1', ride_id: 'r1' }], error: null });
     await acceptBooking('b1');
     expect(mockUpdateEq).toHaveBeenCalledWith('status', 'pending');
   });
@@ -50,6 +56,16 @@ describe('acceptBooking', () => {
     const res = await acceptBooking('b1');
     expect(res.ok).toBe(false);
     expect(res.error).toMatch(/not found|permitted|decided/i);
+  });
+  it('pushes the passenger on successful accept', async () => {
+    mockUpdateSelect.mockResolvedValue({ data: [{ id: 'b1', passenger_id: 'p1', ride_id: 'r1' }], error: null });
+    await acceptBooking('b1');
+    expect(mockSendPushToUser).toHaveBeenCalledWith('p1', 'booking_accepted', { bookingId: 'b1', rideId: 'r1' });
+  });
+  it('does not push when zero rows are updated', async () => {
+    mockUpdateSelect.mockResolvedValue({ data: [], error: null });
+    await acceptBooking('b1');
+    expect(mockSendPushToUser).not.toHaveBeenCalled();
   });
 });
 

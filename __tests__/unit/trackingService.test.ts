@@ -266,6 +266,43 @@ describe('raiseAlert', () => {
     const res = await raiseAlert({ rideId: 'ride-1', raisedBy: 'u1', alertType: 'sos', location: { lat: 1, lng: 2 } });
     expect(res).toEqual({ ok: true, channels: ['realtime'] });
   });
+
+  it('does not attempt a push when the contact is not an htwa user (no contact_user_id)', async () => {
+    mockHandler = contactHandler();
+    await raiseAlert({ rideId: 'ride-1', raisedBy: 'u1', alertType: 'sos', location: null });
+    expect(mockInvoke).not.toHaveBeenCalledWith('send-push', expect.anything());
+  });
+
+  it('includes push in channels when the contact is an htwa user and Expo delivers', async () => {
+    mockHandler = contactHandler((table) => {
+      if (table === 'journey_contacts') return { data: { ...CONTACT_ROW, contact_user_id: 'contact-uid' }, error: null };
+      return null;
+    });
+    mockInvoke.mockImplementation((name: string) =>
+      name === 'send-push'
+        ? Promise.resolve({ data: { ok: true, sent: true }, error: null })
+        : Promise.resolve({ data: { ok: false, reason: 'unavailable' }, error: null }),
+    );
+    const res = await raiseAlert({ rideId: 'ride-1', raisedBy: 'u1', alertType: 'sos', location: null });
+    expect(res).toEqual({ ok: true, channels: ['realtime', 'push'] });
+    expect(mockInvoke).toHaveBeenCalledWith('send-push', expect.objectContaining({
+      body: expect.objectContaining({ userId: 'contact-uid', title: expect.stringContaining('SOS') }),
+    }));
+  });
+
+  it('a push failure after the audit insert does NOT fail the alert', async () => {
+    mockHandler = contactHandler((table) => {
+      if (table === 'journey_contacts') return { data: { ...CONTACT_ROW, contact_user_id: 'contact-uid' }, error: null };
+      return null;
+    });
+    mockInvoke.mockImplementation((name: string) =>
+      name === 'send-push'
+        ? Promise.reject(new Error('expo down'))
+        : Promise.resolve({ data: { ok: false, reason: 'unavailable' }, error: null }),
+    );
+    const res = await raiseAlert({ rideId: 'ride-1', raisedBy: 'u1', alertType: 'off_course', location: null });
+    expect(res).toEqual({ ok: true, channels: ['realtime'] });
+  });
 });
 
 describe('sendSOS', () => {

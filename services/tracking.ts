@@ -304,6 +304,11 @@ export type RaiseAlertResult =
  * Channels:
  *  - 'realtime': the trip_alerts insert itself (in-app contacts subscribe).
  *  - 'sms': send-tracking-alert Edge Function → nominated contact's phone.
+ *  - 'push': send-push Edge Function → contact's device, ONLY when the
+ *    contact is an htwa user (contact.contact_user_id set) with a stored
+ *    push token; this is background/killed-app delivery, complementing (not
+ *    replacing) the 'realtime' channel above which only fires while their
+ *    app is open.
  */
 export async function raiseAlert(params: {
   rideId: string;
@@ -363,7 +368,30 @@ export async function raiseAlert(params: {
     }
   }
 
-  // 4. Record which channels actually delivered (audit row already committed —
+  // 4. Push (secondary; contact must be an htwa user — the SMS channel above
+  //    is the only reachable one for a non-user contact).
+  if (contact?.contact_user_id) {
+    try {
+      const isSos = alertType === 'sos';
+      const { data, error } = await supabase.functions.invoke('send-push', {
+        body: {
+          userId: contact.contact_user_id,
+          title: isSos ? 'SOS — your traveller needs you' : 'Journey safety alert',
+          body: isSos
+            ? 'Your nominated traveller triggered SOS. Open htwa to see their live location. If you can\'t reach them, call 112/999.'
+            : 'Your nominated traveller\'s journey went off its planned route. Open htwa to check on them.',
+          data: { trigger: 'safety_alert', rideId },
+        },
+      });
+      if (!error && (data as { sent?: boolean } | null)?.sent === true) {
+        channels.push('push');
+      }
+    } catch (e) {
+      console.error('[Tracking] alert push failed:', e instanceof Error ? e.message : e);
+    }
+  }
+
+  // 5. Record which channels actually delivered (audit row already committed —
   //    a failure here is logged, not surfaced).
   try {
     const { error } = await supabase.from('trip_alerts').update({ channels }).eq('id', alertId);

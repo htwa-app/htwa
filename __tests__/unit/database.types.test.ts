@@ -83,6 +83,7 @@ const _profileRow: ProfileRow = {
   student_card_url:   null,
   avatar_url:         null,
   notification_prefs: {},
+  expo_push_token:    null,
 };
 
 const _profileInsert: ProfileInsert = {
