@@ -4,6 +4,20 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 22 July 2026 — Item 8 continued: PR #31 fully triaged (3/6), moving to #32
+
+Jordan independently confirmed via GitHub's API that PR #31's review had actually landed (`CHANGES_REQUESTED`, 19 inline comments, submitted 22:54:58 UTC the prior day) — my last poll had genuinely just missed it. Corrected course per his instruction: pulled the current state (no re-trigger), triaged all 19 findings, cross-checked against PR #30's fixes where the two touched the same shared code (they didn't overlap directly, but one finding — `app/ride/[id].tsx`'s Pay button — connects to PR #30's idempotency-key fix and is dismissed on that basis, not left unaddressed).
+
+**One real Critical bug**: `supabase/functions/delete-account/index.ts` was silently able to hard-delete a user's auth identity while leaving PII un-anonymised if any of 3 intermediate DB writes failed — unrecoverable once the JWT-based identity is gone. Fixed to hard-fail before that point. Full detail, plus 8 more real fixes (a realtime-notification bug needing a new — not-yet-applied — migration, a rating-crash, a battery-wasting polling bug, an unbounded-storage leak, and several smaller ones) in commit `a083728` and the PR #31 comment thread.
+
+**One finding's own suggested fix was wrong**, caught by tsc before it shipped: `app/vehicle-details.tsx`'s `type`→`interface` swap broke a real call site. Reverted, documented why, moved on — exactly the "verify against current code" discipline this triage process depends on.
+
+tsc --noEmit: 0 errors. Jest: 84/84 suites, 1203/1203 tests.
+
+Moving to PR #32 next, respecting whatever cooldown CodeRabbit enforces.
+
+---
+
 ## 21 July 2026 (evening) — Items 8 & 9: seed script re-run, PR #30 fully triaged, PR #31 in progress
 
 Jordan asked for two remaining BLOCKERS items to be closed out tonight.
