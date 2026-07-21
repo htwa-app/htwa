@@ -4,6 +4,42 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 21 July 2026 — Post-overnight check-in: EAS build results, CodeRabbit hit the limit again, QA distribution plan
+
+Follow-up session the day after the 20 Jul overnight run (branch `feat/full-sweep`, PR #28 + stack PRs #29–34). No app code changed in this entry — status check + one more CodeRabbit trigger + docs.
+
+### EAS builds from Block 7 — both finished successfully
+- **Android APK**: https://expo.dev/artifacts/eas/-H5sBuWS68O8JDZEocG99PXjfBcodk8rjeRHkIe1qBM.apk
+- **iOS simulator build**: https://expo.dev/artifacts/eas/CIChqUjBoZbhNrbUoHgq2qlX2lxNKAfDuE596xstH2I.tar.gz
+
+Both are `development`-profile builds (dev-client), meaning they need a live Metro bundler to load the JS — they are NOT standalone installs. Explained to Jordan step by step: iOS `.tar.gz` only runs in Xcode's Simulator on this Mac (drag the extracted `.app` onto a booted simulator); Android `.apk` installs on a real phone but needs the phone on the same WiFi as this Mac, pointed at `192.168.4.36:8081` (Metro's LAN address), or it just shows an empty "no dev server found" screen.
+
+### CodeRabbit re-triggered on PR #30 — hit the rate limit again, review did not run
+Re-triggered `@coderabbitai full review` on PR #30 today (its original attempt was rate-limited during the overnight run, and by this check-in enough time had clearly passed for the cooldown to reset). **Per Jordan, the limit was hit again and this review did not actually run.** PRs #31–34 haven't been re-triggered at all yet. This is a repeat of the exact same constraint documented in BLOCKERS item 8 — CodeRabbit's Pro Plus plan only allows so many full reviews before a cooldown, and that cooldown is proving to recur rather than being a one-off. **Recommendation: don't keep manually re-triggering ad hoc — space out the remaining 4 triggers deliberately (e.g. one per day, or whenever Jordan is next in the app anyway) rather than burning the limit on back-to-back attempts that just re-trigger the same wait.**
+
+### Can these builds go to a QA tester? Not as-is — two separate blockers
+Jordan asked about sending the Android APK / iOS build to a QA tester. Answered honestly:
+- **iOS**: no. The simulator build only runs in Xcode on a Mac — not installable on a real iPhone at all. A real-device build (TestFlight or ad-hoc) needs an Apple Developer Program membership, which is **not yet enrolled** (BLOCKERS item 4, still open — this is the actual blocker, not anything code-related). Nothing to build here until that's done.
+- **Android**: technically installable (APKs need no account), but this specific build is the Metro-dependent dev-client build described above — it would look broken to a tester not on Jordan's WiFi.
+
+### Recommendation: build a `preview`-profile Android APK for QA
+The fix for the Android side is a different EAS profile (`preview` instead of `development`) — that one bundles the JS directly into the app, so it needs no Metro connection and is genuinely standalone. That build would be immediately shareable with a QA tester today, no network dependency. **Not built yet — offered to Jordan, awaiting his go-ahead before spending an EAS build slot on it.** The iOS side stays blocked on Apple Developer enrollment regardless of build profile, since simulator-only builds are useless to a real-device QA tester no matter which profile is used.
+
+### Open items carried forward, current status
+1. **Awaiting Apple Developer Program enrollment** (BLOCKERS item 4) — this is what's actually blocking any real-iPhone build (QA, TestFlight, eventual App Store). Nothing on the code/build side can substitute for this.
+2. **CodeRabbit review debt**: 1 of 6 stack PRs triaged (#29). #30 attempted twice, rate-limited both times — genuinely still needs its review to run before triage can happen. #31–34 not yet attempted.
+3. **1Password CLI still unresponsive** from this environment (confirmed again today, a full day after the first outage — `op whoami` hangs indefinitely both times) — this now looks like a standing issue rather than a transient blip, worth Jordan checking the 1Password desktop app / service-account status directly rather than assuming it'll clear on its own. The seed script (`scripts/seed-demo-data.mjs`) is still unrun because of this.
+4. **Google Maps key**: resolved — see the correction entries below. Both `.env.local` and EAS's `development` environment are confirmed (via matching SHA-256 checksums) to have the same working key.
+5. **Stack rebase**: still not done — fixes from the CodeRabbit triage and the camera-permission bug live on `feat/full-sweep` only, not yet reflected in `stack/01`–`06`. Needed before any of those PRs can actually merge.
+
+### My recommendations, consolidated
+- Get Apple Developer Program enrollment moving now if real-iPhone testing/TestFlight is wanted soon — it can take days (D-U-N-S number lookup for an org enrollment), so it's the longest lead-time item outstanding.
+- Say the word and I'll kick off the `preview`-profile Android build — that's the one concrete unblock available today for handing something to a QA tester.
+- Check 1Password's desktop app/service-account status directly rather than waiting for it to self-resolve — two outages a day apart suggests it won't.
+- Re-trigger the remaining CodeRabbit reviews (PRs #30–34) spaced out over the next few days rather than all at once, to actually get past the rate limit instead of repeatedly hitting it.
+
+---
+
 ## 20 July 2026 — Correction to the Block 7 honesty check below: the Maps key is NOT dead
 
 Jordan asked why I was still reporting the Google Maps key as dead when he'd given me an updated one. I hadn't re-tested it before writing the Block 7 entry below — I repeated an hours-old finding from earlier in the session instead of checking current state, which is exactly the kind of stale-but-confident mistake worth calling out plainly rather than leaving quietly wrong. Re-tested live on request:
