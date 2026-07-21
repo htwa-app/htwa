@@ -149,29 +149,21 @@ Only the dashboard/service role can set either status to approved — the app ph
 
 ---
 
-## 8. CodeRabbit review debt — 5 of 6 stacked PRs still need `@coderabbitai full review` triggered (2 minutes)
+## 8. CodeRabbit review debt — 2 of 6 stacked PRs triaged, 4 remain (updated 21 Jul evening)
 
-**Why:** PR #28 (`feat/full-sweep`) grew to 184 files — over CodeRabbit's 100-file review cap — so tonight I split it into 6 stacked PRs along the existing commit history's natural boundaries (each based on the previous, so every PR's diff is just its own segment, all under the cap): #29 (80 files), #30 (44), #31 (83), #32 (38), #33 (54), #34 (26, top of the branch).
+**Why:** PR #28 (`feat/full-sweep`) grew to 184 files — over CodeRabbit's 100-file review cap — so it was split into 6 stacked PRs along the existing commit history's natural boundaries: #29 (80 files, ✅ triaged), #30 (44 files, ✅ triaged), #31 (83 files, review in progress as of this writing), #32 (38), #33 (54), #34 (26, top of the branch).
 
-I triggered `@coderabbitai full review` on all 6. Only #29 could actually run — CodeRabbit's plan (Pro Plus) rate-limits full reviews, and #30–#34 all came back "Review limit reached... next review available in 59 minutes." This is a plan-level cooldown, not something I can bypass by retrying sooner.
+**Status:** #29 and #30 are both fully triaged — see PROGRESS.md for the detailed rundown of what was fixed vs. dismissed on each, and the PR comment threads themselves for the full reasoning. #31's review was successfully triggered and was still processing when this was last checked (83 files is the largest segment — expect it to take longer than #29/#30 did). #32–#34 haven't been triggered yet this round.
 
-**What to do:** the fastest fix is to comment `@coderabbitai full review` on #30, then #31, then #32, #33, #34, waiting ~60 minutes between each (or just do it once an hour through the day — they don't expire). Once each posts its findings, triage per the usual rule: fix real issues, dismiss noise with a one-line reason, merge only once every PR in the stack is clean (base branches first, since each depends on the one before it).
+**What to do:** if a session isn't actively working through these, comment `@coderabbitai full review` on #31 (if not already done), then #32, #33, #34 — one at a time, waiting for each to actually post its findings before triggering the next, since CodeRabbit's plan enforces a cooldown that seems to reset roughly hourly (not a fixed interval — check rather than assume). Triage per the usual rule: fix real issues, dismiss noise with a one-line reason, merge only once every PR in the stack is clean (base branches first, since each depends on the one before it) — **and only when you explicitly say to merge; that step is never automatic.**
 
 **Unblocks:** actually clearing the review debt that's been deferred since PR #8 — this is the first time it's been attempted at all this branch's size.
 
 ---
 
-## 9. Run the demo-data seed script once `op` is responsive again (2 minutes)
+## 9. ~~Run the demo-data seed script~~ — ✅ DONE (21 Jul evening)
 
-**Why:** part of the beta-readiness sweep was a seed script (`scripts/seed-demo-data.mjs`) to populate a handful of demo drivers + realistic Irish-city rides so your walk-throughs and TestFlight testers have something real to see and book. The script is written and ready, but the 1Password service-account CLI (`op`) became unresponsive partway through tonight's session — `op run` calls that had been working (if slowly) earlier on started hanging indefinitely with no error, and even a bare `op whoami` timed out after 30 seconds with total silence. This looks like a connectivity issue between the service account and 1Password's backend, not a bug in the script — nothing else tonight needed `op`, so this is the one and only thing it blocked.
-
-**What to do:** once `op` is working again (try `op whoami` — it should return instantly; if it still hangs, check your Mac's network/1Password app status, or worst case regenerate the service account token per the setup in this file's own §5), run:
-```bash
-op run --env-file=.secrets.env -- node scripts/seed-demo-data.mjs
-```
-It's idempotent (deletes any previously-seeded `@demo.htwa-app.com` accounts first), so it's safe to re-run any time to refresh the ride departure dates.
-
-**Unblocks:** search results actually showing rides for you and testers, instead of an empty list on day one.
+`op` had recovered (a plain `op vault list` returned in ~4.5s, confirming the earlier hang was a transient/environmental issue, not a code bug). Re-ran the seed script successfully in under 4 seconds. **Verified directly against the live database:** 4 demo drivers (Aoife Kelly/UCD, Cian Murphy/TCD, Niamh Byrne/QUB, Sean Doyle/UCC) and 8 rides spanning **23–28 July 2026** across real Irish/NI city pairs, correct EUR/GBP currency split, 2 rides correctly flagged women-only. Search results now have real data to test against. Nothing further needed — re-run `op run --env-file=.secrets.env -- node scripts/seed-demo-data.mjs` any time to refresh the departure dates (it's idempotent).
 
 ---
 

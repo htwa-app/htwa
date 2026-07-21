@@ -4,6 +4,22 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 21 July 2026 (evening) — Items 8 & 9: seed script re-run, PR #30 fully triaged, PR #31 in progress
+
+Jordan asked for two remaining BLOCKERS items to be closed out tonight.
+
+### Item 9 — seed script: succeeded
+1Password's CLI responded instantly this time (`op vault list` returned in ~4.5s; the earlier hang was transient/environmental, not a code issue). Re-ran `op run --env-file=.secrets.env -- node scripts/seed-demo-data.mjs` — completed in under 4 seconds. **Verified directly against the live DB (not just the script's own log):** 4 demo drivers created (Aoife Kelly/UCD, Cian Murphy/TCD, Niamh Byrne/QUB, Sean Doyle/UCC), 8 rides created spanning **23–28 July 2026**, real Irish/NI city pairs (Dublin↔Belfast, Dublin→Cork, Cork→Galway, Galway→Dublin, Dublin→Limerick, Derry→Belfast, Limerick→Cork), correct EUR/GBP split by driver jurisdiction, 2 rides correctly flagged women-only. Search results now have real data for hands-on testing.
+
+### Item 8 — CodeRabbit review debt: PR #30 fully triaged, PR #31 triggered
+**PR #30** (`stack/02-edge-functions`, 44 files) had actually completed its review since the last check (CodeRabbit's rate limit resets roughly hourly, and enough time had passed) — `CHANGES_REQUESTED`, 39 actionable comments. Triaged every one: real bugs fixed (auth timeout, Stripe idempotency keys across all 4 payment-touching functions, a real login/resend auth-flow bug, a real privacy-policy internal contradiction, 2 stale-doc fixes in BLOCKERS-FOR-JORDAN.md) vs. dismissed with reasons (3 legal-content findings needing actual legal review, one intentional-per-CLAUDE.md design choice, one "heavy lift" architecture suggestion). Full detail in the commit (`6bc4caa`) and the PR #30 comment thread — see below for the complete rundown, this entry doesn't repeat it.
+
+**PR #31** (`stack/03-overnight-docs`, 83 files — the largest segment) — triggered `@coderabbitai full review`; it was NOT rate-limited this time and is processing as this entry is being written. Will continue polling and triage once it posts findings, then move to #32/#33/#34 the same way, respecting whatever cooldown CodeRabbit actually enforces (not hammering it if a later one does get rate-limited).
+
+**Nothing merged to main or any stack branch** — per standing instruction, that stays explicitly Jordan's call once every PR is clean.
+
+---
+
 ## 21 July 2026 (later still) — FCM push credential: file verified, CLI step blocked, and a bigger gap found
 
 Jordan asked me to run `eas credentials -p android` to attach the Firebase service account key (`firebase-service-account.json`, confirmed valid — `firebase-adminsdk-fbsvc@htwa-502918.iam.gserviceaccount.com`, gitignored, not tracked) as the FCM V1 push credential, then confirm push notifications work end-to-end for Android.
