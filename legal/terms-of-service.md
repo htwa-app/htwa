@@ -156,11 +156,9 @@ htwa reserves the right to remove reviews that violate these standards.
 
 ## 8A. In-App Messages and Records
 
-In-app messages between drivers and passengers are retained by htwa as a permanent safeguarding and dispute record, and cannot be deleted by users. Chats close when a journey completes and remain visible to participants read-only. See the Privacy Policy for the lawful basis and your rights.
+In-app messages between drivers and passengers are retained by htwa for as long as needed for safeguarding, an active dispute, or a legal/regulatory request, and cannot be deleted by users on request while any of those applies. Chats close when a journey completes and remain visible to participants read-only. See the Privacy Policy §7 for the full lawful basis, who can access these records, when they're reviewed, and how to request erasure.
 
-If you delete your account, your personal details are erased or anonymised (see Privacy Policy §7A), but journey, payment and message records are retained in anonymised or pseudonymised form where we are legally required to keep them or where they form part of the safeguarding record.
-
-<!-- ADVISER NOTE: permanent message retention vs right-to-erasure, and anonymise-in-place deletion, both need sign-off — see ADVISER-BRIEFING.md items 6 and 7. -->
+If you delete your account, your directly identifying details are erased or replaced with non-identifying values (see Privacy Policy §7A) — we call this **pseudonymisation**, not anonymisation, because journey, payment and message records that we are legally required to keep, or that form part of a live safeguarding record, remain linked to your (pseudonymised) account rather than being irreversibly disconnected from it. Pseudonymised data of this kind is still personal data under GDPR/UK GDPR and remains subject to the same rights described in the Privacy Policy.
 
 ---
 

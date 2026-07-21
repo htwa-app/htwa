@@ -104,6 +104,25 @@ We do not sell your data. We do not share it with advertisers.
 
 ---
 
+## 4A. Notice to Nominated Contacts
+
+If you are named as someone's **nominated contact** in htwa, this section is for you. You are not required to be an htwa user or have an account — you are receiving this notice because someone who uses htwa has given us your name and phone number so we can keep you informed during their journeys, and under data protection law (GDPR/UK GDPR Article 14) we must tell you what we do with it, since we did not collect it directly from you.
+
+**What we process about you:**
+- Your name and phone number, as provided by the htwa user who nominated you
+- Your live or last-known location **only in the context of that user's active journey** — we do not track you independently of this
+- The fact that you were sent a tracking link, SOS alert, or route-deviation alert, and when
+
+**Why (lawful basis):** legitimate interests — specifically, the safety of the htwa user who nominated you, and (where the alert concerns your own safety, e.g. you're being asked to check on someone) the safety purpose the nomination itself serves. We do not use your details for marketing, and we do not create an htwa profile for you.
+
+**How long we keep it:** your name and phone number are retained only while you remain the current or a recent nominated contact for that user (they can change their nominated contact for any future journey); alert/tracking-link records follow the same retention as the safety data they relate to (see §7).
+
+**Your rights:** even though you don't hold an htwa account, you have the same rights as any data subject under GDPR/UK GDPR — in particular, to be told what we hold about you, to have it corrected, and to **object** to us continuing to process it. If you no longer want to be contactable as a nominated contact, tell the person who nominated you to remove or change their nominated contact in the app, or contact us directly at hello@htwa-app.com and we will action it and stop processing your details for this purpose (subject to any live safeguarding reason to retain a specific alert record already sent, per §7).
+
+**When we tell you this:** we aim to give you this notice the first time we contact you as someone's nominated contact (for example, in the first tracking-link SMS/message you receive), and it is always available at htwa-app.com/privacy.
+
+---
+
 ## 5. Location Data
 
 We collect your live location **only during active journeys** and only when you have granted location permission. Location data is:
@@ -134,17 +153,21 @@ Your photo ID, date of birth, and selfie are used solely for identity verificati
 | ID verification documents + date of birth | 12 months from verification date¹ |
 | Driver licence photo + vehicle photo | While the user remains an active driver, + 12 months |
 | Live location data | 30 days after trip completion |
-| In-app messages | Retained permanently as a safeguarding and dispute record² |
-| SOS and safety alert records | Retained permanently as a safeguarding record² |
+| In-app messages | Retained for as long as needed for safeguarding, an active dispute, or a legal/regulatory request² |
+| SOS and safety alert records | Retained for as long as needed for safeguarding, an active dispute, or a legal/regulatory request² |
 | Support correspondence | 2 years |
 
 ¹ The driver's verified photo shown to booked passengers is retained for as long as the driver offers journeys on the platform.
 
-² In-app messages and safety-incident records cannot be deleted by users, including on account deletion. We retain them on the basis of legitimate interests (user safeguarding, dispute and incident records) — messages are exchanged between users arranging to travel together, and a permanent record protects both parties in the event of a safety incident, dispute or law-enforcement request. <!-- ADVISER NOTE: lawful basis for permanent retention vs Art. 17 right to erasure needs sign-off — ADVISER-BRIEFING.md item 6. -->
+² In-app messages and safety-incident records are not deleted on a fixed schedule, including on account deletion, because they may be needed for user safeguarding, to resolve an active dispute between users, or to respond to a legal or regulatory request (for example, a request from An Garda Síochána, the PSNI, a court, or an insurer investigating a claim). Our lawful basis is legitimate interests: messages are exchanged between users arranging to travel together, and keeping a record while any of those needs is live protects both parties and the public. This is **not** indefinite retention by default — specifically:
+  - **Who can access it:** only htwa staff handling a specific safeguarding review, an active dispute between the users involved, or a named legal/regulatory request — not general staff access to message/alert content.
+  - **When it's reviewed:** we review whether a live safeguarding concern, dispute, or legal/regulatory matter still applies whenever an account is deleted, and periodically for older records generally. Once none applies, the record is deleted, or — where a linked record such as the journey or payment it relates to must still be kept for a separate legal/financial reason (see the retention periods above) — pseudonymised in the same way as the rest of the account (§7A).
+  - **Disclosure:** we only disclose these records to a third party (e.g. law enforcement) where legally required to do so, not proactively or for any other purpose.
+  - **Your rights:** you may ask us to erase a specific message or safety-alert record at any time via the process in §8. We will do so unless a live safeguarding concern, dispute, or legal/regulatory reason still applies to that specific record — if so, we'll tell you why and when we expect that no longer to be the case, and you may object to the processing under the same "Object" right that applies to our other legitimate-interests processing (§8).
 
 ### 7A. Account deletion
 
-When you delete your account, your `users` record is anonymised in place: your name, email, phone number, photos and other identifying details are erased or replaced with non-identifying values. Records that must be retained (journey history for legal/financial purposes, payment records for tax purposes, in-app messages and safety records for safeguarding) are kept in that anonymised or pseudonymised form. This means your identity is removed from the platform while the integrity of other users' records — for example, the other side of a chat or a shared journey record — is preserved. <!-- ADVISER NOTE: anonymise-in-place vs full erasure needs sign-off — ADVISER-BRIEFING.md item 7. -->
+When you delete your account, we **pseudonymise** your account in place: your name, email, phone number, photos and other directly identifying details are erased or replaced with non-identifying values, so you can no longer be identified from your account record alone. We use the term "pseudonymise," not "anonymise," deliberately: records that must be retained (journey history for legal/financial purposes, payment records for tax purposes, in-app messages and safety records for the reasons in §7) stay linked to your account internally so that other users' records — for example, the other side of a chat, or a shared journey record — stay intact. Because that internal link still exists, this data could in principle still be re-connected to you (for example, in response to a legal request, or where necessary to investigate a live safeguarding concern) — under GDPR that makes it pseudonymised personal data, not anonymous data, and it remains subject to the same rights and protections described in this policy (§8) for as long as it is retained. We do not use this retained, pseudonymised data for any purpose beyond the ones it was retained for.
 
 ---
 
