@@ -59,8 +59,17 @@ export default function TrackingScreen(): React.ReactElement {
     try {
       const { data, error } = await supabase.rpc('get_tracking_snapshot', { p_token: token });
       if (error) throw error;
-      setSnapshot(data as unknown as Snapshot);
+      const snap = data as unknown as Snapshot;
+      setSnapshot(snap);
       setFetchError(false);
+      // Nothing more can change once the journey is over or the token is
+      // rejected — keep polling forever would just waste battery/network on
+      // a mobile safety screen.
+      const terminal = !snap.ok || snap.trip?.status === 'completed' || snap.trip?.status === 'cancelled';
+      if (terminal && timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     } catch (e) {
       console.error('[Track] snapshot failed:', e instanceof Error ? e.message : e);
       setFetchError(true);
@@ -224,7 +233,7 @@ export default function TrackingScreen(): React.ReactElement {
           </TouchableOpacity>
         )}
         <Text style={styles.screenTitle}>Live journey</Text>
-        <View style={{ width: 24 }} />
+        <View style={styles.headerSpacer} />
       </View>
       {renderBody()}
     </View>
@@ -240,6 +249,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.screenPadding, paddingBottom: Spacing.md,
   },
   screenTitle: { ...Typography.headingLarge, color: Colors.textPrimary, flex: 1, textAlign: 'center' },
+  headerSpacer: { width: 24 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md, padding: Spacing.xl },
   content: { padding: Spacing.screenPadding, gap: Spacing.md },
 

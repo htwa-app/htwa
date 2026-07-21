@@ -18,9 +18,10 @@ import {
   PASSENGER_WAIVER_SECTIONS,
   PASSENGER_WAIVER_TITLE,
 } from '../constants/legalWaiver';
+import type { WaiverRole } from '../types/database';
 
 interface Props {
-  role: 'driver' | 'passenger';
+  role: WaiverRole;
   accepted: boolean;
   onChange: (accepted: boolean) => void;
   testID?: string;

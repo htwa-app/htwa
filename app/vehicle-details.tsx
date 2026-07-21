@@ -52,6 +52,9 @@ const TOGGLE_TRACK_OFF = 'rgba(40,30,20,0.15)';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+// Kept as `type`, not `interface` — an interface here fails to structurally
+// satisfy Record<string, unknown> at the profiles.vehicle_details upsert call
+// site below (TS2322), unlike a type alias for the same plain object shape.
 export type VehicleDetails = {
   make:         string;
   model:        string;

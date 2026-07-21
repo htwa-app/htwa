@@ -227,7 +227,10 @@ export default function UserProfileScreen(): React.ReactElement {
               <View key={review.id} style={styles.reviewRow} testID={`review-${review.id}`}>
                 <View style={styles.reviewHeader}>
                   <Text style={styles.reviewName}>{review.reviewerName}</Text>
-                  <Text style={styles.reviewStars}>{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</Text>
+                  <Text style={styles.reviewStars}>
+                    {'★'.repeat(Math.max(0, Math.min(5, review.rating)))}
+                    {'☆'.repeat(5 - Math.max(0, Math.min(5, review.rating)))}
+                  </Text>
                 </View>
                 {review.comment ? <Text style={styles.reviewComment}>{review.comment}</Text> : null}
                 {review.createdAt ? (

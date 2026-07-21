@@ -54,8 +54,8 @@ jest.mock('../../services/tracking', () => {
 
 // ─── Supabase mock: recorded-call dispatcher ─────────────────────────────────
 
-type Call = { method: string; args: unknown[] };
-type Result = { data: unknown; error: { message: string } | null };
+interface Call { method: string; args: unknown[] }
+interface Result { data: unknown; error: { message: string } | null }
 let mockHandler: (table: string, calls: Call[]) => Result;
 
 function defaultHandler(_table: string, calls: Call[]): Result {

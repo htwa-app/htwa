@@ -31,21 +31,18 @@ const REVIEW_LIST_LIMIT = 20;
 
 export async function getReviewSummary(userId: string): Promise<ReviewSummaryResult> {
   try {
-    const { data: rows, error } = await supabase
+    // count: 'exact' returns the total matching row count via Content-Range
+    // independent of .limit() — one request instead of a separate count-only
+    // query for the same table/filter.
+    const { data: rows, error, count } = await supabase
       .from('reviews')
-      .select('id, rating, comment, reviewer_id, created_at')
+      .select('id, rating, comment, reviewer_id, created_at', { count: 'exact' })
       .eq('reviewee_id', userId)
       .order('created_at', { ascending: false })
       .limit(REVIEW_LIST_LIMIT);
     if (error) return { ok: false };
 
     const reviews = rows ?? [];
-    // The visible list is capped; average/count must cover ALL reviews.
-    const { count, error: countErr } = await supabase
-      .from('reviews')
-      .select('id', { count: 'exact', head: true })
-      .eq('reviewee_id', userId);
-    if (countErr) return { ok: false };
 
     let average: number | null = null;
     if (reviews.length > 0) {

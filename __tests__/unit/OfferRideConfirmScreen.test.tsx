@@ -155,6 +155,21 @@ describe('OfferRideConfirmScreen', () => {
     expect(mockSetJourneyContact).toHaveBeenCalledWith('ride-new', 'u1', { name: 'Mam', phone: '+353871' });
   });
 
+  it('still posts and navigates when the waiver/contact writes fail — they are logged, not a post failure (the ride already committed)', async () => {
+    mockRecordWaiver.mockResolvedValue({ ok: false, message: 'db down' });
+    mockSetJourneyContact.mockResolvedValue({ ok: false, message: 'db down' });
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    render(<OfferRideConfirmScreen />);
+    await waitForVehicleOk();
+    acceptWaiver();
+    fireEvent.press(screen.getByTestId('post-button'));
+    // The ride insert already succeeded — a secondary write failing afterward
+    // must not surface as a post error or block navigation (CLAUDE.md §12).
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/ride-posted'));
+    expect(screen.queryByTestId('post-error')).toBeNull();
+    errorSpy.mockRestore();
+  });
+
   it('inserts real from_coords/to_coords when the driver picked Places suggestions', async () => {
     mockParams = {
       ...BASE_PARAMS,
@@ -191,6 +206,8 @@ describe('OfferRideConfirmScreen', () => {
     mockVehicleFetch.mockResolvedValueOnce({ ok: false });
     render(<OfferRideConfirmScreen />);
     await waitFor(() => expect(screen.getByTestId('vehicle-check-error')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('post-button'));
+    expect(mockInsert).not.toHaveBeenCalled();
     fireEvent.press(screen.getByTestId('vehicle-check-retry'));
     await waitFor(() => expect(screen.queryByTestId('vehicle-check-error')).toBeNull());
   });

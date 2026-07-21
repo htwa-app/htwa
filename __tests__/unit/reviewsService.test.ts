@@ -33,12 +33,10 @@ beforeEach(() => { mockHandler = defaultHandler; });
 
 describe('getReviewSummary', () => {
   it('computes average, count and names', async () => {
-    mockHandler = (table, calls) => {
-      if (table === 'reviews') {
-        const isCount = calls.some((c) => c.method === 'select' && (c.args[1] as { count?: string } | undefined)?.count === 'exact');
-        if (isCount) return { data: null, error: null, count: 2 };
-        return { data: REVIEWS, error: null };
-      }
+    mockHandler = (table) => {
+      // count: 'exact' is now requested on the same query as the row data
+      // (merged into one round trip), so a single reviews response carries both.
+      if (table === 'reviews') return { data: REVIEWS, error: null, count: 2 };
       if (table === 'users') return { data: [{ id: 'a', full_name: 'Aoife' }, { id: 'b', full_name: 'Brid' }], error: null };
       return defaultHandler();
     };
@@ -62,11 +60,8 @@ describe('getReviewSummary', () => {
   });
 
   it('a failed reviewer-name lookup fails loud rather than mislabelling reviews', async () => {
-    mockHandler = (table, calls) => {
-      if (table === 'reviews') {
-        const isCount = calls.some((c) => c.method === 'select' && (c.args[1] as { count?: string } | undefined)?.count === 'exact');
-        return isCount ? { data: null, error: null, count: 2 } : { data: REVIEWS, error: null };
-      }
+    mockHandler = (table) => {
+      if (table === 'reviews') return { data: REVIEWS, error: null, count: 2 };
       return { data: null, error: { message: 'down' } };
     };
     expect(await getReviewSummary('u1')).toEqual({ ok: false });

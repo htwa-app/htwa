@@ -20,6 +20,16 @@ export async function uploadAvatar(userId: string, bytes: Uint8Array): Promise<A
     .upload(path, bytes, { contentType: 'image/jpeg', upsert: false });
   if (uploadError) return { ok: false, message: uploadError.message };
 
+  // Read the previous path BEFORE overwriting it, so it can be cleaned up
+  // once the new one is confirmed saved — otherwise every photo change grows
+  // the bucket forever with no corresponding benefit (the old photo isn't
+  // retained/versioned for any feature).
+  const { data: existing } = await supabase
+    .from('profiles')
+    .select('avatar_url')
+    .eq('user_id', userId)
+    .maybeSingle();
+
   const { data, error: dbError } = await supabase
     .from('profiles')
     .upsert({ user_id: userId, avatar_url: path }, { onConflict: 'user_id' })
@@ -28,6 +38,10 @@ export async function uploadAvatar(userId: string, bytes: Uint8Array): Promise<A
     const { error: removeError } = await supabase.storage.from('avatars').remove([path]);
     if (removeError) console.error('[Avatar] orphan cleanup failed:', removeError.message);
     return { ok: false, message: dbError?.message ?? 'Could not save your photo.' };
+  }
+  if (existing?.avatar_url && existing.avatar_url !== path) {
+    const { error: oldRemoveError } = await supabase.storage.from('avatars').remove([existing.avatar_url]);
+    if (oldRemoveError) console.error('[Avatar] old avatar cleanup failed:', oldRemoveError.message);
   }
   return { ok: true, path };
 }

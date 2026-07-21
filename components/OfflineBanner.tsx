@@ -26,7 +26,12 @@ export function OfflineBanner(): React.ReactElement | null {
   if (!isOffline) return null;
 
   return (
-    <View style={styles.banner} testID="offline-banner">
+    <View
+      style={styles.banner}
+      testID="offline-banner"
+      accessibilityRole="alert"
+      accessibilityLiveRegion="polite"
+    >
       <Ionicons name="cloud-offline-outline" size={16} color={Colors.surface} />
       <Text style={styles.text}>You're offline — some things won't update until you're back.</Text>
     </View>
