@@ -149,13 +149,15 @@ Only the dashboard/service role can set either status to approved — the app ph
 
 ---
 
-## 8. CodeRabbit review debt — 2 of 6 stacked PRs triaged, 4 remain (updated 21 Jul evening)
+## 8. CodeRabbit review debt — 2 of 6 stacked PRs triaged, PR #31's review appears stuck (updated 21 Jul evening)
 
-**Why:** PR #28 (`feat/full-sweep`) grew to 184 files — over CodeRabbit's 100-file review cap — so it was split into 6 stacked PRs along the existing commit history's natural boundaries: #29 (80 files, ✅ triaged), #30 (44 files, ✅ triaged), #31 (83 files, review in progress as of this writing), #32 (38), #33 (54), #34 (26, top of the branch).
+**Why:** PR #28 (`feat/full-sweep`) grew to 184 files — over CodeRabbit's 100-file review cap — so it was split into 6 stacked PRs along the existing commit history's natural boundaries: #29 (80 files, ✅ triaged), #30 (44 files, ✅ triaged), #31 (83 files, ⚠️ stuck — see below), #32 (38), #33 (54), #34 (26, top of the branch).
 
-**Status:** #29 and #30 are both fully triaged — see PROGRESS.md for the detailed rundown of what was fixed vs. dismissed on each, and the PR comment threads themselves for the full reasoning. #31's review was successfully triggered and was still processing when this was last checked (83 files is the largest segment — expect it to take longer than #29/#30 did). #32–#34 haven't been triggered yet this round.
+**Status:** #29 and #30 are both fully triaged — see PROGRESS.md for the detailed rundown, and the PR comment threads for the full reasoning.
 
-**What to do:** if a session isn't actively working through these, comment `@coderabbitai full review` on #31 (if not already done), then #32, #33, #34 — one at a time, waiting for each to actually post its findings before triggering the next, since CodeRabbit's plan enforces a cooldown that seems to reset roughly hourly (not a fixed interval — check rather than assume). Triage per the usual rule: fix real issues, dismiss noise with a one-line reason, merge only once every PR in the stack is clean (base branches first, since each depends on the one before it) — **and only when you explicitly say to merge; that step is never automatic.**
+**🔴 PR #31's review looks genuinely stuck, not just slow.** Triggered `@coderabbitai full review` on it — no rate-limit warning, so it started normally. But after ~35+ minutes it had posted zero findings, and CodeRabbit's own "review in progress... processing" comment was **byte-for-byte identical** across a 35-minute window (checked twice, no change at all) — real progress on an 83-file review, even a slow one, should show *some* movement in that time. PR #29 (80 files) and PR #30 (44 files) both completed within a few minutes each, so this isn't simply "the biggest one takes longest" — something looks stalled specifically for this PR.
+
+**What to do:** check https://github.com/htwa-app/htwa/pull/31 directly — if it's still showing "processing" with no findings, try commenting `@coderabbitai full review` again (a fresh trigger sometimes clears a stuck one). If it stalls again, this may be worth reporting to CodeRabbit support, or just splitting stack/03 into two smaller PRs the way stack/02→03's own sub-split was originally planned (see the file-count table in PROGRESS.md's Block 4 entry) so it's never asked to review 83 files at once. #32–#34 haven't been triggered yet — do those one at a time, waiting for each to actually post findings before triggering the next.
 
 **Unblocks:** actually clearing the review debt that's been deferred since PR #8 — this is the first time it's been attempted at all this branch's size.
 

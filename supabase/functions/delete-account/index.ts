@@ -13,10 +13,9 @@
  * Response: { ok: true } | { error }
  */
 
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { getAuthedUser, json, serviceHeaders, supabaseRestUrl } from '../_shared/auth.ts';
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   const svc = serviceHeaders();
