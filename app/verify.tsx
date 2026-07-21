@@ -13,6 +13,7 @@ import { Button } from '../components/Button';
 import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { resolvePostAuthDestination } from '../utils/authRouting';
+import { NO_ACCOUNT_MESSAGE } from '../utils/authMessages';
 import type { HomeLocation, Currency, Gender } from '../types/database';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -26,7 +27,6 @@ const ALLOWED_GENDERS: Gender[] = ['female', 'male', 'non_binary', 'prefer_not_t
 // "duplicate key value violates unique constraint users_pkey") to the user.
 const ACCOUNT_ERROR_MESSAGE = 'Something went wrong setting up your account. Please try again.';
 const STATE_ERROR_MESSAGE   = "We couldn't check your account status. Please try again.";
-const NO_ACCOUNT_MESSAGE    = "We couldn't find an account for that email.";
 
 type VerifyMode = 'signup' | 'login';
 
@@ -61,12 +61,16 @@ export default function VerifyScreen() {
    * missing profile).
    */
   const routeByCurrentState = async (userId: string): Promise<boolean> => {
-    const { data: verifRow, error: verifErr } = await supabase
-      .from('verification')
-      .select('status')
-      .eq('user_id', userId)
-      .maybeSingle();
-    if (verifErr) {
+    // Independent reads — parallelize rather than adding a round trip on
+    // every post-auth routing decision (hit on every signup and login).
+    const [
+      { data: verifRow, error: verifErr },
+      { data: profileRow, error: profileErr },
+    ] = await Promise.all([
+      supabase.from('verification').select('status').eq('user_id', userId).maybeSingle(),
+      supabase.from('profiles').select('user_id').eq('user_id', userId).maybeSingle(),
+    ]);
+    if (verifErr || profileErr) {
       setVerifyError(STATE_ERROR_MESSAGE);
       return false;
     }
@@ -76,16 +80,6 @@ export default function VerifyScreen() {
     // would incorrectly read as "already submitted" and skip the mandatory
     // gate entirely. id-verify.tsx's own submission is the sole writer.
     const verificationStatus = verifRow?.status ?? null;
-
-    const { data: profileRow, error: profileErr } = await supabase
-      .from('profiles')
-      .select('user_id')
-      .eq('user_id', userId)
-      .maybeSingle();
-    if (profileErr) {
-      setVerifyError(STATE_ERROR_MESSAGE);
-      return false;
-    }
     const hasProfile = profileRow !== null;
 
     router.replace(resolvePostAuthDestination({ verificationStatus, hasProfile }));
@@ -218,9 +212,16 @@ export default function VerifyScreen() {
     setVerifyError(null);
     setNoAccount(false);
     try {
-      const { error: resendError } = await supabase.auth.resend({ email, type: 'signup' });
+      // supabase.auth.resend only covers signup/email-change/phone-change
+      // confirmations — it does not resend a passwordless sign-in OTP.
+      // Returning users (mode: 'login') must call signInWithOtp again.
+      const { error: resendError } = mode === 'login'
+        ? await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } })
+        : await supabase.auth.resend({ email, type: 'signup' });
       if (resendError) {
-        setVerifyError(resendError.message ?? 'Unable to resend code. Please try again.');
+        // Never surface the raw Supabase message — same convention as every
+        // other error path on this screen.
+        setVerifyError('Unable to resend code. Please try again.');
         return;
       }
       // Only start the countdown after a confirmed successful resend

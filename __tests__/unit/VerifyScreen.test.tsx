@@ -14,6 +14,7 @@ jest.mock('expo-router', () => ({
 
 const mockVerifyOtp          = jest.fn();
 const mockResend             = jest.fn();
+const mockSignInWithOtp      = jest.fn();
 const mockUsersUpsert        = jest.fn();
 const mockUsersSelect        = jest.fn();
 const mockVerificationUpsert = jest.fn();
@@ -23,8 +24,9 @@ const mockProfilesSelect     = jest.fn();
 jest.mock('../../lib/supabase', () => ({
   supabase: {
     auth: {
-      verifyOtp: (...args: unknown[]) => mockVerifyOtp(...args),
-      resend:    (...args: unknown[]) => mockResend(...args),
+      verifyOtp:      (...args: unknown[]) => mockVerifyOtp(...args),
+      resend:         (...args: unknown[]) => mockResend(...args),
+      signInWithOtp:  (...args: unknown[]) => mockSignInWithOtp(...args),
     },
     from: (table: string) => {
       if (table === 'users') {
@@ -61,6 +63,7 @@ beforeEach(() => {
   mockVerificationSelect.mockResolvedValue({ data: null, error: null });
   mockProfilesSelect.mockResolvedValue({ data: null, error: null });
   mockResend.mockResolvedValue({ error: null });
+  mockSignInWithOtp.mockResolvedValue({ error: null });
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -380,5 +383,23 @@ describe('VerifyScreen — returning user (mode: login)', () => {
     render(<VerifyScreen />);
     fireEvent.press(screen.getByRole('button', { name: 'Wrong email? Go back' }));
     expect(mockPush).toHaveBeenCalledWith('/login-email');
+  });
+
+  it('resend calls signInWithOtp (not resend) — resend() does not support passwordless sign-in OTPs', () => {
+    render(<VerifyScreen />);
+    fireEvent.press(screen.getByRole('button', { name: 'Resend code' }));
+    expect(mockSignInWithOtp).toHaveBeenCalledWith({
+      email: 'returning@ucd.ie',
+      options: { shouldCreateUser: false },
+    });
+    expect(mockResend).not.toHaveBeenCalled();
+  });
+
+  it('shows a generic message (not the raw Supabase error) when the login-mode resend fails', async () => {
+    mockSignInWithOtp.mockResolvedValue({ error: { message: 'over_email_send_rate_limit: too many requests' } });
+    render(<VerifyScreen />);
+    fireEvent.press(screen.getByRole('button', { name: 'Resend code' }));
+    await waitFor(() => expect(screen.getByTestId('verify-error')).toHaveTextContent(/unable to resend/i));
+    expect(screen.queryByText(/rate_limit/i)).toBeNull();
   });
 });

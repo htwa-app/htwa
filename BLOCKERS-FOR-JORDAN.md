@@ -18,15 +18,16 @@ Things only you can do. Each entry says exactly what I need, how to get it, and 
 **I need:** a Google Maps API key with the Routes API and Places API (New) enabled.
 
 **Get it by:**
-1. Go to https://console.cloud.google.com and sign in (create the account with hello@htwa-app.com if you don't have one — it's free to start, Google gives $200/month free maps usage).
+1. Go to https://console.cloud.google.com and sign in (create the account with hello@htwa-app.com if you don't have one). **Note:** Google's old "$200/month free credit" promotion ended February 28, 2025 — current pricing is per-SKU free monthly billable events instead. Check https://developers.google.com/maps/billing-and-pricing/overview for what's actually free before assuming a budget cushion.
 2. Top bar → "Select a project" → **New Project** → name it `htwa` → Create.
 3. In the search bar type **Routes API** → open it → click **Enable**.
 4. Search **Places API (New)** → open it → click **Enable**.
 5. Search **Maps SDK for iOS** → **Enable**. Then search **Maps SDK for Android** → **Enable**.
 6. Left menu → **APIs & Services → Credentials** → **+ Create credentials → API key**.
-7. Copy the key that appears.
-8. Open 1Password → HTWA vault → **+ New Item → API Credential** → title it exactly `htwa google maps API key` → paste the key into the **credential/password** field → Save.
-9. Also open `~/Documents/HTWA/.env.local` in any text editor and add a line at the bottom: `EXPO_PUBLIC_GOOGLE_MAPS_KEY=` followed by the key (this one is a client-side key, so .env.local is the right place).
+7. **Before using the key anywhere**, restrict it: open the new key's settings → **Application restrictions** → set iOS apps restricted to bundle ID `com.htwa.app` (and the equivalent Android package + SHA-1 for the Android key, or a separate key per platform) → **API restrictions** → limit to only Routes API, Places API (New), and the two Maps SDKs enabled above. Also set a daily quota and a budget alert (Billing → Budgets & alerts) so a leaked or abused key can't run up an unbounded bill. Google explicitly recommends all of this: https://developers.google.com/maps/api-security-best-practices — an unrestricted client-side key is the actual risk, not a hypothetical one.
+8. Copy the key that appears.
+9. Open 1Password → HTWA vault → **+ New Item → API Credential** → title it exactly `htwa google maps API key` → paste the key into the **credential/password** field → Save.
+10. Also open `~/Documents/HTWA/.env.local` in any text editor and add a line at the bottom: `EXPO_PUBLIC_GOOGLE_MAPS_KEY=` followed by the key (this one is a client-side key, so .env.local is the right place).
 
 **Unblocks:** real route distance/duration calculation (currently "distance unavailable" stub), live map on the Live Trip + tracking screens (currently coordinate/progress text), address autocomplete on journey posting/search.
 
@@ -55,7 +56,21 @@ Things only you can do. Each entry says exactly what I need, how to get it, and 
 2. On the Console home page you'll see **Account SID** and **Auth Token** (click "Show"). Copy both.
 3. Phone Numbers → Manage → **Buy a number** (or use the free trial number) → make sure it has SMS capability → copy it in +E.164 format (e.g. +353...).
 4. Open 1Password → HTWA vault → **+ New Item → API Credential** → title it exactly `htwa twilio credentials` → put the Account SID in the username field, the Auth Token in the password field, and the phone number in the notes → Save.
-5. Tell Claude in the next session: "Twilio creds are in the vault" — Claude will set them as Supabase Edge Function secrets (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`) and the SMS path lights up with no code changes.
+5. **The exact, audited provisioning step** (not a chat handoff — this is the same `op run` pattern already used for every other secret in this project, see §5 at the top of CLAUDE.md). Add these three lines to `.secrets.env` (pointers only, never real values):
+   ```
+   TWILIO_ACCOUNT_SID=op://HTWA/htwa twilio credentials/username
+   TWILIO_AUTH_TOKEN=op://HTWA/htwa twilio credentials/password
+   TWILIO_FROM_NUMBER=op://HTWA/htwa twilio credentials/notesPlain
+   ```
+   Then run, from `~/Documents/HTWA`:
+   ```bash
+   op run --env-file=.secrets.env -- npx supabase secrets set \
+     TWILIO_ACCOUNT_SID="$TWILIO_ACCOUNT_SID" \
+     TWILIO_AUTH_TOKEN="$TWILIO_AUTH_TOKEN" \
+     TWILIO_FROM_NUMBER="$TWILIO_FROM_NUMBER" \
+     --project-ref adrwtjlphjrnrrqjkbfk
+   ```
+   This can be run by you directly, or by Claude in a future session (it never needs the credentials typed into chat — `op run` injects them as env vars for that one command's lifetime only). **To verify afterward** without ever printing the values: `npx supabase secrets list --project-ref adrwtjlphjrnrrqjkbfk` shows the secret *names* are set (Supabase never returns values back, by design). **To rotate:** generate a new Auth Token in the Twilio console, update the 1Password item's password field, then re-run the same `secrets set` command — it overwrites in place.
 
 **Unblocks:** SMS alerts to nominated contacts (SOS, off-course, journey-complete) for contacts who don't have the htwa app. Until then: in-app alerts to contacts who ARE htwa users work already; SMS returns a graceful "unavailable" and the app records the alert in the audit table regardless.
 

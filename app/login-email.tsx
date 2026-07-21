@@ -22,14 +22,19 @@ import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { Colors, FontFamily, Typography, Spacing } from '../constants/theme';
 import { validateEmail } from '../utils/validators';
+import { NO_ACCOUNT_MESSAGE } from '../utils/authMessages';
 
 const BRAND_NAME    = 'htwa';
 const BRAND_DOT     = '.';
 const BRAND_TAGLINE = 'heading that way anyway.';
 
-/** Errors here mean "no account for this email" more often than not — never
- * show the raw Supabase Auth message, which can be misleadingly technical. */
-const NO_ACCOUNT_MESSAGE = "We couldn't find an account for that email.";
+/** Supabase's literal error message when shouldCreateUser:false rejects a
+ * non-existent email — the ONLY case that should show NO_ACCOUNT_MESSAGE.
+ * Everything else (rate limits, network hiccups) is a real, existing-user
+ * error and must not be misread as "no account", which would wrongly send
+ * a returning user to sign-up. */
+const NO_ACCOUNT_ERROR_MESSAGE = 'Signups not allowed for otp';
+const GENERIC_LOGIN_ERROR_MESSAGE = 'Something went wrong. Please try again.';
 
 export default function LoginEmailScreen(): React.ReactElement {
   const router = useRouter();
@@ -49,7 +54,7 @@ export default function LoginEmailScreen(): React.ReactElement {
         options: { shouldCreateUser: false },
       });
       if (error) {
-        setLoginError(NO_ACCOUNT_MESSAGE);
+        setLoginError(error.message === NO_ACCOUNT_ERROR_MESSAGE ? NO_ACCOUNT_MESSAGE : GENERIC_LOGIN_ERROR_MESSAGE);
         return;
       }
       router.push({ pathname: '/verify', params: { email, mode: 'login' } });
@@ -105,13 +110,15 @@ export default function LoginEmailScreen(): React.ReactElement {
       {loginError && (
         <View style={styles.errorBlock}>
           <Text style={styles.errorText} testID="login-email-error">{loginError}</Text>
-          <TouchableOpacity
-            onPress={() => router.push('/signup')}
-            accessibilityRole="button"
-            accessibilityLabel="Sign up instead"
-          >
-            <Text style={styles.errorLink}>Sign up instead</Text>
-          </TouchableOpacity>
+          {loginError === NO_ACCOUNT_MESSAGE && (
+            <TouchableOpacity
+              onPress={() => router.push('/signup')}
+              accessibilityRole="button"
+              accessibilityLabel="Sign up instead"
+            >
+              <Text style={styles.errorLink}>Sign up instead</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 

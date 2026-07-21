@@ -92,7 +92,7 @@ For the purposes of data protection law:
 
 We share your data only where necessary:
 
-- **Other users:** Your first name, profile photo, verified status, rating, and vehicle details are visible to other users when you offer or book a journey.
+- **Other users:** Your first name, profile photo, verified status, and rating are visible to other users when you offer or book a journey.
 - **Drivers → booked passengers:** if you drive on htwa, passengers who book your journey are shown your verified photo, full name, gender, and your vehicle's make, model, colour and registration number. This exists so passengers can confirm at pickup that the person and vehicle match what they booked — a core safety feature of the platform. It is disclosed to booked passengers only (never publicly), and drivers consent to it when offering journeys.
 - **Nominated contact:** your live location, journey details and driver identity details are shared with your nominated contact during active journeys, including via Silent SOS and route-deviation alerts. If tracking disconnects, your last-known location and its timestamp are shared instead.
 - **Stripe:** Payment processing. Stripe's privacy policy applies to payment data: stripe.com/privacy

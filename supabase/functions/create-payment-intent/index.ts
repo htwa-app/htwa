@@ -16,7 +16,6 @@
  * Platform fee: 10% of total (application_fee_amount on the PaymentIntent).
  */
 
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { getAuthedUser, json, serviceHeaders, supabaseRestUrl } from '../_shared/auth.ts';
 
 const STRIPE_API = 'https://api.stripe.com/v1';
@@ -28,7 +27,7 @@ function floorMoney(value: number): number {
   return Math.floor((value + 1e-9) * 100) / 100;
 }
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
@@ -50,7 +49,7 @@ serve(async (req: Request) => {
   // 1. Booking + ride, server-side.
   const bookingRes = await fetch(
     supabaseRestUrl(
-      `/bookings?id=eq.${bookingId}&select=id,passenger_id,ride_id,seats_booked,status,` +
+      `/bookings?id=eq.${encodeURIComponent(bookingId)}&select=id,passenger_id,ride_id,seats_booked,status,` +
       `rides(id,driver_id,cost_per_seat,currency)`,
     ),
     { headers: svc },
@@ -115,10 +114,17 @@ serve(async (req: Request) => {
 
   const applicationFee = Math.round(expectedMinorUnits * PLATFORM_FEE_RATE);
 
-  // 5. Create the PaymentIntent.
+  // 5. Create the PaymentIntent. A stable per-booking Idempotency-Key means a
+  //    dropped response, duplicate client call, or re-opened payment sheet
+  //    replays the SAME PaymentIntent instead of creating a second one that
+  //    would silently overwrite payment_intent_id and risk a double charge.
   const piRes = await fetch(`${STRIPE_API}/payment_intents`, {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${stripeKey}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: {
+      'Authorization': `Bearer ${stripeKey}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Idempotency-Key': `payment-intent-${booking.id}`,
+    },
     body: new URLSearchParams({
       amount: String(expectedMinorUnits),
       currency: currency.toLowerCase(),

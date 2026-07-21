@@ -116,6 +116,17 @@ describe('LoginEmailScreen — submit', () => {
     expect(mockPush).toHaveBeenCalledWith('/signup');
   });
 
+  it('shows a generic retry message (not "no account") when signInWithOtp errors for a reason other than missing account', async () => {
+    mockSignInWithOtp.mockResolvedValue({ error: { message: 'For security purposes, you can only request this after 34 seconds' } });
+    render(<LoginEmailScreen />);
+    fireEvent.changeText(screen.getByTestId('login-email-input'), 'returning@ucd.ie');
+    fireEvent.press(screen.getByRole('button', { name: 'Continue' }));
+    await waitFor(() => expect(screen.getByTestId('login-email-error')).toBeTruthy());
+    expect(screen.getByTestId('login-email-error')).not.toHaveTextContent(/couldn't find an account/i);
+    expect(screen.queryByRole('button', { name: 'Sign up instead' })).toBeNull();
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
   it('shows a generic error and does not navigate when signInWithOtp throws', async () => {
     mockSignInWithOtp.mockRejectedValue(new Error('network'));
     render(<LoginEmailScreen />);

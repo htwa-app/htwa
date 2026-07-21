@@ -17,14 +17,13 @@
  * Response: { refundId: string, status: string }
  */
 
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { getAuthedUser, json, serviceHeaders, supabaseRestUrl } from '../_shared/auth.ts';
 
 const STRIPE_API = 'https://api.stripe.com/v1';
 const REASONS = ['driver_cancelled', 'passenger_cancelled', 'driver_mismatch'] as const;
 type RefundReason = typeof REASONS[number];
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
@@ -43,7 +42,7 @@ serve(async (req: Request) => {
 
   // 1. Load the booking + ride, verify the caller is a party to it.
   const bookingRes = await fetch(
-    supabaseRestUrl(`/bookings?id=eq.${bookingId}&select=id,passenger_id,ride_id,payment_intent_id,rides(driver_id)`),
+    supabaseRestUrl(`/bookings?id=eq.${encodeURIComponent(bookingId)}&select=id,passenger_id,ride_id,payment_intent_id,rides(driver_id)`),
     { headers: svc },
   );
   if (!bookingRes.ok) {
@@ -82,9 +81,11 @@ serve(async (req: Request) => {
   if (!paymentIntentId) return json({ error: 'No payment found for this booking' }, 404);
 
   // 3. Full refund: reverse the driver transfer and refund the platform fee.
+  // Idempotency-Key keyed on the PaymentIntent so a retried request replays
+  // Stripe's first result instead of attempting a second refund.
   const refundRes = await fetch(`${STRIPE_API}/refunds`, {
     method: 'POST',
-    headers: stripeHeaders,
+    headers: { ...stripeHeaders, 'Idempotency-Key': `refund-${paymentIntentId}` },
     body: new URLSearchParams({
       payment_intent: paymentIntentId,
       reverse_transfer: 'true',
@@ -95,8 +96,12 @@ serve(async (req: Request) => {
   });
   if (!refundRes.ok) {
     const errText = await refundRes.text();
-    // Already-refunded is a success from the caller's perspective (idempotent retry).
-    if (errText.includes('charge_already_refunded')) return json({ refundId: 'already_refunded', status: 'succeeded' });
+    // Already-refunded is a success from the caller's perspective (idempotent
+    // retry) — parse Stripe's structured error code rather than matching
+    // response wording, which isn't a documented/stable contract.
+    let errCode: string | undefined;
+    try { errCode = (JSON.parse(errText) as { error?: { code?: string } }).error?.code; } catch { /* non-JSON body */ }
+    if (errCode === 'charge_already_refunded') return json({ refundId: 'already_refunded', status: 'succeeded' });
     console.error('[create-refund] Stripe refund error:', errText);
     return json({ error: 'Refund failed' }, 502);
   }

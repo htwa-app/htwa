@@ -11,7 +11,6 @@
  *   - type: 'payment' | 'refund'   (amounts in major units, e.g. 12.50)
  */
 
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { getAuthedUser, json } from '../_shared/auth.ts';
 
 const STRIPE_API = 'https://api.stripe.com/v1';
@@ -25,7 +24,7 @@ interface Tx {
   date: string;
 }
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
@@ -39,35 +38,55 @@ serve(async (req: Request) => {
   if (body.userId && body.userId !== user.id) return json({ error: 'Forbidden' }, 403);
 
   const stripeHeaders = { 'Authorization': `Bearer ${stripeKey}` };
-
   const query = encodeURIComponent(`metadata['passenger_id']:'${user.id}'`);
-  const searchRes = await fetch(`${STRIPE_API}/payment_intents/search?query=${query}&limit=50`, {
-    headers: stripeHeaders,
-  });
-  if (!searchRes.ok) {
-    console.error('[get-transactions] Stripe search error:', await searchRes.text());
-    return json({ error: 'Could not load transactions' }, 502);
-  }
-  const found = await searchRes.json() as {
-    data: Array<{ id: string; amount: number; currency: string; status: string; created: number }>;
-  };
+
+  // Stripe's Search API paginates via has_more/next_page (a cursor token),
+  // not starting_after (that's the List API) — loop until exhausted so a
+  // user with >100 PaymentIntents (2 pages) doesn't silently lose history.
+  type PI = { id: string; amount: number; currency: string; status: string; created: number };
+  const allPis: PI[] = [];
+  let nextPage: string | null = null;
+  do {
+    const pageParam = nextPage ? `&page=${encodeURIComponent(nextPage)}` : '';
+    const searchRes = await fetch(
+      `${STRIPE_API}/payment_intents/search?query=${query}&limit=100${pageParam}`,
+      { headers: stripeHeaders },
+    );
+    if (!searchRes.ok) {
+      console.error('[get-transactions] Stripe search error:', await searchRes.text());
+      return json({ error: 'Could not load transactions' }, 502);
+    }
+    const found = await searchRes.json() as { data: PI[]; has_more: boolean; next_page: string | null };
+    allPis.push(...found.data);
+    nextPage = found.has_more ? found.next_page : null;
+  } while (nextPage);
+
+  const succeeded = allPis.filter((pi) => pi.status === 'succeeded');
+
+  // One refunds-list call per PaymentIntent, run in parallel — allSettled so
+  // a single failed lookup only drops that PI's refunds, not the whole response.
+  const refundResults = await Promise.allSettled(
+    succeeded.map((pi) => fetch(`${STRIPE_API}/refunds?payment_intent=${pi.id}&limit=10`, { headers: stripeHeaders })),
+  );
 
   const transactions: Tx[] = [];
-  for (const pi of found.data) {
-    if (pi.status !== 'succeeded') continue;
-    const currency = pi.currency.toUpperCase();
+  for (let i = 0; i < succeeded.length; i++) {
+    const pi = succeeded[i];
     transactions.push({
       id: pi.id,
       type: 'payment',
       amount: pi.amount / 100,
-      currency,
+      currency: pi.currency.toUpperCase(),
       description: 'Journey payment',
       date: new Date(pi.created * 1000).toISOString(),
     });
 
-    const refundsRes = await fetch(`${STRIPE_API}/refunds?payment_intent=${pi.id}&limit=10`, {
-      headers: stripeHeaders,
-    });
+    const result = refundResults[i];
+    if (result.status === 'rejected') {
+      console.error('[get-transactions] refunds list request failed for', pi.id, result.reason);
+      continue;
+    }
+    const refundsRes = result.value;
     if (!refundsRes.ok) {
       console.error('[get-transactions] refunds list error for', pi.id, await refundsRes.text());
       continue;

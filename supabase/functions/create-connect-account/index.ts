@@ -13,7 +13,6 @@
  * Response: { url: string, accountId: string }
  */
 
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { getAuthedUser, json, serviceHeaders, supabaseRestUrl } from '../_shared/auth.ts';
 
 const STRIPE_API = 'https://api.stripe.com/v1';
@@ -23,7 +22,7 @@ const STRIPE_API = 'https://api.stripe.com/v1';
 const RETURN_URL  = 'https://htwa-app.com/stripe/return';
 const REFRESH_URL = 'https://htwa-app.com/stripe/refresh';
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
@@ -57,7 +56,10 @@ serve(async (req: Request) => {
   if (!accountId) {
     const accountRes = await fetch(`${STRIPE_API}/accounts`, {
       method: 'POST',
-      headers: stripeHeaders,
+      // A stable per-user key so a retried/duplicate request replays the
+      // first result instead of creating a second, orphaned Express account
+      // (payment_accounts is only written AFTER this call succeeds).
+      headers: { ...stripeHeaders, 'Idempotency-Key': `connect-account-${user.id}` },
       body: new URLSearchParams({
         type: 'express',
         ...(user.email ? { email: user.email } : {}),

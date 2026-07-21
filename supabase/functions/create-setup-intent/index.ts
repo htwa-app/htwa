@@ -8,12 +8,11 @@
  * Response: { clientSecret: string }
  */
 
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { getAuthedUser, json, serviceHeaders, supabaseRestUrl } from '../_shared/auth.ts';
 
 const STRIPE_API = 'https://api.stripe.com/v1';
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
@@ -43,7 +42,10 @@ serve(async (req: Request) => {
   if (!customerId) {
     const custRes = await fetch(`${STRIPE_API}/customers`, {
       method: 'POST',
-      headers: stripeHeaders,
+      // Stable per-user key: a retry between the existence check above and
+      // this creation call would otherwise create a second, orphaned Stripe
+      // Customer once the on_conflict=user_id upsert settles.
+      headers: { ...stripeHeaders, 'Idempotency-Key': `stripe-customer-${user.id}` },
       body: new URLSearchParams({
         ...(user.email ? { email: user.email } : {}),
         'metadata[htwa_user_id]': user.id,
