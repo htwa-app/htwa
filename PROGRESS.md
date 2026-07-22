@@ -13,7 +13,7 @@ Entries are added at the top. Most recent session is always first.
   - **Android push delivery** needs Jordan to run `eas credentials -p android` at a real terminal (2 minutes) to attach the already-present Firebase service account key as the FCM V1 credential — full steps in `BLOCKERS-FOR-JORDAN.md` item 4c. The code path is complete and deployed either way; without this step, sends will just fail silently (logged, not surfaced) rather than reaching a device.
   - **iOS push** additionally needs Apple Developer Program enrolment (`BLOCKERS-FOR-JORDAN.md` item 4b) — unrelated to tonight's work, still the longest-lead-time item outstanding.
   - **Twilio SMS** is fully wired except one value: `TWILIO_FROM_NUMBER` (a purchased Twilio phone number) — searched exhaustively, genuinely absent from both 1Password items and `.env.local`. SMS alerts degrade gracefully (`{ok:false, reason:'unavailable'}`) until it's added.
-  - **PR #33 and #34** still need their CodeRabbit reviews triggered/triaged — #33 was triggered tonight but hit CodeRabbit's rate limit; a retry is scheduled and this will continue past this session if needed (see "Task 2").
+  - **PR #34** (the last of the 6 stacked PRs) still needs its CodeRabbit review triggered/triaged — #32 and #33 are both fully done tonight. #34 hit CodeRabbit's rate limit twice; a further retry is scheduled and this will continue past this session if needed (see "Task 2" and `BLOCKERS-FOR-JORDAN.md` item 8 for the exact next step).
   - **Nothing merged to `main`** — per standing instruction, every fix tonight lives on its own branch (or the stacked PR branches), ready for review. Merging stays explicitly Jordan's call.
 - **To install both test builds:** see "Task 5" below for the exact `eas build:view` links, or open them directly from [expo.dev/accounts/htwa-app/projects/htwa/builds](https://expo.dev/accounts/htwa-app/projects/htwa/builds). Both are `development`-profile builds (iOS Simulator + Android APK) built from a local-only integration branch containing everything from all 6 stacked PRs plus every fix from tonight.
 
@@ -35,7 +35,7 @@ Left untouched, exactly as instructed: Article 9 selfie-matching legal basis, an
 
 ---
 
-### Task 2 — CodeRabbit review debt: PR #32 triaged (4/6 done), #33/#34 in progress
+### Task 2 — CodeRabbit review debt: PR #32 and #33 triaged (5/6 done), #34 rate-limited twice
 
 **PR #32** (`stack/04-driver-alert-fix`, 38 files): review landed at 23:57:09 UTC with 26 actionable comments — posted this time as one review-body summary rather than per-line inline comments (the format varies; worth knowing for next time). Verified every finding against current code:
 
@@ -57,11 +57,27 @@ The fix (`8db7133` originally, applied as `2ac9134`/`2314490` on `stack/04` afte
 
 tsc --noEmit: 0 errors. Jest: 1227/1227 tests, 85/85 suites (on `feat/full-sweep`); 1164/1164 tests, 83/83 suites (on `stack/04-driver-alert-fix`, which doesn't yet have tonight's other, unrelated work).
 
-**PR #33** (`stack/05-maps-followthrough`, 54 files): triggered `@coderabbitai full review` at 01:24 UTC. Came back rate-limited — the trigger acknowledgment read "Full review finished... more reviews in 19 minutes," which is the SAME misleading wording that turned out to mean rate-limited on PR #32's first attempt tonight. A retry is scheduled for ~01:45 UTC (verified via the GitHub API before concluding rate-limited, not just from elapsed time). **PR #34 not yet triggered** — waiting on #33 to genuinely land first, per the one-at-a-time/respect-the-cooldown instruction.
+**PR #33** (`stack/05-maps-followthrough`, 54 files): review landed at 00:57:44 UTC with 14 findings, this time as proper inline comments (format varies between PRs — worth remembering). Verified every finding against current code:
+
+**Fixed (10 real findings):**
+- **`context/AuthContext.tsx`** — `fetchVerificationStatus` discarded the query `error` entirely, so a transient failure looked identical to "never submitted." `SplashScreen` would then route an already-verified user back through `/id-verify` on a network blip. Added `verificationLoadError`; a failed fetch now leaves `verificationStatus` untouched and `SplashScreen` shows a retry state instead of guessing. Also memoized the context value (`useMemo` + `useCallback`) so consumers stop re-rendering on every provider render.
+- **`public.verification`'s age-gate CHECK had a real, serious gap**: it exempted ALL `NULL` `date_of_birth` values, not just the two specific pre-DOB-column accounts it was written to grandfather — SQL's three-valued logic means `FALSE OR NULL` still "passes" a CHECK, so a NULL DOB on any new/future row bypassed the DB-enforced 18+ minimum entirely. New migration `20260722030001` scopes the exemption to the two confirmed `user_id`s. **Verified live** in a rolled-back transaction: the grandfathered rows still pass; a NULL DOB update for anyone else now correctly fails the constraint.
+- **`public.verification`'s notify trigger** — identical bug to `driver_verifications`' in PR #32 (filtered on `UPDATE OF status`, resubmissions never set that column). Same fix, same email-PII trim. Migration `20260722040001`.
+- **`services/identityVerification.ts`** — orphaned-file cleanup now runs on every upload failure, not just the final upsert failure (same class of bug as PR #32's `driverVerification.ts` fix).
+- **`app/id-verify.tsx`** — a failed post-submission profile lookup no longer reads as "no profile" (misrouted to `/profile-setup`); defaults to `/(tabs)` and logs the failure instead, since the identity submission itself had already committed.
+- **`components/RouteInput.tsx`** — swapping from/to routed through `onFromChange`/`onToChange`, which `offer-ride.tsx` treats as a fresh text edit and nulls any already-resolved Places coordinates. Added an optional `onSwap` prop for a caller to swap text AND coordinates atomically; wired it in `offer-ride.tsx`. The search screen (which doesn't track coordinates) is unaffected.
+- **`BLOCKERS-FOR-JORDAN.md`** — rewrote the stale "key exposed twice, no rotation" section (the key WAS already rotated, confirmed working — this file just hadn't caught up) and removed a `eas env:update ... --value <key>` command-line example that would leak the secret into shell history/process listings.
+- Quick one: `app/login.tsx`'s Apple/Google buttons now route through the existing `/signin-apple`/`/signin-google` placeholder screens instead of `/signup` directly (currently a behavioral no-op — those stubs also redirect to `/signup` today — but matches the codebase's own indirection for when Phase 15 lands).
+
+**Dismissed (4, with reasons on the PR thread)**: "rotate the exposed Maps key" — already resolved (folded into the BLOCKERS.md rewrite above); a `legal/privacy-policy.md` selfie-retention wording finding — legitimate, but drafting new legal language needs the same explicit authorization Task 1's three items had, not something to draft without it; two others folded into the fixes above rather than separate dismissals.
+
+The fix (`cc91188` on `stack/05`, `b7904ce` on `feat/full-sweep` after resolving one merge conflict in `BLOCKERS-FOR-JORDAN.md` — both branches had touched item 1's Maps-key section independently tonight) — tsc --noEmit: 0 errors. Jest: 1236/1236 tests, 85/85 suites (`feat/full-sweep`); 1205/1205 tests, 84/84 suites (`stack/05-maps-followthrough`).
+
+**PR #34** (`stack/06-android-parity`, 26 files, top of the stack): triggered twice tonight — 01:24 UTC came back rate-limited ("more reviews in 19 minutes"), a retry ~01:50 UTC was rate-limited again the same way. A further retry is scheduled for ~02:49 UTC. **This is where the session paused for the night** — see `BLOCKERS-FOR-JORDAN.md` item 8 for the exact next step if this hasn't landed by the time anyone reads this.
 
 **Nothing merged to `main` or any stack branch** — every fix tonight lives on its own branch or the stack it belongs to, explicitly stopping short of merging per the standing rule.
 
-**Files:** `supabase/migrations/20260722020001_driver_verification_hardening.sql` (new), `services/driverVerification.ts`, `app/driver-verification.tsx`, `app/offer-ride.tsx`, `app/offer-ride-confirm.tsx`, `app/settings.tsx`, `utils/signOut.ts`, `services/routes.ts`, `components/JourneyMap.tsx`, `components/DateTimeField.tsx`, `website/track/index.html`, `app/booking-request.tsx`, `__mocks__/react-native-safe-area-context.js` (new), `__tests__/unit/{OfferRideScreen,OfferRideConfirmScreen,routes,imagePicker}.test.ts(x)`, this file. Commits: `8db7133`/`2ac9134`/`2314490` (stack/04), `42bee71` (feat/full-sweep), `d51283e` (BLOCKERS update).
+**Files (PR #33's fix):** `supabase/migrations/20260722030001_verification_dob_not_null_going_forward.sql` (new), `supabase/migrations/20260722040001_verification_notify_hardening.sql` (new), `context/AuthContext.tsx`, `app/screens/SplashScreen.tsx`, `app/id-verify.tsx`, `app/offer-ride.tsx`, `components/RouteInput.tsx`, `services/identityVerification.ts`, `BLOCKERS-FOR-JORDAN.md`, `__tests__/unit/{AuthContext,IdVerifyScreen,OfferRideScreen,RouteInput,SplashScreen}.test.tsx`, this file. Commits: `cc91188` (stack/05), `b7904ce` (feat/full-sweep).
 
 ---
 
