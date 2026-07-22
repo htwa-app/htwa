@@ -146,16 +146,18 @@ Only the dashboard/service role can set either status to approved — the app ph
 
 ---
 
-## 8. CodeRabbit review debt — 5 of 6 stacked PRs triaged, #34 remains (updated 22 Jul, overnight run 2)
+## 8. CodeRabbit review debt — ✅ ALL 6 stacked PRs triaged (22 Jul, overnight run 2)
 
-**Why:** PR #28 (`feat/full-sweep`) grew to 184 files — over CodeRabbit's 100-file review cap — so it was split into 6 stacked PRs along the existing commit history's natural boundaries: #29 (80 files, ✅ triaged), #30 (44 files, ✅ triaged), #31 (83 files, ✅ triaged), #32 (38 files, ✅ triaged), #33 (54 files, ✅ triaged), #34 (26, top of the branch — the only one left).
+**Why:** PR #28 (`feat/full-sweep`) grew to 184 files — over CodeRabbit's 100-file review cap — so it was split into 6 stacked PRs along the existing commit history's natural boundaries: #29 (80 files), #30 (44 files), #31 (83 files), #32 (38 files), #33 (54 files), #34 (26 files, top of the branch). All six now fully triaged.
 
-**Status:** #29–#33 are all fully triaged — see PROGRESS.md for the detailed rundown of what was fixed vs. dismissed on each, and each PR's own comment thread for the full reasoning.
+**Status — every PR's findings verified against current code, fixed or dismissed with a reason on its own thread:**
+- **#29, #30, #31** — triaged earlier in the session (see PROGRESS.md for the full rundown of each).
 - **#32** landed 23:57:09 UTC 21 Jul, 26 findings (posted as one review-body summary, not inline comments — the format varies between PRs). 10 fixed, 16 dismissed.
-- **#33** landed 00:57:44 UTC 22 Jul, 14 findings (this time as proper inline comments). 10 fixed, 4 dismissed. Real ones included the SAME notify-trigger bug as #32 but on `public.verification` instead of `driver_verifications`, and a genuinely serious one: the DB-enforced 18+ age gate's NULL-`date_of_birth` exemption was scoped to "any NULL row," not just the two specific accounts it was meant to grandfather — closed that gap live (migration `20260722030001`, verified via a rolled-back test transaction that a non-grandfathered NULL DOB now correctly fails the constraint).
-- Both PRs' fixes were cherry-picked onto their own stack branch AND onto `feat/full-sweep`, so tonight's integration branch has everything too.
+- **#33** landed 00:57:44 UTC 22 Jul, 14 findings (inline comments this time). 10 fixed, 4 dismissed. Real ones included the SAME notify-trigger bug as #32 but on `public.verification` instead of `driver_verifications`, and a genuinely serious one: the DB-enforced 18+ age gate's NULL-`date_of_birth` exemption was scoped to "any NULL row," not just the two specific accounts it was meant to grandfather — closed that gap live (migration `20260722030001`, verified via a rolled-back test transaction that a non-grandfathered NULL DOB now correctly fails the constraint).
+- **#34** landed 01:54:23 UTC 22 Jul (after two earlier rate-limited attempts — third trigger worked), 4 findings — all noise: 3 were the same "inline safe-area padding should be StyleSheet-managed" suggestion split across ~25 files (a deliberate, already-documented pattern from the earlier app-wide safe-area audit — CodeRabbit's own label called the refactor a "Heavy lift" for a purely cosmetic preference), and 1 was a stale "add a PROGRESS.md entry" nag that predated tonight's actual updates. All 4 dismissed, zero code changes needed.
+- Every PR's fixes were cherry-picked onto both its own stack branch AND `feat/full-sweep`, so tonight's integration branch (and the EAS test builds built from it) has everything.
 
-**What to do:** #34 was triggered twice tonight (01:24 → rate-limited, "more reviews in 19 minutes"; a retry then fired around ~01:50 and was ALSO rate-limited the same way). A further retry is scheduled ~19 minutes after that. **This is the point where the session paused for the night** — if you're reading this before it's landed, #34 is the one item left: trigger `@coderabbitai full review` on it (respecting whatever cooldown it reports), triage the same way as the other five (fix real issues, dismiss noise with a one-line reason on the PR thread), then all 6 stacked PRs are clean. Merge only once every PR in the stack is clean (base branches first, since each depends on the one before it) — **and only when you explicitly say to merge; that step is never automatic.**
+**What's left:** nothing to trigger or triage — all 6 are clean. The only remaining step is the one that was never automatic: **merging.** When you're ready, the plan (per CLAUDE.md's standing merge flow) is to rebase each stack branch onto `main` individually, starting with `stack/01`, in order — never a bulk merge. That's explicitly your call to make and start, not something done autonomously.
 
 **Unblocks:** actually clearing the review debt that's been deferred since PR #8 — this is the first time it's been attempted at all this branch's size.
 

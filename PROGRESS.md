@@ -8,14 +8,13 @@ Entries are added at the top. Most recent session is always first.
 
 **Top-of-file summary for Jordan:**
 
-- **Ready to test now:** Full push-notification wiring (booking request/accept/decline + SOS/off-course alerts, backgrounded/killed-app delivery via a new `send-push` Edge Function — see below for the one manual step still needed for Android), all 7 payment/tracking Edge Functions deployed and health-checked live, Twilio SMS wired via a Restricted API Key, GDPR-compliant legal doc fixes (retention balancing, pseudonymisation terminology, Article 14 nominated-contact notice), and a batch of real bug fixes from PR #32's CodeRabbit review (see "Task 2" below). Two fresh EAS `development`-profile builds are ready to install — see "Task 5" below for exact links and what is/isn't functional in them.
+- **Ready to test now:** Full push-notification wiring (booking request/accept/decline + SOS/off-course alerts, backgrounded/killed-app delivery via a new `send-push` Edge Function — see below for the one manual step still needed for Android), all 7 payment/tracking Edge Functions deployed and health-checked live, Twilio SMS wired via a Restricted API Key, GDPR-compliant legal doc fixes (retention balancing, pseudonymisation terminology, Article 14 nominated-contact notice), and **all 6 stacked PRs' CodeRabbit review debt fully triaged tonight** (20 real bugs fixed across #32/#33 — see "Task 2" below for the full rundown, including a genuinely serious DB age-gate gap that's now closed live). Two fresh EAS `development`-profile builds are ready to install — see "Task 5" below for exact links and what is/isn't functional in them.
 - **Still blocked, and why:**
   - **Android push delivery** needs Jordan to run `eas credentials -p android` at a real terminal (2 minutes) to attach the already-present Firebase service account key as the FCM V1 credential — full steps in `BLOCKERS-FOR-JORDAN.md` item 4c. The code path is complete and deployed either way; without this step, sends will just fail silently (logged, not surfaced) rather than reaching a device.
   - **iOS push** additionally needs Apple Developer Program enrolment (`BLOCKERS-FOR-JORDAN.md` item 4b) — unrelated to tonight's work, still the longest-lead-time item outstanding.
   - **Twilio SMS** is fully wired except one value: `TWILIO_FROM_NUMBER` (a purchased Twilio phone number) — searched exhaustively, genuinely absent from both 1Password items and `.env.local`. SMS alerts degrade gracefully (`{ok:false, reason:'unavailable'}`) until it's added.
-  - **PR #34** (the last of the 6 stacked PRs) still needs its CodeRabbit review triggered/triaged — #32 and #33 are both fully done tonight. #34 hit CodeRabbit's rate limit twice; a further retry is scheduled and this will continue past this session if needed (see "Task 2" and `BLOCKERS-FOR-JORDAN.md` item 8 for the exact next step).
-  - **Nothing merged to `main`** — per standing instruction, every fix tonight lives on its own branch (or the stacked PR branches), ready for review. Merging stays explicitly Jordan's call.
-- **To install both test builds:** see "Task 5" below for the exact `eas build:view` links, or open them directly from [expo.dev/accounts/htwa-app/projects/htwa/builds](https://expo.dev/accounts/htwa-app/projects/htwa/builds). Both are `development`-profile builds (iOS Simulator + Android APK) built from a local-only integration branch containing everything from all 6 stacked PRs plus every fix from tonight.
+  - **Nothing merged to `main`** — per standing instruction, every fix tonight lives on its own branch (or the stacked PR branches), ready for review. **All 6 stacked PRs are now clean** — merging (rebase each onto `main` individually, in order) is the one remaining step, and it stays explicitly Jordan's call to make and start.
+- **To install both test builds:** see "Task 5" below for the exact `eas build:view` links, or open them directly from [expo.dev/accounts/htwa-app/projects/htwa/builds](https://expo.dev/accounts/htwa-app/projects/htwa/builds). Both are `development`-profile builds (iOS Simulator + Android APK) built from a local-only integration branch containing everything from all 6 stacked PRs plus every fix from tonight (through PR #32's fixes — built before PR #33/#34's fixes landed; a rebuild would pick those up too if wanted, but none of them touch the golden walkthrough path, so tonight's builds are representative).
 
 ---
 
@@ -35,7 +34,7 @@ Left untouched, exactly as instructed: Article 9 selfie-matching legal basis, an
 
 ---
 
-### Task 2 — CodeRabbit review debt: PR #32 and #33 triaged (5/6 done), #34 rate-limited twice
+### Task 2 — CodeRabbit review debt: ✅ all 6 stacked PRs triaged
 
 **PR #32** (`stack/04-driver-alert-fix`, 38 files): review landed at 23:57:09 UTC with 26 actionable comments — posted this time as one review-body summary rather than per-line inline comments (the format varies; worth knowing for next time). Verified every finding against current code:
 
@@ -73,7 +72,9 @@ tsc --noEmit: 0 errors. Jest: 1227/1227 tests, 85/85 suites (on `feat/full-sweep
 
 The fix (`cc91188` on `stack/05`, `b7904ce` on `feat/full-sweep` after resolving one merge conflict in `BLOCKERS-FOR-JORDAN.md` — both branches had touched item 1's Maps-key section independently tonight) — tsc --noEmit: 0 errors. Jest: 1236/1236 tests, 85/85 suites (`feat/full-sweep`); 1205/1205 tests, 84/84 suites (`stack/05-maps-followthrough`).
 
-**PR #34** (`stack/06-android-parity`, 26 files, top of the stack): triggered twice tonight — 01:24 UTC came back rate-limited ("more reviews in 19 minutes"), a retry ~01:50 UTC was rate-limited again the same way. A further retry is scheduled for ~02:49 UTC. **This is where the session paused for the night** — see `BLOCKERS-FOR-JORDAN.md` item 8 for the exact next step if this hasn't landed by the time anyone reads this.
+**PR #34** (`stack/06-android-parity`, 26 files, top of the stack): triggered three times tonight — 01:24 UTC and ~01:50 UTC both came back rate-limited ("more reviews in 19 minutes"), a third retry at ~01:49 UTC (scheduled ~19 min after the second) finally landed genuinely — review posted 01:54:23 UTC, 4 findings. All 4 were noise: 3 were the same suggestion ("move inline safe-area padding into StyleSheet") split across ~25 files by CodeRabbit's own consolidation, and the 4th was a stale "add a PROGRESS.md entry" nag from before tonight's updates. The safe-area padding IS inline deliberately — it depends on `useSafeAreaInsets()`'s runtime, per-device value, which a static `StyleSheet.create()` object can't express; several of the flagged files already carry their own comment explaining this. CodeRabbit's own severity label for the suggestion was "Heavy lift" for a purely cosmetic refactor spanning 25 files with no functional benefit — dismissed with reasons on the PR thread, zero code changes needed.
+
+**All 6 stacked PRs (#29–#34) are now fully triaged and clean.** The only remaining CodeRabbit-related step is merging — explicitly Jordan's call, not automatic, per `BLOCKERS-FOR-JORDAN.md` item 8's updated plan (rebase each stack branch onto `main` individually, in order, when ready).
 
 **Nothing merged to `main` or any stack branch** — every fix tonight lives on its own branch or the stack it belongs to, explicitly stopping short of merging per the standing rule.
 
