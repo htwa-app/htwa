@@ -18,6 +18,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { JourneyMap } from '../../components/JourneyMap';
 import { Colors, Typography, Spacing, BorderRadius, FontFamily } from '../../constants/theme';
@@ -48,6 +49,7 @@ interface Snapshot {
 export default function TrackingScreen(): React.ReactElement {
   const { token } = useLocalSearchParams<{ token: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [fetchError, setFetchError] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -214,7 +216,7 @@ export default function TrackingScreen(): React.ReactElement {
   };
 
   return (
-    <View style={styles.screen} testID="tracking-screen">
+    <View style={[styles.screen, { paddingTop: insets.top + Spacing.lg }]} testID="tracking-screen">
       <View style={styles.headerRow}>
         {router.canGoBack() && (
           <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back" testID="back-button" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -230,7 +232,9 @@ export default function TrackingScreen(): React.ReactElement {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: Colors.background, paddingTop: Spacing.xxl },
+  // paddingTop is set inline (insets.top + Spacing.lg) so the header clears
+  // the status bar/Dynamic Island on every device instead of a fixed value.
+  screen: { flex: 1, backgroundColor: Colors.background },
   headerRow: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: Spacing.screenPadding, paddingBottom: Spacing.md,

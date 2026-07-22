@@ -13,6 +13,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Linking, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useStripe } from '@stripe/stripe-react-native';
 import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
@@ -34,6 +35,7 @@ const CONNECT_LABEL: Record<ConnectStatus, { label: string; color: string }> = {
 
 export default function PaymentMethodsScreen(): React.ReactElement {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
@@ -111,7 +113,7 @@ export default function PaymentMethodsScreen(): React.ReactElement {
     : 'No card on file';
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} testID="payment-methods-screen">
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.content, { paddingTop: insets.top + Spacing.lg }]} testID="payment-methods-screen">
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back" testID="back-button" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Ionicons name="chevron-back" size={24} color={Colors.textPrimary} />
@@ -168,8 +170,9 @@ export default function PaymentMethodsScreen(): React.ReactElement {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.background },
   content: {
+    // paddingTop is set inline (insets.top + Spacing.lg) so the content clears
+    // the status bar/Dynamic Island on every device instead of a fixed value.
     paddingHorizontal: Spacing.screenPadding,
-    paddingTop: Spacing.xxxl + Spacing.xl,
     paddingBottom: Spacing.xxxxxl,
     gap: Spacing.lg,
   },

@@ -10,6 +10,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { formatCurrency } from '../../utils/currency';
 import { getSavingVsPublicTransport } from '../../utils/publicTransportFares';
@@ -40,6 +41,7 @@ interface TripHistoryItem {
 
 export default function HistoryScreen(): React.ReactElement {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [trips,     setTrips]     = useState<TripHistoryItem[]>([]);
   const [filter,    setFilter]    = useState<FilterTab>('all');
@@ -143,7 +145,7 @@ export default function HistoryScreen(): React.ReactElement {
   if (error) return <View style={styles.center} testID="history-error"><Text style={styles.emptyText}>{error}</Text></View>;
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.scrollContent} testID="history-screen">
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Spacing.lg }]} testID="history-screen">
       {/* Stats header */}
       <View style={styles.statsRow} testID="stats-header">
         <View style={styles.statCard}>
@@ -243,7 +245,8 @@ export default function HistoryScreen(): React.ReactElement {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.background },
-  scrollContent: { paddingHorizontal: Spacing.screenPadding, paddingTop: Spacing.xxxl + Spacing.xl, paddingBottom: Spacing.xxxxxl, gap: Spacing.md },
+  // paddingTop is set inline (insets.top + Spacing.lg) so content clears the status bar/Dynamic Island on every device instead of a fixed value.
+  scrollContent: { paddingHorizontal: Spacing.screenPadding, paddingBottom: Spacing.xxxxxl, gap: Spacing.md },
   center: { flex: 1, backgroundColor: Colors.background, alignItems: 'center', justifyContent: 'center' },
   statsRow: { flexDirection: 'row', gap: Spacing.md },
   statCard: { flex: 1, backgroundColor: Colors.primary, borderRadius: BorderRadius.large, padding: Spacing.cardPadding, alignItems: 'center', gap: Spacing.xs },

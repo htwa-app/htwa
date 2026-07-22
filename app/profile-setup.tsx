@@ -18,6 +18,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import Input from '../components/Input';
@@ -46,6 +47,7 @@ const STORAGE_CONTACT_PHONE = 'htwa:nominatedContact:phone';
 
 export default function ProfileSetupScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
   const [contactName,  setContactName]  = useState('');
@@ -98,7 +100,7 @@ export default function ProfileSetupScreen() {
 
   return (
     <ScrollView
-      contentContainerStyle={styles.container}
+      contentContainerStyle={[styles.container, { paddingTop: insets.top + Spacing.lg }]}
       bounces={false}
       showsVerticalScrollIndicator={false}
     >
@@ -183,7 +185,8 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     backgroundColor: Colors.background,
     paddingHorizontal: Spacing.screenPadding,
-    paddingTop: Spacing.xxxxxl + Spacing.xxxl, // 80px — matches signup/login screens
+    // paddingTop is set inline (insets.top + Spacing.lg) so the content clears
+    // the status bar/Dynamic Island on every device instead of a fixed value.
     paddingBottom: Spacing.xxxxxl,
     alignItems: 'center',
   },
