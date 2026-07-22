@@ -71,7 +71,7 @@ jest.mock('../../components/DateTimeField', () => {
 });
 
 jest.mock('../../components/RouteInput', () => {
-  const { View, TextInput } = require('react-native');
+  const { View, TextInput, TouchableOpacity } = require('react-native');
   return {
     RouteInput: (props: Record<string, unknown>) => (
       <View testID={(props.testID as string) ?? 'route-input'}>
@@ -84,6 +84,28 @@ jest.mock('../../components/RouteInput', () => {
           testID="to-input"
           value={(props.to as string) ?? ''}
           onChangeText={props.onToChange}
+        />
+        {/* Test-only affordances for the coordinate-tracking + swap props. */}
+        <TouchableOpacity
+          testID="route-input-pick-from"
+          onPress={() => {
+            const fn = props.onFromPlaceSelect;
+            if (typeof fn === 'function') fn({ lat: 53.27, lng: -9.05 });
+          }}
+        />
+        <TouchableOpacity
+          testID="route-input-pick-to"
+          onPress={() => {
+            const fn = props.onToPlaceSelect;
+            if (typeof fn === 'function') fn({ lat: 53.34, lng: -6.26 });
+          }}
+        />
+        <TouchableOpacity
+          testID="route-input-swap"
+          onPress={() => {
+            const fn = props.onSwap;
+            if (typeof fn === 'function') fn();
+          }}
         />
       </View>
     ),
@@ -168,6 +190,33 @@ describe('OfferRideScreen — review button', () => {
       () => expect(screen.getByTestId('review-button').props.accessibilityState?.disabled).toBe(false),
       { timeout: 2000 },
     );
+  });
+});
+
+describe('OfferRideScreen — route swap preserves resolved coordinates (PR #33 finding)', () => {
+  it('swapping after picking both Places suggestions carries the coordinates over, not nulling them', async () => {
+    render(<OfferRideScreen />);
+    await waitFor(() => expect(screen.getByTestId('from-input')).toBeTruthy());
+    fireEvent.changeText(screen.getByTestId('from-input'), 'Galway');
+    fireEvent.press(screen.getByTestId('route-input-pick-from'));
+    fireEvent.changeText(screen.getByTestId('to-input'), 'Dublin');
+    fireEvent.press(screen.getByTestId('route-input-pick-to'));
+    fireEvent.changeText(screen.getByTestId('date-input'), '2026-06-01');
+    fireEvent.changeText(screen.getByTestId('time-input'), '09:00');
+    await waitFor(
+      () => expect(screen.getByTestId('review-button').props.accessibilityState?.disabled).toBe(false),
+      { timeout: 2000 },
+    );
+
+    fireEvent.press(screen.getByTestId('route-input-swap'));
+    fireEvent.press(screen.getByTestId('review-button'));
+    const params = new URLSearchParams(String(mockPush.mock.calls[0][0]).split('?')[1]);
+
+    // Swapped: the "from" coords are now what was picked for "to", and vice versa.
+    expect(params.get('fromLat')).toBe('53.34');
+    expect(params.get('fromLng')).toBe('-6.26');
+    expect(params.get('toLat')).toBe('53.27');
+    expect(params.get('toLng')).toBe('-9.05');
   });
 });
 

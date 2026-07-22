@@ -6,14 +6,14 @@ Things only you can do. Each entry says exactly what I need, how to get it, and 
 
 ## 1. Google Maps API key
 
-**✅ RESOLVED (20 Jul, overnight run, corrected after initially being reported dead):** earlier in the session the key tested as dead (`API_KEY_INVALID` on Routes/Geocoding). You then gave me an updated key. I did NOT re-test it before writing tonight's final summary — I repeated the hours-old "dead key" finding instead of checking the current state, which was a mistake (flagged and corrected once you asked why). Re-tested live just now against `.env.local`'s current value:
+**✅ RESOLVED (20 Jul, overnight run, corrected after initially being reported dead):** an earlier version of this key tested as dead (`API_KEY_INVALID` on Routes/Geocoding) after its value was accidentally printed in plaintext in the Claude Code transcript twice (a mistake, already flagged in-session) — Google's exposed-key scanning likely auto-revoked it. You then gave a replacement key. Re-tested live against `.env.local`'s current value:
 - **Routes API: working.** Real Belfast→Dublin query returned `distanceMeters: 168932, duration: 7184s`.
 - **Places API (New) autocomplete: working.** Real suggestions returned for a test query.
-- **Geocoding API: `REQUEST_DENIED` — not enabled on the project.** Not used anywhere in the app's code (only Routes + Places are), so this doesn't block anything. Worth enabling anyway for future-proofing (APIs & Services → Library → Geocoding API → Enable) but not urgent.
+- **Geocoding API: `REQUEST_DENIED` — not enabled on the project.** Not used anywhere in the app's code (only Routes + Places are), so this doesn't block anything. Worth enabling anyway for future-proofing but not urgent.
 
 **Also confirmed:** EAS's stored `development` environment variable has the exact same value as `.env.local` (verified via matching SHA-256 checksums, without ever printing either raw key). So the two builds kicked off in Block 7 tonight are using the correct, working key — nothing to update.
 
-**Original setup instructions below, for a fresh key if this ever dies again:**
+**Original setup instructions below, for a fresh key if this ever needs rotating again — deliberately avoids putting any key value on a command line (shell history / process listings can expose it) or in chat:**
 
 **I need:** a Google Maps API key with the Routes API and Places API (New) enabled.
 
@@ -28,6 +28,7 @@ Things only you can do. Each entry says exactly what I need, how to get it, and 
 8. Copy the key that appears.
 9. Open 1Password → HTWA vault → **+ New Item → API Credential** → title it exactly `htwa google maps API key` → paste the key into the **credential/password** field → Save.
 10. Also open `~/Documents/HTWA/.env.local` in any text editor and add a line at the bottom: `EXPO_PUBLIC_GOOGLE_MAPS_KEY=` followed by the key (this one is a client-side key, so .env.local is the right place).
+11. Update the EAS-stored copy through the **EAS dashboard** (expo.dev → project → Environment variables), not a command-line `--value` flag — that would put the raw key in shell history and process listings, which is exactly what CodeRabbit's review of this file flagged.
 
 **Unblocks:** real route distance/duration calculation (currently "distance unavailable" stub), live map on the Live Trip + tracking screens (currently coordinate/progress text), address autocomplete on journey posting/search.
 

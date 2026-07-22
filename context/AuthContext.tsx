@@ -19,7 +19,7 @@
  *   3. After a session is found, queries public.verification for status
  */
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import type { VerificationStatus } from '../types/database';
@@ -31,6 +31,10 @@ export interface AuthContextValue {
   session:             Session | null;
   isLoading:           boolean;
   verificationStatus:  VerificationStatus | null;
+  /** True when the last verification-status fetch failed — distinct from a
+   *  genuine null (never submitted). Consumers must not route based on
+   *  verificationStatus while this is true (see SplashScreen). */
+  verificationLoadError: boolean;
   /** Re-fetch verification status from public.verification. Call after submitting/resubmitting. */
   refreshVerification: () => Promise<void>;
 }
@@ -46,15 +50,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session,            setSession]            = useState<Session | null>(null);
   const [isLoading,          setIsLoading]          = useState(true);
   const [verificationStatus, setVerificationStatus] = useState<VerificationStatus | null>(null);
+  const [verificationLoadError, setVerificationLoadError] = useState(false);
 
-  /** Fetch the verification row's status for the given user (null = no row yet). */
+  /**
+   * Fetch the verification row's status for the given user (null = no row
+   * yet). A query error must NEVER be treated as "never submitted" — that
+   * would silently route an already-verified user back through /id-verify
+   * on a transient network blip. On error, verificationStatus is left
+   * untouched and verificationLoadError is set instead; consumers check
+   * that flag before routing on a null status.
+   */
   async function fetchVerificationStatus(userId: string): Promise<void> {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('verification')
       .select('status')
       .eq('user_id', userId)
       .maybeSingle();
 
+    if (error) {
+      console.error('[AuthContext] verification status fetch failed:', error.message);
+      setVerificationLoadError(true);
+      return;
+    }
+    setVerificationLoadError(false);
     setVerificationStatus(data?.status ?? null);
   }
 
@@ -103,14 +121,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * Call this after writing a verification row (e.g. from id-verify.tsx)
    * so the context updates without waiting for an auth state change event.
    */
-  const refreshVerification = async (): Promise<void> => {
+  const refreshVerification = useCallback(async (): Promise<void> => {
     if (user) {
       await fetchVerificationStatus(user.id);
     }
-  };
+  // fetchVerificationStatus is stable (defined at component scope, no deps)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  // Every consumer re-renders whenever this value changes identity — without
+  // memoizing, a fresh object every render would make ALL consumers
+  // re-render on every AuthProvider render, not just on an actual state change.
+  const value = useMemo(
+    () => ({ user, session, isLoading, verificationStatus, verificationLoadError, refreshVerification }),
+    [user, session, isLoading, verificationStatus, verificationLoadError, refreshVerification],
+  );
 
   return (
-    <AuthContext.Provider value={{ user, session, isLoading, verificationStatus, refreshVerification }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

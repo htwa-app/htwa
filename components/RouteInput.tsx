@@ -56,6 +56,14 @@ export interface RouteInputProps {
   onFromPlaceSelect?: (coords: PlaceCoords) => void;
   /** Fired when a real suggestion is picked for the destination. */
   onToPlaceSelect?: (coords: PlaceCoords) => void;
+  /** Called on swap INSTEAD of onFromChange/onToChange, so a caller tracking
+   *  resolved coordinates (via onFromPlaceSelect/onToPlaceSelect) can swap
+   *  both text and coordinates atomically rather than losing them — swapping
+   *  through onFromChange/onToChange alone reads as a fresh text edit and
+   *  nulls out coordinates a parent may have already resolved. Optional: a
+   *  caller that doesn't track coordinates can omit this and keep the
+   *  original onFromChange/onToChange swap behaviour. */
+  onSwap?: () => void;
   fromPlaceholder?: string;
   toPlaceholder?: string;
   /** Prominent label rendered above the origin field (e.g. "Departing from"). */
@@ -74,6 +82,7 @@ export function RouteInput({
   onToChange,
   onFromPlaceSelect,
   onToPlaceSelect,
+  onSwap,
   fromPlaceholder = 'From',
   toPlaceholder = 'To',
   fromLabel,
@@ -122,8 +131,12 @@ export function RouteInput({
   };
 
   const handleSwap = () => {
-    onFromChange(to);
-    onToChange(from);
+    if (onSwap) {
+      onSwap();
+    } else {
+      onFromChange(to);
+      onToChange(from);
+    }
     setSuggestions([]);
     setActiveField(null);
   };
