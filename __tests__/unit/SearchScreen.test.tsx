@@ -62,10 +62,12 @@ describe('SearchScreen — greeting', () => {
 });
 
 describe('SearchScreen — mode toggle', () => {
-  it('shows Find a ride and Offer a ride tabs', () => {
+  it('shows Find a journey and Offer a journey tabs', () => {
     render(<SearchScreen />);
     expect(screen.getByTestId('mode-find')).toBeTruthy();
     expect(screen.getByTestId('mode-offer')).toBeTruthy();
+    expect(screen.getByText('Find a journey')).toBeTruthy();
+    expect(screen.getByText('Offer a journey')).toBeTruthy();
   });
 
   it('shows find mode content by default', () => {
@@ -113,10 +115,48 @@ describe('SearchScreen — search button', () => {
 });
 
 describe('SearchScreen — offer mode', () => {
-  it('navigates to /offer-ride when post a ride is pressed', () => {
+  it('navigates to /offer-ride when post a journey is pressed', () => {
     render(<SearchScreen />);
     fireEvent.press(screen.getByTestId('mode-offer'));
     fireEvent.press(screen.getByTestId('post-ride-button'));
     expect(mockPush).toHaveBeenCalledWith('/offer-ride');
+  });
+});
+
+describe('SearchScreen — Block 1 clear labels', () => {
+  it('shows prominent labels (not just placeholders)', () => {
+    render(<SearchScreen />);
+    expect(screen.getByText('When do you want to travel?')).toBeTruthy();
+    expect(screen.getByText('Number of seats required')).toBeTruthy();
+    expect(screen.getByText('Women-only journeys')).toBeTruthy();
+    expect(screen.getByText('Search')).toBeTruthy();
+  });
+
+  it('caps the seats selector at 4 when searching', () => {
+    render(<SearchScreen />);
+    const inc = screen.getByTestId('search-seats-inc');
+    for (let i = 0; i < 10; i++) fireEvent.press(inc); // try to exceed
+    expect(screen.getByTestId('search-seats-value')).toHaveTextContent('4');
+  });
+});
+
+describe('SearchScreen — Block 3 date flexibility', () => {
+  it('shows the ±1/±2/±3 day flexibility options', () => {
+    render(<SearchScreen />);
+    expect(screen.getByText('Date flexibility')).toBeTruthy();
+    expect(screen.getByTestId('flex-0')).toBeTruthy();
+    expect(screen.getByTestId('flex-1')).toBeTruthy();
+    expect(screen.getByTestId('flex-2')).toBeTruthy();
+    expect(screen.getByTestId('flex-3')).toBeTruthy();
+  });
+
+  it('passes the selected flexibility into the search params', async () => {
+    render(<SearchScreen />);
+    fireEvent.changeText(screen.getByTestId('from-input'), 'Dublin');
+    fireEvent.changeText(screen.getByTestId('to-input'), 'Galway');
+    fireEvent.press(screen.getByTestId('flex-2'));
+    fireEvent.press(screen.getByTestId('search-button'));
+    await waitFor(() => expect(mockPush).toHaveBeenCalled());
+    expect(String(mockPush.mock.calls[0][0])).toContain('flexDays=2');
   });
 });

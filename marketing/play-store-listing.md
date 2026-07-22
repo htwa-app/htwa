@@ -34,7 +34,7 @@ Built for Irish routes, Irish prices, and Irish students. Euro and Sterling. ROI
 Travel
 
 ## Content Rating
-Teen (PEGI 12 equivalent — financial transactions)
+18+ only — the app hard-enforces a minimum age of 18 for every account (client-side check + a database constraint on `verification.date_of_birth`), so the IARC questionnaire should be answered to reflect an adults-only app, not "Teen." Matches the App Store listing's "17+ (Limited to users 18+)".
 
 ## Tags
 rideshare, carpool, ireland, students, safety

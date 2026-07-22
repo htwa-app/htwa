@@ -14,6 +14,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStripe } from '@stripe/stripe-react-native';
 import { Button } from '../components/Button';
 import { formatCurrency } from '../utils/currency';
@@ -28,6 +29,7 @@ const PLATFORM_FEE_DISPLAY = '10%';
 
 export default function PaymentScreen(): React.ReactElement {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const params  = useLocalSearchParams<{
@@ -111,12 +113,12 @@ export default function PaymentScreen(): React.ReactElement {
   };
 
   return (
-    <View style={styles.screen} testID="payment-screen">
+    <View style={[styles.screen, { paddingTop: insets.top + Spacing.lg }]} testID="payment-screen">
       <Text style={styles.title}>Payment</Text>
 
       <View style={styles.breakdownCard}>
         <View style={styles.breakdownRow}>
-          <Text style={styles.breakdownLabel}>Ride cost</Text>
+          <Text style={styles.breakdownLabel}>Journey cost</Text>
           <Text style={styles.breakdownValue} testID="ride-cost">
             {formatCurrency(amount - platformFee, currency)}
           </Text>
@@ -160,7 +162,8 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1, backgroundColor: Colors.background,
     paddingHorizontal: Spacing.screenPadding,
-    paddingTop: Spacing.xxxl + Spacing.xl,
+    // paddingTop is set inline (insets.top + Spacing.lg) so the content clears
+    // the status bar/Dynamic Island on every device instead of a fixed value.
     gap: Spacing.lg,
   },
   title: { ...Typography.headingLarge, color: Colors.textPrimary },

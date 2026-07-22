@@ -3,16 +3,36 @@
  * Stage 58/59 — unit tests for services/notifications.ts
  */
 import * as Notifications from 'expo-notifications';
+
+const mockUpdateEq = jest.fn();
+const mockUpdate = jest.fn();
+const mockInvoke = jest.fn();
+jest.mock('../../lib/supabase', () => ({
+  supabase: {
+    from: () => ({
+      update: (arg: unknown) => { mockUpdate(arg); return { eq: (...a: unknown[]) => mockUpdateEq(...a) }; },
+    }),
+    functions: { invoke: (...a: unknown[]) => mockInvoke(...a) },
+  },
+}));
+
 import {
   buildNotification,
   registerForPushNotifications,
   sendNotification,
   notifyBookingRequest,
   notifyNewReview,
+  savePushToken,
+  sendPushToUser,
+  sendRawPushToUser,
   type NotificationTrigger,
 } from '../../services/notifications';
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockUpdateEq.mockResolvedValue({ error: null });
+  mockInvoke.mockResolvedValue({ data: { ok: true }, error: null });
+});
 
 describe('buildNotification', () => {
   const triggers: NotificationTrigger[] = [
@@ -83,5 +103,75 @@ describe('dispatch', () => {
   it('notifyNewReview dispatches', async () => {
     await notifyNewReview({ name: 'Sean', rating: 5 });
     expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('savePushToken', () => {
+  it('writes the token to the profiles row', async () => {
+    await savePushToken('u1', 'ExponentPushToken[xxx]');
+    expect(mockUpdate).toHaveBeenCalledWith({ expo_push_token: 'ExponentPushToken[xxx]' });
+    expect(mockUpdateEq).toHaveBeenCalledWith('user_id', 'u1');
+  });
+
+  it('logs, does not throw, on a query error', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockUpdateEq.mockResolvedValue({ error: { message: 'db down' } });
+    await expect(savePushToken('u1', 'tok')).resolves.toBeUndefined();
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('savePushToken'), 'db down');
+    errorSpy.mockRestore();
+  });
+
+  it('logs, does not throw, when the write itself rejects', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockUpdateEq.mockRejectedValue(new Error('network error'));
+    await expect(savePushToken('u1', 'tok')).resolves.toBeUndefined();
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+});
+
+describe('sendPushToUser', () => {
+  it('invokes send-push with the built notification content', async () => {
+    await sendPushToUser('u2', 'booking_accepted', { name: 'Aoife', rideId: 'r1' });
+    expect(mockInvoke).toHaveBeenCalledWith('send-push', {
+      body: {
+        userId: 'u2',
+        title: 'Booking confirmed 🎉',
+        body: "Aoife accepted your request.",
+        data: { trigger: 'booking_accepted', bookingId: undefined, rideId: 'r1' },
+      },
+    });
+  });
+
+  it('logs, does not throw, when the Edge Function errors', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockInvoke.mockResolvedValue({ data: null, error: { message: 'unauthorized' } });
+    await expect(sendPushToUser('u2', 'booking_declined')).resolves.toBeUndefined();
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('sendRawPushToUser'), 'unauthorized');
+    errorSpy.mockRestore();
+  });
+
+  it('logs, does not throw, when the invoke call rejects', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockInvoke.mockRejectedValue(new Error('network down'));
+    await expect(sendPushToUser('u2', 'booking_request')).resolves.toBeUndefined();
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+});
+
+describe('sendRawPushToUser', () => {
+  it('invokes send-push with the given title/body/data', async () => {
+    await sendRawPushToUser('contact-uid', 'SOS — your traveller needs you', 'Body text', { trigger: 'safety_alert', rideId: 'r1' });
+    expect(mockInvoke).toHaveBeenCalledWith('send-push', {
+      body: { userId: 'contact-uid', title: 'SOS — your traveller needs you', body: 'Body text', data: { trigger: 'safety_alert', rideId: 'r1' } },
+    });
+  });
+
+  it('defaults data to {} when omitted', async () => {
+    await sendRawPushToUser('contact-uid', 'Title', 'Body');
+    expect(mockInvoke).toHaveBeenCalledWith('send-push', {
+      body: { userId: 'contact-uid', title: 'Title', body: 'Body', data: {} },
+    });
   });
 });

@@ -39,6 +39,11 @@ jest.mock('../../lib/supabase', () => ({
 
 // Auth context mock
 const mockUseAuth = jest.fn();
+jest.mock('../../services/reviews', () => ({
+  getReviewSummary: jest.fn().mockResolvedValue({ ok: true, summary: { average: 4.5, count: 3, reviews: [] } }),
+  getCompletedTripsCount: jest.fn().mockResolvedValue({ ok: true, count: 7 }),
+}));
+
 jest.mock('../../context/AuthContext', () => ({
   useAuth: () => mockUseAuth(),
 }));
@@ -52,7 +57,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockUseAuth.mockReturnValue({
     user: DEFAULT_USER,
-    isVerified: true,
+    verificationStatus: 'approved',
   });
   mockSingleImpl.mockResolvedValue({
     data: {
@@ -145,15 +150,15 @@ describe('ProfileScreen — profile data', () => {
 // ─── Badges ───────────────────────────────────────────────────────────────────
 
 describe('ProfileScreen — badges', () => {
-  it('shows the verified badge when isVerified is true', async () => {
+  it('shows the verified badge when verificationStatus is approved', async () => {
     render(<ProfileScreen />);
     await waitFor(() =>
       expect(screen.getByTestId('verified-badge')).toBeTruthy(),
     );
   });
 
-  it('does not show verified badge when isVerified is false', async () => {
-    mockUseAuth.mockReturnValue({ user: DEFAULT_USER, isVerified: false });
+  it('does not show verified badge when verificationStatus is not approved', async () => {
+    mockUseAuth.mockReturnValue({ user: DEFAULT_USER, verificationStatus: 'pending' });
     render(<ProfileScreen />);
     await waitFor(() =>
       expect(screen.getByTestId('profile-screen')).toBeTruthy(),
@@ -169,7 +174,7 @@ describe('ProfileScreen — stats row', () => {
     render(<ProfileScreen />);
     await waitFor(() => expect(screen.getByTestId('stat-rating')).toBeTruthy());
     expect(screen.getByTestId('stat-trips')).toBeTruthy();
-    expect(screen.getByTestId('stat-reliability')).toBeTruthy();
+    expect(screen.getByTestId('stat-reviews-count')).toBeTruthy();
   });
 });
 
@@ -209,7 +214,7 @@ describe('ProfileScreen — navigation', () => {
 
 describe('ProfileScreen — no user', () => {
   it('renders without crashing when user is null', async () => {
-    mockUseAuth.mockReturnValue({ user: null, isVerified: false });
+    mockUseAuth.mockReturnValue({ user: null, verificationStatus: null });
     expect(() => render(<ProfileScreen />)).not.toThrow();
   });
 });

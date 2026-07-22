@@ -8,13 +8,16 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView,
-  Platform, ActivityIndicator, StyleSheet,
+  Platform, ActivityIndicator, Alert, StyleSheet,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, BorderRadius, FontFamily } from '../../constants/theme';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { canCloseChat, closeChat, getChatMeta } from '../../services/chat';
+import type { ChatStatus, RideStatus } from '../../types/database';
 
 interface Message {
   id:         string;
@@ -25,6 +28,7 @@ interface Message {
 
 export default function ChatScreen(): React.ReactElement {
   const router      = useRouter();
+  const insets      = useSafeAreaInsets();
   const { user }    = useAuth();
   const { booking_id } = useLocalSearchParams<{ booking_id: string }>();
 
@@ -32,32 +36,79 @@ export default function ChatScreen(): React.ReactElement {
   const [text,        setText]        = useState('');
   const [isLoading,   setIsLoading]   = useState(true);
   const [isSending,   setIsSending]   = useState(false);
+  const [loadError,   setLoadError]   = useState(false);
+  const [chatStatus,  setChatStatus]  = useState<ChatStatus>('open');
+  const [rideStatus,  setRideStatus]  = useState<RideStatus | null>(null);
   const listRef = useRef<FlatList<Message>>(null);
+
+  const isClosed = chatStatus === 'closed';
 
   const loadMessages = useCallback(async () => {
     if (!booking_id) return;
     setIsLoading(true);
-    const { data } = await supabase
-      .from('messages')
-      .select('id, sender_id, content, created_at')
-      .eq('booking_id', booking_id)
-      .order('created_at', { ascending: true });
-    setMessages((data as Message[]) ?? []);
-    setIsLoading(false);
+    setLoadError(false);
+    try {
+      const [{ data, error: messagesErr }, meta] = await Promise.all([
+        supabase
+          .from('messages')
+          .select('id, sender_id, content, created_at')
+          .eq('booking_id', booking_id)
+          .order('created_at', { ascending: true }),
+        getChatMeta(booking_id),
+      ]);
+      // A failed messages query must not read as "no messages yet" — that
+      // would hide a real fetch failure behind an empty-chat UI.
+      if (messagesErr) { setLoadError(true); return; }
+      setMessages((data as Message[]) ?? []);
+      if (meta) { setChatStatus(meta.chatStatus); setRideStatus(meta.rideStatus); }
+    } catch {
+      // getChatMeta throws on query failure; don't leave the screen spinning.
+      setLoadError(true);
+    } finally {
+      setIsLoading(false);
+    }
   }, [booking_id]);
 
   useEffect(() => { void loadMessages(); }, [loadMessages]);
 
-  // Realtime subscription
+  const handleEndChat = useCallback(() => {
+    if (!booking_id) return;
+    Alert.alert(
+      'End chat?',
+      'This closes the chat permanently. You’ll still be able to read it, but neither of you can send new messages.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'End chat', style: 'destructive',
+          onPress: async () => {
+            const res = await closeChat(booking_id);
+            if (res.ok) setChatStatus('closed');
+            else Alert.alert('Could not end chat', res.error ?? 'Please try again.');
+          },
+        },
+      ],
+    );
+  }, [booking_id]);
+
+  // Realtime subscription — new messages AND chat lifecycle changes. If the other
+  // party closes the chat, the bookings row's chat_status flips and we make the
+  // UI read-only live (no reload needed).
   useEffect(() => {
     if (!booking_id) return;
     const channel = supabase
-      .channel(`chat:${booking_id}`)
+      .channel(`chat:${booking_id}:${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'messages',
         filter: `booking_id=eq.${booking_id}`,
       }, (payload) => {
         setMessages((prev) => [...prev, payload.new as Message]);
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'bookings',
+        filter: `id=eq.${booking_id}`,
+      }, (payload) => {
+        const next = (payload.new as { chat_status?: string }).chat_status;
+        if (next === 'open' || next === 'closed') setChatStatus(next);
       })
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
@@ -81,16 +132,30 @@ export default function ChatScreen(): React.ReactElement {
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined} testID="chat-screen">
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + Spacing.lg }]}>
         <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back" testID="back-button">
           <Ionicons name="chevron-back" size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Messages</Text>
-        <View style={{ width: 24 }} />
+        {/* "End chat" only appears once the journey is complete and the chat is still open. */}
+        {!isClosed && canCloseChat(rideStatus) ? (
+          <TouchableOpacity onPress={handleEndChat} accessibilityRole="button" accessibilityLabel="End chat" testID="end-chat-button" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={styles.endChatText}>End chat</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.headerSpacer} />
+        )}
       </View>
 
       {isLoading ? (
         <ActivityIndicator size="large" color={Colors.primary} style={{ flex: 1 }} testID="chat-loading" />
+      ) : loadError ? (
+        <View style={styles.errorState} testID="chat-error">
+          <Text style={styles.emptyText}>Could not load messages.</Text>
+          <TouchableOpacity onPress={() => void loadMessages()} accessibilityRole="button" testID="chat-retry-button">
+            <Text style={styles.endChatText}>Try again</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <FlatList
           ref={listRef}
@@ -115,35 +180,48 @@ export default function ChatScreen(): React.ReactElement {
         />
       )}
 
-      {/* Input */}
-      <View style={styles.inputRow}>
-        <TextInput
-          style={styles.input}
-          value={text}
-          onChangeText={setText}
-          placeholder="Type a message…"
-          placeholderTextColor={Colors.textTertiary}
-          multiline
-          testID="message-input"
-        />
-        <TouchableOpacity
-          style={[styles.sendBtn, !text.trim() && styles.sendBtnDisabled]}
-          onPress={handleSend}
-          disabled={!text.trim() || isSending}
-          accessibilityRole="button"
-          testID="send-button"
-        >
-          <Ionicons name="send" size={20} color={text.trim() ? Colors.surface : Colors.textTertiary} />
-        </TouchableOpacity>
-      </View>
+      {/* Input — hidden once the chat is closed (read-only archive). */}
+      {isClosed ? (
+        <View style={styles.closedBanner} testID="chat-closed-banner">
+          <Ionicons name="lock-closed-outline" size={16} color={Colors.textSecondary} />
+          <Text style={styles.closedText}>This chat is closed. History stays available to read.</Text>
+        </View>
+      ) : (
+        <View style={styles.inputRow}>
+          <TextInput
+            style={styles.input}
+            value={text}
+            onChangeText={setText}
+            placeholder="Type a message…"
+            placeholderTextColor={Colors.textTertiary}
+            multiline
+            testID="message-input"
+          />
+          <TouchableOpacity
+            style={[styles.sendBtn, !text.trim() && styles.sendBtnDisabled]}
+            onPress={handleSend}
+            disabled={!text.trim() || isSending}
+            accessibilityRole="button"
+            testID="send-button"
+          >
+            <Ionicons name="send" size={20} color={text.trim() ? Colors.surface : Colors.textTertiary} />
+          </TouchableOpacity>
+        </View>
+      )}
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.screenPadding, paddingTop: Spacing.xxxl + Spacing.xl, paddingBottom: Spacing.md },
+  // paddingTop is set inline (insets.top + Spacing.lg) so the header clears the status bar/Dynamic Island on every device instead of a fixed value.
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.screenPadding, paddingBottom: Spacing.md },
   headerTitle: { ...Typography.headingMedium, color: Colors.textPrimary, flex: 1, textAlign: 'center' },
+  endChatText: { ...Typography.bodySmall, color: Colors.sos, fontFamily: FontFamily.medium },
+  headerSpacer: { width: 24 },
+  errorState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
+  closedBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.screenPadding, paddingVertical: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.border, backgroundColor: Colors.surface },
+  closedText: { ...Typography.bodySmall, color: Colors.textSecondary },
   messageList: { paddingHorizontal: Spacing.screenPadding, paddingVertical: Spacing.md, gap: Spacing.sm },
   bubble: { maxWidth: '75%', borderRadius: BorderRadius.large, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm },
   bubbleMine: { backgroundColor: Colors.primary, alignSelf: 'flex-end' },

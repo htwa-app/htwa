@@ -6,10 +6,15 @@
  * Stage 20A update: SplashScreen now reads auth state via useAuth() instead
  * of AsyncStorage. Tests mock the AuthContext module so the component can be
  * tested in isolation without a real AuthProvider or Supabase client.
+ *
+ * 19 Jul update: isVerified boolean replaced by verificationStatus
+ * ('pending' | 'approved' | 'rejected' | null — null means never submitted).
+ * Only null routes to id-verify; any submitted status proceeds to tabs
+ * (browsing is allowed pre-approval — see universal identity verification).
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react-native';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react-native';
 import SplashScreen from '../../app/screens/SplashScreen';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -20,6 +25,7 @@ jest.mock('expo-router', () => ({
 }));
 
 const mockUseAuth = jest.fn();
+const mockRefreshVerification = jest.fn();
 jest.mock('../../context/AuthContext', () => ({
   useAuth: () => mockUseAuth(),
 }));
@@ -30,10 +36,12 @@ beforeEach(() => {
   jest.clearAllMocks();
   // Default: still loading — no navigation should happen
   mockUseAuth.mockReturnValue({
-    user:       null,
-    session:    null,
-    isLoading:  true,
-    isVerified: false,
+    user:                   null,
+    session:                null,
+    isLoading:              true,
+    verificationStatus:     null,
+    verificationLoadError:  false,
+    refreshVerification:    mockRefreshVerification,
   });
 });
 
@@ -75,7 +83,7 @@ describe('SplashScreen — brand rules', () => {
 describe('SplashScreen — auth routing', () => {
   it('does not navigate while isLoading is true', () => {
     mockUseAuth.mockReturnValue({
-      user: null, session: null, isLoading: true, isVerified: false,
+      user: null, session: null, isLoading: true, verificationStatus: null,
     });
     render(<SplashScreen />);
     expect(mockReplace).not.toHaveBeenCalled();
@@ -83,7 +91,7 @@ describe('SplashScreen — auth routing', () => {
 
   it('navigates to /login when isLoading is false and there is no session', async () => {
     mockUseAuth.mockReturnValue({
-      user: null, session: null, isLoading: false, isVerified: false,
+      user: null, session: null, isLoading: false, verificationStatus: null,
     });
     render(<SplashScreen />);
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/login'));
@@ -91,12 +99,12 @@ describe('SplashScreen — auth routing', () => {
     expect(mockReplace).not.toHaveBeenCalledWith('/id-verify');
   });
 
-  it('navigates to /id-verify when session exists but isVerified is false', async () => {
+  it('navigates to /id-verify when session exists but verificationStatus is null (never submitted)', async () => {
     mockUseAuth.mockReturnValue({
-      user:       { id: 'user-123' },
-      session:    { user: { id: 'user-123' } },
-      isLoading:  false,
-      isVerified: false,
+      user:               { id: 'user-123' },
+      session:            { user: { id: 'user-123' } },
+      isLoading:          false,
+      verificationStatus: null,
     });
     render(<SplashScreen />);
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/id-verify'));
@@ -104,12 +112,12 @@ describe('SplashScreen — auth routing', () => {
     expect(mockReplace).not.toHaveBeenCalledWith('/login');
   });
 
-  it('navigates to /(tabs) when session exists and isVerified is true', async () => {
+  it('navigates to /(tabs) when verificationStatus is "approved"', async () => {
     mockUseAuth.mockReturnValue({
-      user:       { id: 'user-456' },
-      session:    { user: { id: 'user-456' } },
-      isLoading:  false,
-      isVerified: true,
+      user:               { id: 'user-456' },
+      session:            { user: { id: 'user-456' } },
+      isLoading:          false,
+      verificationStatus: 'approved',
     });
     render(<SplashScreen />);
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/(tabs)'));
@@ -117,11 +125,61 @@ describe('SplashScreen — auth routing', () => {
     expect(mockReplace).not.toHaveBeenCalledWith('/id-verify');
   });
 
+  it.each(['pending', 'rejected'])(
+    'navigates to /(tabs) when verificationStatus is "%s" — browsing is allowed pre-approval',
+    async (status) => {
+      mockUseAuth.mockReturnValue({
+        user: { id: 'user-999' }, session: { user: { id: 'user-999' } },
+        isLoading: false, verificationStatus: status,
+      });
+      render(<SplashScreen />);
+      await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/(tabs)'));
+      expect(mockReplace).not.toHaveBeenCalledWith('/id-verify');
+    },
+  );
+
   it('only calls router.replace once per mount', async () => {
     mockUseAuth.mockReturnValue({
-      user: null, session: null, isLoading: false, isVerified: false,
+      user: null, session: null, isLoading: false, verificationStatus: null,
+      verificationLoadError: false, refreshVerification: mockRefreshVerification,
     });
     render(<SplashScreen />);
     await waitFor(() => expect(mockReplace).toHaveBeenCalledTimes(1));
+  });
+});
+
+// ─── Verification load error — must not misroute (PR #33 finding) ────────────
+
+describe('SplashScreen — verification status fetch failed', () => {
+  it('does not navigate anywhere when verificationLoadError is true (not even /id-verify)', () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u1' }, session: { user: { id: 'u1' } }, isLoading: false,
+      verificationStatus: null, verificationLoadError: true,
+      refreshVerification: mockRefreshVerification,
+    });
+    render(<SplashScreen />);
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('shows a retry state instead of the spinner', () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u1' }, session: { user: { id: 'u1' } }, isLoading: false,
+      verificationStatus: null, verificationLoadError: true,
+      refreshVerification: mockRefreshVerification,
+    });
+    render(<SplashScreen />);
+    expect(screen.getByTestId('splash-load-error')).toBeTruthy();
+    expect(screen.getByTestId('splash-retry')).toBeTruthy();
+  });
+
+  it('tapping retry calls refreshVerification', () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u1' }, session: { user: { id: 'u1' } }, isLoading: false,
+      verificationStatus: null, verificationLoadError: true,
+      refreshVerification: mockRefreshVerification,
+    });
+    render(<SplashScreen />);
+    fireEvent.press(screen.getByTestId('splash-retry'));
+    expect(mockRefreshVerification).toHaveBeenCalled();
   });
 });

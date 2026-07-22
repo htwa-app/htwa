@@ -6,7 +6,7 @@
  * Shows the signed-in user's profile per DESIGN-SPEC §9.3 and SCREENS.md #20:
  *   - Avatar (initials derived from full_name)
  *   - Name and university
- *   - Verified badge (from useAuth().isVerified)
+ *   - Verified badge (from useAuth().verificationStatus === 'approved')
  *   - Stats row: Rating, Trips, Reliability (placeholders until Phase 9 reviews/trips)
  *   - Edit profile and Settings (cog) actions
  *
@@ -31,6 +31,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '../../components/Avatar';
 import { Badge } from '../../components/Badge';
@@ -41,6 +42,7 @@ import {
   BorderRadius,
   Shadows,
 } from '../../constants/theme';
+import { getCompletedTripsCount, getReviewSummary } from '../../services/reviews';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 
@@ -61,11 +63,15 @@ interface ProfileData {
 
 export default function ProfileScreen(): React.ReactElement {
   const router = useRouter();
-  const { user, isVerified } = useAuth();
+  const insets = useSafeAreaInsets();
+  const { user, verificationStatus } = useAuth();
 
   const [profile, setProfile]     = useState<ProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError]         = useState<string | null>(null);
+  const [ratingAvg, setRatingAvg] = useState<number | null>(null);
+  const [reviewCount, setReviewCount] = useState<number | null>(null);
+  const [tripsCount, setTripsCount] = useState<number | null>(null);
 
   const fetchProfile = useCallback(async () => {
     if (!user) {
@@ -87,6 +93,17 @@ export default function ProfileScreen(): React.ReactElement {
         return;
       }
       setProfile(data ?? null);
+
+      // Stages 56-57 rollup — errors show '--', never a fake 0-rating.
+      const [summaryRes, tripsRes] = await Promise.all([
+        getReviewSummary(user.id),
+        getCompletedTripsCount(user.id),
+      ]);
+      if (summaryRes.ok) {
+        setRatingAvg(summaryRes.summary.average);
+        setReviewCount(summaryRes.summary.count);
+      }
+      if (tripsRes.ok) setTripsCount(tripsRes.count);
     } catch {
       setError('Could not load your profile. Please try again.');
     } finally {
@@ -142,7 +159,7 @@ export default function ProfileScreen(): React.ReactElement {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Spacing.lg }]}
       showsVerticalScrollIndicator={false}
       testID="profile-screen"
     >
@@ -181,7 +198,7 @@ export default function ProfileScreen(): React.ReactElement {
 
         {/* ── Badges ───────────────────────────────────────────────────────── */}
         <View style={styles.badgeRow}>
-          {isVerified && (
+          {verificationStatus === 'approved' && (
             <Badge variant="verified" style={styles.badge} testID="verified-badge" />
           )}
         </View>
@@ -190,18 +207,18 @@ export default function ProfileScreen(): React.ReactElement {
       {/* ── Stats row ───────────────────────────────────────────────────────── */}
       <View style={styles.statsCard}>
         <View style={styles.statItem} testID="stat-rating">
-          <Text style={styles.statValue}>--</Text>
+          <Text style={styles.statValue}>{ratingAvg != null ? `★ ${ratingAvg.toFixed(1)}` : '--'}</Text>
           <Text style={styles.statLabel}>Rating</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem} testID="stat-trips">
-          <Text style={styles.statValue}>0</Text>
+          <Text style={styles.statValue}>{tripsCount ?? '--'}</Text>
           <Text style={styles.statLabel}>Trips</Text>
         </View>
         <View style={styles.statDivider} />
-        <View style={styles.statItem} testID="stat-reliability">
-          <Text style={styles.statValue}>--</Text>
-          <Text style={styles.statLabel}>Reliability</Text>
+        <View style={styles.statItem} testID="stat-reviews-count">
+          <Text style={styles.statValue}>{reviewCount ?? '--'}</Text>
+          <Text style={styles.statLabel}>Reviews</Text>
         </View>
       </View>
 
@@ -230,16 +247,16 @@ export default function ProfileScreen(): React.ReactElement {
           style={styles.actionButton}
           onPress={() => router.push('/my-rides')}
           accessibilityRole="button"
-          accessibilityLabel="View your rides"
+          accessibilityLabel="View your journeys"
           testID="my-rides-button"
         >
           <Ionicons name="car-outline" size={20} color={Colors.primary} />
-          <Text style={styles.actionButtonText}>My rides</Text>
+          <Text style={styles.actionButtonText}>My journeys</Text>
           <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.actionButton, styles.actionButtonLast]}
+          style={styles.actionButton}
           onPress={() => router.push('/vehicle-details')}
           accessibilityRole="button"
           accessibilityLabel="Manage vehicle details"
@@ -247,6 +264,18 @@ export default function ProfileScreen(): React.ReactElement {
         >
           <Ionicons name="speedometer-outline" size={20} color={Colors.primary} />
           <Text style={styles.actionButtonText}>Vehicle details</Text>
+          <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.actionButton, styles.actionButtonLast]}
+          onPress={() => router.push('/payment-methods')}
+          accessibilityRole="button"
+          accessibilityLabel="Manage payment methods"
+          testID="payment-methods-button"
+        >
+          <Ionicons name="card-outline" size={20} color={Colors.primary} />
+          <Text style={styles.actionButtonText}>Payment methods</Text>
           <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
         </TouchableOpacity>
       </View>
@@ -262,8 +291,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   scrollContent: {
+    // paddingTop is set inline (insets.top + Spacing.lg) so content clears the
+    // status bar/Dynamic Island on every device instead of a fixed value.
     paddingHorizontal: Spacing.screenPadding,
-    paddingTop: Spacing.xxxl + Spacing.xl,
     paddingBottom: Spacing.xxxxxl,
   },
 

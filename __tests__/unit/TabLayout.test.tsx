@@ -44,6 +44,16 @@ jest.mock('expo-router', () => {
 });
 
 // Ionicons mock — renders nothing (we're not testing icon visuals here)
+jest.mock('../../hooks/useRealtimeNotifications', () => ({
+  useRealtimeNotifications: () => undefined,
+}));
+
+// Both hooks call useAuth() internally, which throws outside an AuthProvider —
+// this test renders the bare navigator, so both are stubbed the same way.
+jest.mock('../../hooks/usePushTokenRegistration', () => ({
+  usePushTokenRegistration: () => undefined,
+}));
+
 jest.mock('@expo/vector-icons', () => ({
   Ionicons: () => null,
 }));

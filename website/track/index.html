@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>htwa. — live journey</title>
+<!--
+  Nominated-contact tracking page for people WITHOUT the htwa app.
+  The tracking token arrives in the URL FRAGMENT (https://htwa-app.com/track#<token>)
+  so it never appears in server logs or referrers. The page polls the anon-executable
+  get_tracking_snapshot RPC; the token itself is the credential and expires shortly
+  after the journey ends. The Supabase anon key below is the client-safe public key
+  (the same one shipped inside the app bundle).
+
+  Deployment: static file — see BLOCKERS-FOR-JORDAN.md (host at htwa-app.com/track).
+
+  Map (20 Jul): a Google Maps JavaScript API key is safe to embed directly in
+  client-visible source — unlike the app's EXPO_PUBLIC_ mobile key, a Maps JS
+  key is *designed* to be public and is restricted by HTTP referrer in Cloud
+  Console, not by secrecy. GOOGLE_MAPS_JS_KEY below is a placeholder; replace
+  it with a real key (same Google Cloud project as the app's Maps key is
+  fine — add htwa-app.com as an allowed HTTP referrer). Left as the
+  placeholder, the page falls back to the existing text-only position +
+  "open in Maps" link, same graceful-degradation pattern as the app.
+-->
+<style>
+  :root {
+    --teal: #0F766E; --teal-light: #E6F2F1; --amber: #F59E0B; --amber-light: #FDF3E3;
+    --sos: #DC2626; --text: #1A1A1A; --text-2: #555; --text-3: #999;
+    --surface: #fff; --bg: #FAFAF7; --border: rgba(0,0,0,0.1); --radius: 16px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 24px 20px 48px; display: flex; flex-direction: column; gap: 14px; }
+  h1 { font-size: 22px; }
+  h1 .dot { color: var(--amber); }
+  .sub { color: var(--text-2); font-size: 14px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+  .status { background: var(--teal-light); border: none; display: flex; flex-direction: column; gap: 6px; }
+  .status.lost { background: var(--amber-light); }
+  .status-line { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 17px; }
+  .live-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--teal); animation: pulse 1.6s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
+  .alert { background: var(--sos); color: #fff; border: none; font-size: 14px; line-height: 1.45; }
+  .muted { color: var(--text-2); font-size: 13px; }
+  .route { font-weight: 600; font-size: 16px; margin-bottom: 8px; }
+  .track { height: 6px; border-radius: 3px; background: var(--teal-light); overflow: hidden; margin: 8px 0 6px; }
+  .fill { height: 100%; background: var(--teal); width: 0; transition: width .8s ease; }
+  .row { display: flex; gap: 8px; align-items: baseline; font-size: 14px; margin-top: 4px; }
+  .row b { font-weight: 600; }
+  a.maplink { color: var(--teal); font-size: 14px; }
+  #map { height: 220px; border-radius: 12px; margin: 10px 0; background: var(--teal-light); }
+  .footer { color: var(--text-3); font-size: 12px; text-align: center; line-height: 1.5; }
+  .center { text-align: center; padding: 40px 0; color: var(--text-2); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>htwa<span class="dot">.</span></h1>
+  <div class="sub" id="following">Loading journey…</div>
+  <div id="map" style="display:none"></div>
+  <div id="content"><div class="center">One moment…</div></div>
+  <div class="footer">
+    You're seeing this because someone nominated you as their safety contact on htwa —
+    heading that way anyway. This page refreshes automatically. If an SOS appears and
+    you can't reach your traveller, call emergency services (112 / 999).
+  </div>
+</div>
+<script>
+(function () {
+  var SUPABASE_URL = 'https://adrwtjlphjrnrrqjkbfk.supabase.co';
+  var ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFkcnd0amxwaGpybnJycWprYmZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNjQxMDUsImV4cCI6MjA5Mzg0MDEwNX0.FTTo9n6s3xR3SeHK68HEdEEno7OG25GaHQWx_E0m-Hc';
+  // Placeholder — see the head comment above for why this is safe to embed
+  // directly once real, unlike the app's mobile Maps key.
+  var GOOGLE_MAPS_JS_KEY = 'REPLACE_WITH_REAL_MAPS_JS_KEY';
+  var SIGNAL_LOST_MS = 90000;
+  // Fragment only, never a query string: a URL fragment is never sent to the
+  // server, so it can't leak this live-location token via access logs,
+  // Referer headers, or browser history synced to a server. The one link
+  // generator (services/tracking.ts) already emits fragment-based links only.
+  var token = (location.hash || '').replace(/^#/, '');
+
+  var elFollowing = document.getElementById('following');
+  var elContent = document.getElementById('content');
+  var elMap = document.getElementById('map');
+
+  // ── Map (graceful no-op without a real key, same pattern as the app) ───────
+  function mapsKeyUsable(key) {
+    return !!key && key.indexOf('REPLACE_WITH') !== 0 && key.length >= 20;
+  }
+  var mapState = { map: null, fromMarker: null, toMarker: null, liveMarker: null, polyline: null, loadStarted: false };
+
+  function loadMapsScript(onReady) {
+    if (mapState.loadStarted) return;
+    mapState.loadStarted = true;
+    window.__htwaInitMap = onReady;
+    var s = document.createElement('script');
+    s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(GOOGLE_MAPS_JS_KEY) + '&callback=__htwaInitMap';
+    s.async = true;
+    document.head.appendChild(s);
+  }
+
+  function ensureMap(centre) {
+    if (mapState.map) return;
+    mapState.map = new google.maps.Map(elMap, {
+      center: centre, zoom: 9, disableDefaultUI: true, zoomControl: true,
+    });
+  }
+
+  function updateMap(trip, last, inProgress) {
+    if (!mapsKeyUsable(GOOGLE_MAPS_JS_KEY)) { elMap.style.display = 'none'; return; }
+    if (!trip.from_coords && !trip.to_coords && !last) { elMap.style.display = 'none'; return; }
+    elMap.style.display = 'block';
+
+    var draw = function () {
+      var centre = last || trip.from_coords || trip.to_coords;
+      ensureMap(centre);
+      var bounds = new google.maps.LatLngBounds();
+
+      if (trip.from_coords) {
+        if (!mapState.fromMarker) mapState.fromMarker = new google.maps.Marker({ map: mapState.map, label: 'A' });
+        mapState.fromMarker.setPosition(trip.from_coords);
+        bounds.extend(trip.from_coords);
+      }
+      if (trip.to_coords) {
+        if (!mapState.toMarker) mapState.toMarker = new google.maps.Marker({ map: mapState.map, label: 'B' });
+        mapState.toMarker.setPosition(trip.to_coords);
+        bounds.extend(trip.to_coords);
+      }
+      if (trip.from_coords && trip.to_coords) {
+        if (!mapState.polyline) {
+          mapState.polyline = new google.maps.Polyline({ map: mapState.map, strokeColor: '#0F766E', strokeWeight: 3 });
+        }
+        mapState.polyline.setPath([trip.from_coords, trip.to_coords]);
+      }
+      if (last && inProgress) {
+        if (!mapState.liveMarker) {
+          mapState.liveMarker = new google.maps.Marker({
+            map: mapState.map,
+            icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: '#0F766E', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 },
+          });
+        }
+        mapState.liveMarker.setPosition(last);
+        bounds.extend(last);
+      } else if (mapState.liveMarker) {
+        mapState.liveMarker.setMap(null);
+        mapState.liveMarker = null;
+      }
+      if (!bounds.isEmpty()) {
+        if (bounds.getNorthEast().equals(bounds.getSouthWest())) mapState.map.setCenter(bounds.getNorthEast());
+        else mapState.map.fitBounds(bounds, 40);
+      }
+    };
+
+    if (window.google && window.google.maps) draw();
+    else loadMapsScript(draw);
+  }
+
+  function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+  function t(iso) { return new Date(iso).toLocaleTimeString('en-IE', { hour: '2-digit', minute: '2-digit' }); }
+  function havKm(a, b) {
+    var r = Math.PI / 180, R = 6371;
+    var dLat = (b.lat - a.lat) * r, dLng = (b.lng - a.lng) * r;
+    var h = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLng/2)*Math.sin(dLng/2);
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+  }
+
+  function render(snap) {
+    if (!snap || snap.ok !== true) {
+      var expired = snap && snap.reason === 'expired';
+      elFollowing.textContent = '';
+      elMap.style.display = 'none';
+      elContent.innerHTML = '<div class="center"><b>' +
+        (expired ? 'This tracking link has expired' : 'Invalid tracking link') + '</b><br><span class="muted">' +
+        (expired ? 'Tracking links stop working shortly after a journey ends.'
+                 : 'Check the link you were sent, or ask your traveller to share it again.') + '</span></div>';
+      return;
+    }
+    var trip = snap.trip, last = snap.last_location;
+    var inProgress = trip.status === 'in_progress';
+    updateMap(trip, last, inProgress);
+    var lost = inProgress && (!last || (Date.now() - new Date(last.recorded_at).getTime() > SIGNAL_LOST_MS));
+    var alerts = (snap.alerts || []).filter(function (a) { return a.alert_type !== 'signal_lost'; });
+
+    elFollowing.textContent = 'Following ' + (snap.traveller_name || 'a traveller') + "'s journey";
+
+    var html = '';
+    if (alerts.length) {
+      var a = alerts[0];
+      html += '<div class="card alert">' + (a.alert_type === 'sos'
+        ? '&#9888;&#65039; SOS raised at ' + esc(t(a.created_at)) + " — if you can't reach them, call 112/999."
+        : '&#9888;&#65039; This journey went off its planned route at ' + esc(t(a.created_at)) + '.') + '</div>';
+    }
+
+    var statusLabel = trip.status === 'completed' ? 'Journey completed'
+      : trip.status === 'cancelled' ? 'Journey cancelled'
+      : inProgress ? (lost ? 'Signal lost' : 'On the road')
+      : 'Departs ' + new Date(trip.departure_datetime).toLocaleString('en-IE', { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+
+    html += '<div class="card status' + (lost ? ' lost' : '') + '"><div class="status-line">' +
+      (inProgress && !lost ? '<span class="live-dot"></span>' : '') + esc(statusLabel) + '</div>';
+    if (lost && last) html += '<div class="muted">Last seen ' + esc(t(last.recorded_at)) + ' at ' + last.lat.toFixed(4) + ', ' + last.lng.toFixed(4) + '</div>';
+    if (lost && !last) html += '<div class="muted">No location received yet for this journey.</div>';
+    html += '</div>';
+
+    html += '<div class="card"><div class="route">' + esc(trip.from_location) + ' &rarr; ' + esc(trip.to_location) + '</div>';
+    if (last && trip.from_coords && trip.to_coords && inProgress && !lost) {
+      var total = havKm(trip.from_coords, trip.to_coords);
+      if (total > 0.1) {
+        var pct = Math.max(0, Math.min(100, (1 - havKm(last, trip.to_coords) / total) * 100));
+        html += '<div class="track"><div class="fill" style="width:' + pct.toFixed(0) + '%"></div></div>' +
+                '<div class="muted">About ' + pct.toFixed(0) + '% of the way there</div>';
+      }
+    }
+    if (last) {
+      html += '<div class="muted" style="margin-top:6px">Position: ' + last.lat.toFixed(4) + ', ' + last.lng.toFixed(4) +
+        ' &middot; updated ' + esc(t(last.recorded_at)) + ' &middot; <a class="maplink" target="_blank" rel="noopener" href="https://maps.google.com/?q=' +
+        last.lat + ',' + last.lng + '">open in Maps</a></div>';
+    }
+    html += '</div>';
+
+    html += '<div class="card"><div class="row"><b>Driver:</b> ' + esc(snap.driver_name || 'Unknown') + '</div>' +
+            '<div class="row"><b>Traveller:</b> ' + esc(snap.traveller_name || 'Unknown') + '</div></div>';
+
+    elContent.innerHTML = html;
+  }
+
+  function poll() {
+    if (!token) {
+      render({ ok: false, reason: 'invalid_token' });
+      return;
+    }
+    fetch(SUPABASE_URL + '/rest/v1/rpc/get_tracking_snapshot', {
+      method: 'POST',
+      headers: { apikey: ANON_KEY, Authorization: 'Bearer ' + ANON_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_token: token }),
+    }).then(function (r) { return r.json(); }).then(render).catch(function () {
+      elContent.innerHTML = '<div class="center">Connection lost — retrying…</div>';
+    });
+  }
+
+  poll();
+  setInterval(poll, 15000);
+})();
+</script>
+</body>
+</html>

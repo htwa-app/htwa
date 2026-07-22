@@ -24,7 +24,7 @@ const mockUpsertImpl = jest.fn();
 jest.mock('../../lib/supabase', () => ({
   supabase: {
     from: () => ({
-      select: () => ({ eq: () => ({ single: (...a: unknown[]) => mockSingleImpl(...a) }) }),
+      select: () => ({ eq: () => ({ maybeSingle: (...a: unknown[]) => mockSingleImpl(...a) }) }),
       upsert: (...a: unknown[]) => mockUpsertImpl(...a),
     }),
   },
@@ -127,21 +127,30 @@ describe('VehicleDetailsScreen — seats stepper', () => {
 
 // ─── Save ─────────────────────────────────────────────────────────────────────
 
+/** Fill the required fields (2A-a: make/model/colour/registration). */
+async function fillRequiredFields(): Promise<void> {
+  await waitFor(() => expect(screen.getByTestId('make-input')).toBeTruthy());
+  fireEvent.changeText(screen.getByTestId('make-input'), 'Toyota');
+  fireEvent.changeText(screen.getByTestId('model-input'), 'Corolla');
+  fireEvent.changeText(screen.getByTestId('colour-input'), 'Red');
+  fireEvent.changeText(screen.getByTestId('registration-input'), '191-D-12345');
+}
+
 describe('VehicleDetailsScreen — save', () => {
-  it('calls upsert with vehicle_details payload', async () => {
+  it('calls upsert with vehicle_details payload including colour and registration', async () => {
     render(<VehicleDetailsScreen />);
-    await waitFor(() => expect(screen.getByTestId('save-button')).toBeTruthy());
+    await fillRequiredFields();
     fireEvent.press(screen.getByTestId('save-button'));
     await waitFor(() => expect(mockUpsertImpl).toHaveBeenCalled());
     const [payload, opts] = mockUpsertImpl.mock.calls[0];
     expect(payload.user_id).toBe('user-123');
-    expect(payload.vehicle_details).toBeDefined();
+    expect(payload.vehicle_details).toMatchObject({ colour: 'Red', registration: '191-D-12345' });
     expect(opts).toEqual({ onConflict: 'user_id' });
   });
 
   it('navigates back after successful save', async () => {
     render(<VehicleDetailsScreen />);
-    await waitFor(() => expect(screen.getByTestId('save-button')).toBeTruthy());
+    await fillRequiredFields();
     fireEvent.press(screen.getByTestId('save-button'));
     await waitFor(() => expect(mockBack).toHaveBeenCalled());
   });
@@ -149,9 +158,36 @@ describe('VehicleDetailsScreen — save', () => {
   it('shows error when save fails', async () => {
     mockUpsertImpl.mockResolvedValue({ error: { message: 'DB error' } });
     render(<VehicleDetailsScreen />);
-    await waitFor(() => expect(screen.getByTestId('save-button')).toBeTruthy());
+    await fillRequiredFields();
     fireEvent.press(screen.getByTestId('save-button'));
     await waitFor(() => expect(screen.getByTestId('save-error')).toBeTruthy());
+  });
+
+  it('refuses to save without registration (2A-a required fields)', async () => {
+    render(<VehicleDetailsScreen />);
+    await waitFor(() => expect(screen.getByTestId('make-input')).toBeTruthy());
+    fireEvent.changeText(screen.getByTestId('make-input'), 'Toyota');
+    fireEvent.changeText(screen.getByTestId('model-input'), 'Corolla');
+    fireEvent.changeText(screen.getByTestId('colour-input'), 'Red');
+    fireEvent.press(screen.getByTestId('save-button'));
+    await waitFor(() => expect(screen.getByTestId('save-error')).toBeTruthy());
+    expect(mockUpsertImpl).not.toHaveBeenCalled();
+  });
+});
+
+describe('VehicleDetailsScreen — load error', () => {
+  it('a failed load shows retry instead of a blank form (would overwrite real data)', async () => {
+    mockSingleImpl.mockResolvedValue({ data: null, error: { message: 'down' } });
+    render(<VehicleDetailsScreen />);
+    await waitFor(() => expect(screen.getByTestId('vehicle-load-error')).toBeTruthy());
+
+    mockSingleImpl.mockResolvedValue({
+      data: { vehicle_details: { make: 'Ford', model: 'Focus', colour: 'Blue', registration: '10-G-999', seats: 4, hasAC: false, dashcam: false, year: '2010' } },
+      error: null,
+    });
+    fireEvent.press(screen.getByTestId('vehicle-retry'));
+    await waitFor(() => expect(screen.getByDisplayValue('Ford')).toBeTruthy());
+    expect(screen.getByDisplayValue('10-G-999')).toBeTruthy();
   });
 });
 

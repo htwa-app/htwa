@@ -73,20 +73,25 @@ describe('LoginScreen — layout', () => {
     ).toBeTruthy();
   });
 
-  it('renders the Continue with Apple button', () => {
-    expect(screen.getByRole('button', { name: 'Continue with Apple' })).toBeTruthy();
+  it('renders the Sign up with Apple button', () => {
+    expect(screen.getByRole('button', { name: 'Sign up with Apple' })).toBeTruthy();
   });
 
-  it('renders the Continue with Google button', () => {
-    expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeTruthy();
+  it('renders the Sign up with Google button', () => {
+    expect(screen.getByRole('button', { name: 'Sign up with Google' })).toBeTruthy();
   });
 
-  it('renders the Continue with mobile number button', () => {
-    expect(screen.getByRole('button', { name: 'Continue with mobile number' })).toBeTruthy();
+  it('renders the Sign up with email button', () => {
+    expect(screen.getByRole('button', { name: 'Sign up with email' })).toBeTruthy();
   });
 
-  it('renders the Continue with email button', () => {
-    expect(screen.getByRole('button', { name: 'Continue with email' })).toBeTruthy();
+  it('does NOT render a mobile number option', () => {
+    expect(screen.queryByRole('button', { name: 'Sign up with mobile number' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Continue with mobile number' })).toBeNull();
+  });
+
+  it('renders the "Already have an account? Log in" link', () => {
+    expect(screen.getByRole('button', { name: 'Already have an account? Log in' })).toBeTruthy();
   });
 });
 
@@ -95,38 +100,38 @@ describe('LoginScreen — layout', () => {
 describe('LoginScreen — navigation', () => {
   beforeEach(() => render(<LoginScreen />));
 
-  it('Continue with Apple button does not throw on press', () => {
+  it('Sign up with Apple button does not throw on press', () => {
     expect(() =>
-      fireEvent.press(screen.getByRole('button', { name: 'Continue with Apple' }))
+      fireEvent.press(screen.getByRole('button', { name: 'Sign up with Apple' }))
     ).not.toThrow();
   });
 
-  it('Continue with Apple calls router.push with /signup', () => {
-    fireEvent.press(screen.getByRole('button', { name: 'Continue with Apple' }));
+  it('Sign up with Apple calls router.push with /signup', () => {
+    fireEvent.press(screen.getByRole('button', { name: 'Sign up with Apple' }));
     expect(mockPush).toHaveBeenCalledWith('/signup');
   });
 
-  it('Continue with Google calls router.push with /signup', () => {
-    fireEvent.press(screen.getByRole('button', { name: 'Continue with Google' }));
+  it('Sign up with Google calls router.push with /signup', () => {
+    fireEvent.press(screen.getByRole('button', { name: 'Sign up with Google' }));
     expect(mockPush).toHaveBeenCalledWith('/signup');
   });
 
-  it('Continue with mobile number calls router.push with /signup', () => {
-    fireEvent.press(screen.getByRole('button', { name: 'Continue with mobile number' }));
+  it('Sign up with email calls router.push with /signup', () => {
+    fireEvent.press(screen.getByRole('button', { name: 'Sign up with email' }));
     expect(mockPush).toHaveBeenCalledWith('/signup');
   });
 
-  it('Continue with email calls router.push with /signup', () => {
-    fireEvent.press(screen.getByRole('button', { name: 'Continue with email' }));
-    expect(mockPush).toHaveBeenCalledWith('/signup');
+  it('"Already have an account? Log in" calls router.push with /login-email', () => {
+    fireEvent.press(screen.getByRole('button', { name: 'Already have an account? Log in' }));
+    expect(mockPush).toHaveBeenCalledWith('/login-email');
   });
 
   it('each button press calls router.push exactly once', () => {
     const buttons = [
-      'Continue with Apple',
-      'Continue with Google',
-      'Continue with mobile number',
-      'Continue with email',
+      'Sign up with Apple',
+      'Sign up with Google',
+      'Sign up with email',
+      'Already have an account? Log in',
     ];
     buttons.forEach((label, i) => {
       fireEvent.press(screen.getByRole('button', { name: label }));

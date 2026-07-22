@@ -1,14 +1,19 @@
 /**
  * app/offer-ride.tsx
  *
- * Stage 31 — Offer a Ride screen.
+ * Stage 31 — Offer a Journey screen.
  *
  * Driver fills in:
  *   - Route (from/to) using RouteInput
  *   - Date + time using DateTimePicker
- *   - Seats available (stepper: 1–7)
+ *   - Seats available (stepper)
  *   - Price per seat (auto-calculated, editable within cap)
  *   - Women-only toggle
+ *
+ * Distance is auto-calculated from the route via the Google Routes API
+ * (Block 2). The driver NEVER types or edits the distance. If the Maps key
+ * is missing/placeholder/invalid, a "distance calculation unavailable" state
+ * is shown rather than crashing.
  *
  * Vehicle details auto-populated from profile.
  * Routes to /offer-ride-confirm on "Review offer".
@@ -25,11 +30,16 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { RouteInput } from '../components/RouteInput';
-import { calculateRideCost, isWithinCap } from '../utils/costCalculator';
+import { DateTimeField } from '../components/DateTimeField';
+import { calculateJourneyPricing, type Jurisdiction, type EngineCcBand, type PricingRates } from '../utils/pricingEngine';
+import { fetchPricingRates } from '../services/pricingRates';
+import { cumulativeForTaxYear, type MileageIncrement } from '../utils/mileageTracking';
+import { computeRouteDistance, type DistanceUnit } from '../services/routes';
 import { formatCurrency } from '../utils/currency';
 import {
   Colors,
@@ -40,97 +50,246 @@ import {
   FontFamily,
 } from '../constants/theme';
 import { supabase } from '../lib/supabase';
+import { getDriverVerification } from '../services/driverVerification';
+import type { DriverVerificationStatus } from '../types/database';
 import { useAuth } from '../context/AuthContext';
 
 // ─── Spec-local constants ─────────────────────────────────────────────────────
 
 const SEATS_MIN = 1;
-const SEATS_MAX = 7;
+const SEATS_CAP_DEFAULT = 4; // hard cap unless the driver's vehicle is evidenced (Block 3)
+const SEATS_CAP_VERIFIED = 7; // raised cap once extra-seat capacity is verified
+const DISTANCE_DEBOUNCE_MS = 500; // wait for the driver to stop typing before calling the Routes API
+const MILES_TO_KM = 1.60934; // convert a UK miles distance to km for storage in distance_km
 const TOGGLE_TRACK_OFF = 'rgba(40,30,20,0.15)'; // §9 switch inactive track — not in palette
+
+type DistanceState = 'idle' | 'calculating' | 'ok' | 'unavailable' | 'no_key';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function OfferRideScreen(): React.ReactElement {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
-  const [from,         setFrom]         = useState('');
-  const [to,           setTo]           = useState('');
-  const [distanceKm,   setDistanceKm]   = useState<number | null>(null);
-  const [date,         setDate]         = useState('');   // YYYY-MM-DD
-  const [time,         setTime]         = useState('');   // HH:MM
-  const [seats,        setSeats]        = useState(3);
-  const [pricePerSeat, setPricePerSeat] = useState('');
-  const [womenOnly,    setWomenOnly]    = useState(false);
-  const [currency,     setCurrency]     = useState<'EUR' | 'GBP'>('EUR');
-  const [homeLocation, setHomeLocation] = useState<'ROI' | 'NI'>('ROI');
-  const [priceError,   setPriceError]   = useState<string | null>(null);
+  const [from,          setFrom]          = useState('');
+  const [to,            setTo]            = useState('');
+  // Populated only when the driver picks a real Places suggestion (not typed
+  // free-text) — passed through to the confirm screen so the ride's
+  // from_coords/to_coords columns get real data instead of staying null.
+  const [fromCoords,    setFromCoords]    = useState<{ lat: number; lng: number } | null>(null);
+  const [toCoords,      setToCoords]      = useState<{ lat: number; lng: number } | null>(null);
+  const [distance,      setDistance]      = useState<number | null>(null);
+  const [durationSeconds, setDurationSeconds] = useState<number | null>(null); // Change 2 — overlap window
+  const [distanceState, setDistanceState] = useState<DistanceState>('idle');
+  const [date,          setDate]          = useState('');   // YYYY-MM-DD
+  const [time,          setTime]          = useState('');   // HH:MM
+  const [seats,         setSeats]         = useState(3);
+  // driverSeatPrice is COMPUTED by the pricing engine and FIXED — the driver can
+  // never type or edit it (Block 4). They only ever see their own cost-share.
+  const [driverSeatPrice, setDriverSeatPrice] = useState<number | null>(null);
+  const [womenOnly,     setWomenOnly]     = useState(false);
+  const [luggageNote,   setLuggageNote]   = useState(''); // Block 8 — optional
+  // Block 3: posting more than 4 seats requires evidence the vehicle can carry them.
+  // TODO: build the evidence-upload flow (vehicle reg / insurance seats) that flips
+  // `extraSeatsVerified` to true. Until then the selector is hard-capped at 4.
+  const [extraSeatsVerified] = useState(false);
+  const seatsMax = extraSeatsVerified ? SEATS_CAP_VERIFIED : SEATS_CAP_DEFAULT;
 
-  // Load driver's home location for rate calculation
-  const loadHomeLocation = useCallback(async () => {
+  // Block 4 — driver pricing profile (tax residence drives everything).
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [jurisdiction,  setJurisdiction]  = useState<Jurisdiction | null>(null);
+  const [engineCc,      setEngineCc]      = useState<EngineCcBand | null>(null);
+  const [cumulative,    setCumulative]    = useState(0);
+  // A query error here must NEVER be treated as "cumulative mileage = 0" — an
+  // understated cumulative could apply a more favourable (wrong) tax band.
+  // Distinct from "hasProfile is false" (which means genuinely not set up yet).
+  const [profileLoadError, setProfileLoadError] = useState(false);
+  // Driver verification gate (round-2 fix #2): null = no submission yet.
+  const [verificationStatus, setVerificationStatus] = useState<DriverVerificationStatus | null>(null);
+  const [verificationLoadError, setVerificationLoadError] = useState(false);
+
+  // Rates come from the DB (sole source of truth). null until loaded; ratesError
+  // when the fetch fails — pricing then FAILS LOUD, never from a hardcoded rate.
+  const [pricingRates,  setPricingRates]  = useState<PricingRates | null>(null);
+  const [ratesError,    setRatesError]    = useState(false);
+
+  const currency: 'EUR' | 'GBP' = jurisdiction === 'UK' ? 'GBP' : 'EUR';
+  // ROI → km, UK → miles.
+  const unit: DistanceUnit = jurisdiction === 'UK' ? 'miles' : 'km';
+
+  // Load the driver's pricing profile + their cumulative annual distance.
+  const loadDriverProfile = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from('users')
-      .select('home_location, currency')
-      .eq('id', user.id)
-      .single();
-    if (data) {
-      setHomeLocation(data.home_location as 'ROI' | 'NI');
-      setCurrency(data.currency as 'EUR' | 'GBP');
+    try {
+      // Verification gate first — a failed check BLOCKS with retry, it never
+      // silently passes (and never tells an approved driver to redo setup).
+      // Kept distinct from profileLoadError: the pricing-profile fetch below
+      // never even ran, so surfacing it as a "pricing details" failure would
+      // be both misleading and, since that banner has no retry action, a
+      // dead end — the verification banner below has one (loadDriverProfile).
+      const dv = await getDriverVerification(user.id);
+      if (!dv.ok) { setVerificationLoadError(true); return; }
+      setVerificationLoadError(false);
+      setVerificationStatus(dv.verification?.status ?? null);
+
+      const { data: profile, error: profileErr } = await supabase
+        .from('driver_pricing_profiles')
+        .select('tax_residence, engine_cc')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (profileErr) { setProfileLoadError(true); return; }
+
+      if (profile) {
+        const jur = profile.tax_residence as Jurisdiction;
+        setJurisdiction(jur);
+        setEngineCc(profile.engine_cc as EngineCcBand);
+
+        const { data: increments, error: incrementsErr } = await supabase
+          .from('driver_mileage_increments')
+          .select('amount, created_at, source')
+          .eq('driver_id', user.id);
+
+        // A failed query here must NEVER silently compute as "0 miles so
+        // far" — that could apply a more favourable (wrong) tax band.
+        if (incrementsErr) { setProfileLoadError(true); return; }
+
+        const mapped: MileageIncrement[] = (increments ?? []).map((i) => ({
+          amount: Number(i.amount),
+          at: i.created_at as string,
+          source: i.source as MileageIncrement['source'],
+        }));
+        setCumulative(cumulativeForTaxYear(mapped, jur));
+      }
+    } finally {
+      // Always lift the gate, even on a thrown query, so the screen never hangs
+      // in the loading state (the setup banner shows when no profile loaded).
+      setProfileLoaded(true);
     }
   }, [user]);
 
-  useEffect(() => { void loadHomeLocation(); }, [loadHomeLocation]);
+  useEffect(() => { void loadDriverProfile(); }, [loadDriverProfile]);
 
-  // Auto-calculate price when distance or seats change
+  // Load DB rates once. A failure is a HARD failure — surface it, never fall back.
   useEffect(() => {
-    if (distanceKm !== null && distanceKm > 0) {
-      const result = calculateRideCost(distanceKm, seats, homeLocation);
-      setPricePerSeat(result.perSeatCost.toFixed(2));
-      setPriceError(null);
-    }
-  }, [distanceKm, seats, homeLocation]);
-
-  const handleDistanceChange = (text: string) => {
-    const n = parseFloat(text);
-    setDistanceKm(Number.isNaN(n) ? null : n);
-  };
-
-  const incrementSeats = () => setSeats((s) => Math.min(SEATS_MAX, s + 1));
-  const decrementSeats = () => setSeats((s) => Math.max(SEATS_MIN, s - 1));
-
-  const handlePriceChange = (text: string) => {
-    setPricePerSeat(text);
-    const val = parseFloat(text);
-    if (!isNaN(val) && distanceKm !== null) {
-      if (!isWithinCap(val, seats, distanceKm, homeLocation)) {
-        const { totalCost } = calculateRideCost(distanceKm, seats, homeLocation);
-        setPriceError(`Max allowed: ${formatCurrency(totalCost / seats, currency)}`);
-      } else {
-        setPriceError(null);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const r = await fetchPricingRates();
+        if (!cancelled) { setPricingRates(r); setRatesError(false); }
+      } catch {
+        if (!cancelled) { setPricingRates(null); setRatesError(true); }
       }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const hasProfile = jurisdiction !== null && engineCc !== null;
+
+  // Auto-calculate the route distance whenever from/to (or the unit) change.
+  // Debounced so we don't hit the Routes API on every keystroke. The driver
+  // never edits this value — it comes solely from the API.
+  useEffect(() => {
+    if (!from.trim() || !to.trim()) {
+      setDistance(null);
+      setDistanceState('idle');
+      return;
     }
-  };
+    let cancelled = false;
+    setDistanceState('calculating');
+    const timer = setTimeout(() => {
+      void (async () => {
+        try {
+          const result = await computeRouteDistance(from, to, unit);
+          if (cancelled) return;
+          if (result.ok && typeof result.distance === 'number') {
+            setDistance(result.distance);
+            setDurationSeconds(result.durationSeconds ?? null);
+            setDistanceState('ok');
+          } else {
+            setDistance(null);
+            setDurationSeconds(null);
+            // 'no_key' is the platform's missing Maps key — never the user's
+            // locations; the two states get honest, distinct copy below.
+            setDistanceState(result.reason === 'no_key' ? 'no_key' : 'unavailable');
+          }
+        } catch {
+          if (cancelled) return;
+          setDistance(null);
+          setDurationSeconds(null);
+          setDistanceState('unavailable');
+        }
+      })();
+    }, DISTANCE_DEBOUNCE_MS);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [from, to, unit]);
+
+  // Compute the FIXED driver seat price via the pricing engine whenever the
+  // distance, seats or driver profile change. The driver never edits this.
+  useEffect(() => {
+    if (distance !== null && distance > 0 && hasProfile && jurisdiction && pricingRates) {
+      // calculateJourneyPricing/effectiveRate can throw on a malformed
+      // DB-sourced rates payload — this screen never validates pricingRates
+      // itself, so a throw here must degrade to "pricing unavailable"
+      // rather than an uncaught render error.
+      try {
+        const result = calculateJourneyPricing(pricingRates, {
+          jurisdiction,
+          engineCc: engineCc ?? undefined,
+          cumulativeBefore: cumulative,
+          distance,
+          tolls: 0, // tolls wiring deferred — see PROGRESS Block 4
+          seatsOffered: seats,
+        });
+        setDriverSeatPrice(result.driverSeatPrice);
+      } catch {
+        setDriverSeatPrice(null);
+        setRatesError(true);
+      }
+    } else {
+      setDriverSeatPrice(null);
+    }
+  }, [distance, seats, hasProfile, jurisdiction, engineCc, cumulative, pricingRates]);
+
+  const incrementSeats = () => setSeats((s) => Math.min(seatsMax, s + 1));
+  const decrementSeats = () => setSeats((s) => Math.max(SEATS_MIN, s - 1));
 
   const isValid = from.trim().length > 0
     && to.trim().length > 0
-    && distanceKm !== null && distanceKm > 0
+    && distance !== null && distance > 0
     && date.length > 0
     && time.length > 0
-    && parseFloat(pricePerSeat) > 0
-    && !priceError;
+    && hasProfile
+    && !profileLoadError
+    && verificationStatus === 'approved'
+    && driverSeatPrice !== null && driverSeatPrice > 0;
 
   const handleReview = () => {
+    // distance is in the driver's display unit (km for ROI, miles for UK). The
+    // confirm screen persists it to distance_km, so convert miles→km here so a
+    // UK journey isn't stored with its mileage value mislabelled as kilometres.
+    const distanceKm = distance == null
+      ? 0
+      : unit === 'miles'
+        ? distance * MILES_TO_KM
+        : distance;
     const params = new URLSearchParams({
       from,
       to,
       date,
       time,
       seats: String(seats),
-      pricePerSeat,
+      pricePerSeat: String(driverSeatPrice ?? 0),
       currency,
-      distanceKm: String(distanceKm ?? 0),
+      distanceKm: String(distanceKm),
       womenOnly: String(womenOnly),
+      luggageNote: luggageNote.trim(),
+      durationSeconds: durationSeconds != null ? String(durationSeconds) : '',
+      fromLat: fromCoords ? String(fromCoords.lat) : '',
+      fromLng: fromCoords ? String(fromCoords.lng) : '',
+      toLat: toCoords ? String(toCoords.lat) : '',
+      toLng: toCoords ? String(toCoords.lng) : '',
     });
     router.push(`/offer-ride-confirm?${params.toString()}`);
   };
@@ -138,7 +297,7 @@ export default function OfferRideScreen(): React.ReactElement {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Spacing.lg }]}
       showsVerticalScrollIndicator={false}
       testID="offer-ride-screen"
     >
@@ -153,9 +312,77 @@ export default function OfferRideScreen(): React.ReactElement {
         >
           <Ionicons name="chevron-back" size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.screenTitle}>Offer a ride</Text>
+        <Text style={styles.screenTitle}>Offer a journey</Text>
         <View style={styles.headerSpacer} />
       </View>
+
+      {/* A load failure is NOT the same as "not set up yet" — don't send an
+          already-onboarded driver back through onboarding for a query error. */}
+      {profileLoaded && profileLoadError && (
+        <View style={styles.setupBanner} testID="profile-load-error">
+          <Ionicons name="alert-circle-outline" size={20} color={Colors.sos} />
+          <Text style={styles.setupBannerText}>
+            Could not load your driver pricing details. Please try again.
+          </Text>
+        </View>
+      )}
+
+      {/* Verification check itself failed — distinct from "not verified yet":
+          this has its own retry (loadDriverProfile), not the generic pricing
+          banner above, which never even ran this check. */}
+      {profileLoaded && verificationLoadError && (
+        <TouchableOpacity
+          style={styles.setupBanner}
+          onPress={() => void loadDriverProfile()}
+          accessibilityRole="button"
+          testID="verification-load-error"
+        >
+          <Ionicons name="alert-circle-outline" size={20} color={Colors.sos} />
+          <Text style={styles.setupBannerText}>
+            Couldn't check your driver verification status. Tap to try again.
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Driver verification gate — no posting until approved (DB-enforced too). */}
+      {profileLoaded && !verificationLoadError && verificationStatus !== 'approved' && (
+        <TouchableOpacity
+          style={styles.setupBanner}
+          onPress={() => router.push('/driver-verification')}
+          accessibilityRole="button"
+          testID="driver-verification-banner"
+        >
+          <Ionicons
+            name={verificationStatus === 'pending' ? 'time-outline' : 'shield-outline'}
+            size={20}
+            color={Colors.primary}
+          />
+          <Text style={styles.setupBannerText}>
+            {verificationStatus === 'pending'
+              ? 'Your driver verification is under review — you can post journeys once approved.'
+              : verificationStatus === 'rejected'
+                ? 'Your driver verification wasn\'t approved. Tap to fix and resubmit.'
+                : 'Verify as a driver (licence, selfie, car photo + details) to post journeys.'}
+          </Text>
+          <Ionicons name="chevron-forward" size={18} color={Colors.primary} />
+        </TouchableOpacity>
+      )}
+
+      {/* Driver setup gate — pricing needs the driver's tax residence + engine cc. */}
+      {profileLoaded && !hasProfile && !profileLoadError && (
+        <TouchableOpacity
+          style={styles.setupBanner}
+          onPress={() => router.push('/driver-onboarding')}
+          accessibilityRole="button"
+          testID="complete-setup-banner"
+        >
+          <Ionicons name="information-circle-outline" size={20} color={Colors.primary} />
+          <Text style={styles.setupBannerText}>
+            Complete your driver setup to price and post journeys.
+          </Text>
+          <Ionicons name="chevron-forward" size={18} color={Colors.primary} />
+        </TouchableOpacity>
+      )}
 
       {/* Route */}
       <View style={styles.section}>
@@ -163,46 +390,75 @@ export default function OfferRideScreen(): React.ReactElement {
         <RouteInput
           from={from}
           to={to}
-          onFromChange={setFrom}
-          onToChange={setTo}
+          onFromChange={(v) => { setFrom(v); setFromCoords(null); }}
+          onToChange={(v) => { setTo(v); setToCoords(null); }}
+          onFromPlaceSelect={setFromCoords}
+          onToPlaceSelect={setToCoords}
+          onSwap={() => {
+            setFrom(to); setTo(from);
+            setFromCoords(toCoords); setToCoords(fromCoords);
+          }}
           testID="route-input"
         />
       </View>
 
-      {/* Distance — manual entry until the Maps Routes API auto-fills it (stub) */}
+      {/* Distance — auto-calculated from the route. The driver never edits this. */}
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Distance (km)</Text>
-        <Input
-          placeholder="e.g. 210"
-          value={distanceKm !== null ? String(distanceKm) : ''}
-          onChangeText={handleDistanceChange}
-          keyboardType="decimal-pad"
-          testID="distance-input"
-        />
-        <Text style={styles.priceHint}>
-          Used to calculate the fair price. Auto-filled from the route once maps are enabled.
-        </Text>
+        <Text style={styles.sectionLabel}>Distance</Text>
+        {distanceState === 'idle' && (
+          <Text style={styles.priceHint} testID="distance-idle">
+            Enter a start and destination to calculate the journey distance.
+          </Text>
+        )}
+        {distanceState === 'calculating' && (
+          <Text style={styles.priceHint} testID="distance-calculating">
+            Calculating route distance…
+          </Text>
+        )}
+        {distanceState === 'ok' && distance !== null && (
+          <>
+            <Text style={styles.distanceValue} testID="distance-value">
+              {distance} {unit}
+            </Text>
+            <Text style={styles.priceHint}>
+              Calculated from the route and used to set the fair price.
+            </Text>
+          </>
+        )}
+        {distanceState === 'no_key' && (
+          <Text style={styles.priceError} testID="distance-no-key">
+            Distance calculation isn't available yet — journeys can't be priced
+            until it is. This is on our side, not yours.
+          </Text>
+        )}
+        {distanceState === 'unavailable' && (
+          <Text style={styles.priceError} testID="distance-unavailable">
+            Couldn't calculate the distance. Check your connection and the
+            locations, then try again.
+          </Text>
+        )}
       </View>
 
-      {/* Date + Time */}
+      {/* Date + Time — native calendar/clock pickers (value contracts unchanged) */}
       <View style={styles.fieldRow}>
         <View style={styles.fieldHalf}>
           <Text style={styles.sectionLabel}>Date</Text>
-          <Input
-            placeholder="YYYY-MM-DD"
+          <DateTimeField
+            mode="date"
             value={date}
-            onChangeText={setDate}
-            keyboardType="numbers-and-punctuation"
+            onChange={setDate}
+            placeholder="Pick a date"
+            minimumDate={new Date()}
             testID="date-input"
           />
         </View>
         <View style={styles.fieldHalf}>
           <Text style={styles.sectionLabel}>Time</Text>
-          <Input
-            placeholder="HH:MM"
+          <DateTimeField
+            mode="time"
             value={time}
-            onChangeText={setTime}
-            keyboardType="numbers-and-punctuation"
+            onChange={setTime}
+            placeholder="Pick a time"
             testID="time-input"
           />
         </View>
@@ -227,35 +483,62 @@ export default function OfferRideScreen(): React.ReactElement {
           </TouchableOpacity>
           <Text style={styles.stepperValue} testID="seats-value">{seats}</Text>
           <TouchableOpacity
-            style={[styles.stepperBtn, seats >= SEATS_MAX && styles.stepperBtnDisabled]}
+            style={[styles.stepperBtn, seats >= seatsMax && styles.stepperBtnDisabled]}
             onPress={incrementSeats}
-            disabled={seats >= SEATS_MAX}
+            disabled={seats >= seatsMax}
             accessibilityRole="button"
             accessibilityLabel="Increase seats"
             testID="seats-increment"
           >
-            <Ionicons name="add" size={18} color={seats >= SEATS_MAX ? Colors.textTertiary : Colors.primary} />
+            <Ionicons name="add" size={18} color={seats >= seatsMax ? Colors.textTertiary : Colors.primary} />
           </TouchableOpacity>
         </View>
       </View>
+      {!extraSeatsVerified && seats >= SEATS_CAP_DEFAULT && (
+        <Text style={styles.priceHint} testID="seats-cap-note">
+          Offering more than {SEATS_CAP_DEFAULT} seats requires vehicle verification (coming soon).
+        </Text>
+      )}
 
-      {/* Price per seat */}
+      {/* Your cost-share per seat — COMPUTED and fixed. The driver cannot edit it. */}
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Price per seat ({currency})</Text>
-        <Input
-          placeholder="0.00"
-          value={pricePerSeat}
-          onChangeText={handlePriceChange}
-          keyboardType="decimal-pad"
-          testID="price-input"
-        />
-        {priceError ? (
-          <Text style={styles.priceError} testID="price-error">{priceError}</Text>
+        <Text style={styles.sectionLabel}>Your cost-share per seat ({currency})</Text>
+        {ratesError ? (
+          <Text style={styles.priceError} testID="rates-unavailable">
+            Pricing unavailable, please try again. We couldn’t load the current mileage rates,
+            so we can’t price this journey right now.
+          </Text>
+        ) : driverSeatPrice !== null ? (
+          <>
+            <Text style={styles.distanceValue} testID="driver-seat-price">
+              {formatCurrency(driverSeatPrice, currency)}
+            </Text>
+            <Text style={styles.priceHint}>
+              Set automatically from the official mileage rate for your jurisdiction and split
+              across you and your passengers. You can never charge more than your share.
+            </Text>
+          </>
         ) : (
-          <Text style={styles.priceHint}>
-            Auto-calculated from civil service rates. You may not charge more than the journey cost.
+          <Text style={styles.priceHint} testID="price-pending">
+            Your fair cost-share appears once the distance is calculated.
           </Text>
         )}
+      </View>
+
+      {/* Luggage / bags note (Block 8 — optional, no extra charge) */}
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>Luggage / bags (optional)</Text>
+        <Input
+          placeholder="e.g. room for one small case per person"
+          value={luggageNote}
+          onChangeText={setLuggageNote}
+          multiline
+          numberOfLines={2}
+          testID="luggage-input"
+        />
+        <Text style={styles.priceHint}>
+          Sort the details with passengers in the in-app chat after booking.
+        </Text>
       </View>
 
       {/* Women-only toggle */}
@@ -263,7 +546,7 @@ export default function OfferRideScreen(): React.ReactElement {
         <View style={styles.rowCardContent}>
           <Ionicons name="person-outline" size={20} color={Colors.lavender} />
           <View>
-            <Text style={styles.rowCardLabel}>Women-only ride</Text>
+            <Text style={styles.rowCardLabel}>Women-only journey</Text>
             <Text style={styles.rowCardSub}>Only female passengers can request to join</Text>
           </View>
         </View>
@@ -274,7 +557,7 @@ export default function OfferRideScreen(): React.ReactElement {
           thumbColor={Platform.OS === 'android' ? Colors.surface : undefined}
           testID="women-only-toggle"
           accessibilityRole="switch"
-          accessibilityLabel="Women-only ride"
+          accessibilityLabel="Women-only journey"
           accessibilityState={{ checked: womenOnly }}
         />
       </View>
@@ -295,8 +578,9 @@ export default function OfferRideScreen(): React.ReactElement {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.background },
   scrollContent: {
+    // paddingTop is set inline (insets.top + Spacing.lg) so the content clears
+    // the status bar/Dynamic Island on every device instead of a fixed value.
     paddingHorizontal: Spacing.screenPadding,
-    paddingTop: Spacing.xxxl + Spacing.xl,
     paddingBottom: Spacing.xxxxxl,
     gap: Spacing.lg,
   },
@@ -329,6 +613,13 @@ const styles = StyleSheet.create({
   },
   stepperBtnDisabled: { backgroundColor: Colors.border },
   stepperValue: { ...Typography.headingMedium, color: Colors.textPrimary, minWidth: 24, textAlign: 'center' },
+  distanceValue: { ...Typography.headingMedium, color: Colors.textPrimary },
+  setupBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    backgroundColor: Colors.primaryLight, borderRadius: BorderRadius.large,
+    padding: Spacing.cardPadding,
+  },
+  setupBannerText: { ...Typography.bodyMedium, color: Colors.primary, flex: 1 },
   priceHint: { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: Spacing.xs },
   priceError: { ...Typography.bodySmall, color: Colors.sos, marginTop: Spacing.xs },
   ctaButton: { marginTop: Spacing.sm },

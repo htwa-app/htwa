@@ -4,7 +4,7 @@
  * Unit tests for utils/validators.ts.
  */
 
-import { validateSignupForm } from '../../utils/validators';
+import { validateSignupForm, validateEmail } from '../../utils/validators';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -78,5 +78,27 @@ describe('validateSignupForm', () => {
   // homeLocation
   it('returns false when homeLocation is null', () => {
     expect(validateSignupForm({ ...VALID, homeLocation: null })).toBe(false);
+  });
+});
+
+describe('validateEmail', () => {
+  it('returns true for a valid email', () => {
+    expect(validateEmail('jane@ucd.ie')).toBe(true);
+  });
+
+  it('trims whitespace before validating', () => {
+    expect(validateEmail('  jane@ucd.ie  ')).toBe(true);
+  });
+
+  it('returns false for an empty string', () => {
+    expect(validateEmail('')).toBe(false);
+  });
+
+  it('returns false for a malformed email', () => {
+    expect(validateEmail('not-an-email')).toBe(false);
+  });
+
+  it('returns false when missing a domain', () => {
+    expect(validateEmail('jane@')).toBe(false);
   });
 });

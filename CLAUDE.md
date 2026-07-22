@@ -257,6 +257,7 @@ See **BUILD-PLAN.md** for per-stage status and **PROGRESS.md** (top entry) for t
 | 30 May 2026 | Claude may use stored project credentials without asking | New standing rule #5. Lets Claude operate Supabase/Stripe/GitHub/MailerLite using secrets in 1Password + `.env.local` without a per-action prompt. Deliberately scoped: payment approval (rule 1) and no-credential-sharing (rule 4) are untouched. Jordan declined to relax the payments, personal-email, or personal-social rules. Claude cannot perform sign-ins itself — those need Jordan's master password/Touch ID; sensitive keys are stored in 1Password and referenced via `op://`. |
 | 31 May 2026 | Only ONE autonomous Claude session per repo at a time | Two sessions ran overnight on the same `feat/phase-4-profiles` branch and collided (clobbered files, stale `.git/HEAD.lock`, duplicate/contradictory work). Rule: never start a second autonomous builder on a repo that already has one running. |
 | 31 May 2026 | Supabase Management token to be added for autonomous migrations | Claude cannot apply DDL with the `sb_secret` key (PostgREST is data-only). Jordan to add an `sbp_…` Management token / DB connection string to 1Password so Claude can apply migrations and run `supabase gen types` autonomously. Until then, migration files are written but must be applied by Jordan in the dashboard SQL editor. |
+| 19 Jul 2026 | Identity verification is universal, and 18+ is a real, DB-enforced age gate | Every user (not just drivers) must submit photo ID + date of birth + live selfie for manual review — protects everyone, in particular female drivers, who need the same verified-identity assurance about passengers that passengers already have about drivers. Minimum age 18, "safer for all involved": enforced client-side (`app/id-verify.tsx`) AND by a DB CHECK constraint on `verification.date_of_birth` (self-reported DOB only — not OCR'd from the document). Jordan manually cross-checks the submitted DOB against the uploaded ID during review, same as every other verification field. |
 
 ---
 
@@ -308,3 +309,41 @@ See **BUILD-PLAN.md** for per-stage status and **PROGRESS.md** (top entry) for t
 - Revenue.ie mileage rates: https://www.revenue.ie/en/employing-people/employee-expenses/travel-and-subsistence/civil-service-rates.aspx
 - HMRC AMAP rates: https://www.gov.uk/government/publications/rates-and-allowances-travel-mileage-and-fuel-allowances
 - BlaBlaCar tech stack: https://stackshare.io/blablacar/blablacar
+
+---
+
+## 12. Coding & Workflow Standards (added 14 July 2026 — resumption session)
+
+These are permanent standing rules, not one-off session notes. Baked in after a resumption session found real bugs (query errors silently read as "no data"/"success", zero-row UPDATEs reported as success, a compliance-sensitive query failure that could have silently applied a more-favourable tax band) that had slipped through prior autonomous runs.
+
+### Error-handling standard (applies to every async DB/network call, everywhere)
+
+1. **Every async DB/network call is wrapped in try/catch/finally.** No bare `await supabase...` sitting outside a try block in a screen or service.
+2. **A query error must NEVER be treated as a negative/empty result.** `const { data } = await supabase...` without also destructuring and checking `error` is a bug — a failed fetch must not look identical to "no rows". This applies even to "secondary/enrichment" queries (e.g. a driver-verification lookup) — a failed query must not silently render as a false "not verified" or "0 miles so far"; it must surface as a retryable error instead of a wrong default.
+3. **Every UPDATE/DELETE verifies affected row count** (`.select('id')` or similar after the mutation) **and treats zero rows as a failure, not a success.** A wrong id, an RLS block, or an already-actioned row must not report "Ride cancelled" / "Booking accepted" when nothing actually changed.
+4. **No spinner or CTA can be left stuck in a loading state on throw** — every loading flag resets in `finally`, not just on the happy path.
+5. **User-facing failures show an error state with a retry action, not silent nothing** (blank form, empty list, or a default that looks like real data).
+6. **A secondary side-effect failing after the primary action already committed should be logged, not reported as an overall failure** (e.g. a seat-restore failing after a booking cancellation/decline has already committed) — flipping the whole result to failure would risk a confusing retry of an action that actually succeeded. Use `console.error('[Scope] ...')` for these.
+7. When adding a new async call, ask: *if this query returns an error, does the UI show something different from "everything's fine"?* If the answer is no, fix it before moving on.
+
+### Fixed pricing model (do not deviate without an explicit decision)
+
+- `driverSeatPrice = totalJourneyCost ÷ STANDARD_VEHICLE_CAPACITY (5)`, **always** — never divided by `seatsOffered` or seats actually booked. A passenger always pays exactly one-fifth share.
+- Passenger pays `driverSeatPrice + 10% service charge + flat booking fee (£2/€2)`. One headline total per seat, with a tappable "View price details" breakdown (see `components/PriceBreakdown.tsx`) — never an editable price field.
+- Bookable seats are hard-capped at 4 per vehicle at launch (`SEATS_CAP_DEFAULT`/`SEATS_CAP_VERIFIED` in `app/offer-ride.tsx`), which is what makes the ÷5 divisor safe even for larger vehicles.
+- Rates/fees live ONLY in the DB (`pricing_rates`/`pricing_config`, read via `services/pricingRates.ts`) — never hardcode a rate or fee in app code.
+- `book_ride()` decrements `rides.seats_available` at REQUEST time, not at driver acceptance. Any code path that ends a pending booking without confirming it (passenger cancels, driver declines) MUST restore the seat (see `restoreRideSeats` in `services/bookings.ts`) — otherwise `seats_available` drifts permanently low.
+
+### Standard merge flow for this branch (and any future feature branch)
+
+1. Make changes, commit after each logical block with a clear message.
+2. **Hands-on test before pushing** — Jordan runs the app. If the change touches auth/onboarding, this includes a full cold-start walk (`xcrun simctl erase all` → rebuild → fresh signup/onboarding).
+3. Push to the feature branch.
+4. Post `@coderabbitai full review` (or let the automatic review run) and triage every finding: real bugs and legitimate improvements are fixed immediately, never deferred; noise is dismissed with a one-line reason.
+5. Merge to `main` **only once CodeRabbit is clean** (or every remaining finding has been explicitly triaged and dismissed) **and** the hands-on test has passed.
+6. Use **squash-merge** (repo convention — GitHub auto-deletes the head branch on merge; a follow-up `git push origin --delete <branch>` will then harmlessly error "remote ref does not exist").
+7. Start the next piece of work on a **new branch off the freshly-updated `main`**, not by continuing on the old feature branch.
+
+### Never merge to main autonomously
+
+Claude must never run `git merge`/`gh pr merge` into `main` without Jordan explicitly asking in that session. Autonomous/overnight runs prepare a branch and a PR for review — merging is always a separate, human-initiated step, even when CI is green and CodeRabbit is clean.

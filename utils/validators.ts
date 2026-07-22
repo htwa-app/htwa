@@ -43,3 +43,10 @@ export function validateSignupForm({
     homeLocation !== null
   );
 }
+
+// ─── validateEmail ────────────────────────────────────────────────────────────
+
+/** Returns true when `email` passes validator.js isEmail (proper format + domain). */
+export function validateEmail(email: string): boolean {
+  return validator.isEmail(email.trim());
+}

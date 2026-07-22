@@ -4,16 +4,23 @@
  * Stage 58/59 — Push notification triggers.
  *
  * `buildNotification` is the pure, testable core that maps a trigger + params to
- * a title/body/data payload. The `notify*` helpers build + dispatch. Actual
- * delivery uses expo-notifications locally; server-driven push (Expo push
- * service / APNs / FCM) is wired in Phase 15 once a backend sender exists — the
- * `sendNotification` indirection keeps that swap a one-line change.
+ * a title/body/data payload. The `notify*` helpers build + dispatch a LOCAL
+ * notification — this only fires while the app is foregrounded, so it remains
+ * the fallback path for that case.
+ *
+ * For backgrounded/killed-app delivery, `sendPushToUser` calls the `send-push`
+ * Edge Function, which relays through Expo's push service to FCM/APNs using
+ * the credentials attached via `eas credentials` (see BLOCKERS-FOR-JORDAN.md).
+ * `registerForPushNotifications` + `savePushToken` handle getting a token onto
+ * the device and persisting it server-side; both are called together from
+ * `hooks/usePushTokenRegistration`, mounted once the user is signed in.
  *
  * Native setup (app.json) + a real Expo push token require the device build;
  * `registerForPushNotifications` no-ops gracefully when permission is denied.
  */
 
 import * as Notifications from 'expo-notifications';
+import { supabase } from '../lib/supabase';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -140,3 +147,61 @@ export const notifyBookingDeclined  = (p: NotificationParams) => sendNotificatio
 export const notifyTripStartingSoon = (p: NotificationParams) => sendNotification(buildNotification('trip_starting_soon', p));
 export const notifyTripCompleted    = (p: NotificationParams) => sendNotification(buildNotification('trip_completed', p));
 export const notifyNewReview        = (p: NotificationParams) => sendNotification(buildNotification('new_review', p));
+
+// ─── Server-side push (backgrounded/killed-app delivery) ──────────────────────
+
+/**
+ * Persist the device's Expo push token so the send-push Edge Function can
+ * reach this user later. Called after registerForPushNotifications() returns
+ * a token; a failure here is logged, not thrown — it degrades to "no push
+ * this session," never blocks the screen that triggered registration.
+ */
+export async function savePushToken(userId: string, token: string): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ expo_push_token: token })
+      .eq('user_id', userId);
+    if (error) console.error('[Notifications] savePushToken failed:', error.message);
+  } catch (e) {
+    console.error('[Notifications] savePushToken threw:', e instanceof Error ? e.message : e);
+  }
+}
+
+/**
+ * Ask the send-push Edge Function to push-notify another user (e.g. the
+ * driver on a new booking request, or a passenger on accept/decline). This is
+ * always a secondary effect fired after the primary DB write has already
+ * committed — per CLAUDE.md §12, a failure here is logged, never surfaced as
+ * an overall failure of the action that triggered it.
+ */
+export async function sendPushToUser(
+  targetUserId: string,
+  trigger: NotificationTrigger,
+  params: NotificationParams = {},
+): Promise<void> {
+  const { title, body, data } = buildNotification(trigger, params);
+  return sendRawPushToUser(targetUserId, title, body, data);
+}
+
+/**
+ * Same delivery path as sendPushToUser, for callers with content that isn't
+ * one of the fixed NotificationTrigger shapes (currently: SOS/off-course
+ * safety alerts, whose wording is built in services/tracking.ts to match
+ * hooks/useRealtimeNotifications' local-notification copy exactly).
+ */
+export async function sendRawPushToUser(
+  targetUserId: string,
+  title: string,
+  body: string,
+  data: Record<string, unknown> = {},
+): Promise<void> {
+  try {
+    const { error } = await supabase.functions.invoke('send-push', {
+      body: { userId: targetUserId, title, body, data },
+    });
+    if (error) console.error('[Notifications] sendRawPushToUser failed:', error.message);
+  } catch (e) {
+    console.error('[Notifications] sendRawPushToUser threw:', e instanceof Error ? e.message : e);
+  }
+}

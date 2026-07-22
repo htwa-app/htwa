@@ -19,6 +19,7 @@ jest.mock('@expo/vector-icons', () => {
 
 const mockRidesResult = jest.fn();
 const mockVerifsResult = jest.fn();
+let mockDbCalls: { gte: unknown[][]; lte: unknown[][] } = { gte: [], lte: [] };
 jest.mock('../../lib/supabase', () => ({
   supabase: {
     from: (table: string) => {
@@ -27,7 +28,9 @@ jest.mock('../../lib/supabase', () => ({
       }
       // rides — chainable query that is also awaitable (thenable)
       const q: Record<string, unknown> = {};
-      ['select', 'gte', 'lte', 'eq', 'ilike', 'order'].forEach((m) => { q[m] = () => q; });
+      ['select', 'eq', 'ilike', 'order'].forEach((m) => { q[m] = () => q; });
+      q.gte = (...args: unknown[]) => { mockDbCalls.gte.push(args); return q; };
+      q.lte = (...args: unknown[]) => { mockDbCalls.lte.push(args); return q; };
       (q as { then: unknown }).then = (resolve: (v: unknown) => void) => resolve(mockRidesResult());
       return q;
     },
@@ -52,9 +55,10 @@ const RIDES: MockRideRow[] = [
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockDbCalls = { gte: [], lte: [] };
   mockParams = { from: 'Galway', to: 'Dublin', date: '', seats: '1', womenOnly: 'false' };
   mockRidesResult.mockResolvedValue({ data: RIDES, error: null });
-  mockVerifsResult.mockResolvedValue({ data: [{ user_id: 'd1', id_verified: true, selfie_verified: true }], error: null });
+  mockVerifsResult.mockResolvedValue({ data: [{ user_id: 'd1', status: 'approved' }], error: null });
 });
 
 describe('SearchResultsScreen', () => {
@@ -77,9 +81,34 @@ describe('SearchResultsScreen', () => {
     await waitFor(() => expect(screen.getByTestId('empty-state')).toBeTruthy());
   });
 
+  it('shows an error state (not an empty list) when the verification batch query errors', async () => {
+    mockVerifsResult.mockResolvedValue({ data: null, error: { message: 'db down' } });
+    render(<SearchResultsScreen />);
+    await waitFor(() => expect(screen.getByTestId('results-error')).toBeTruthy());
+    expect(screen.queryByTestId('empty-state')).toBeNull();
+  });
+
   it('handles a non-numeric seats param without crashing (NaN guard)', async () => {
     mockParams = { from: 'A', to: 'B', date: '', seats: 'abc', womenOnly: 'false' };
     expect(() => render(<SearchResultsScreen />)).not.toThrow();
     await waitFor(() => expect(screen.getByTestId('ride-card-r1')).toBeTruthy());
+  });
+
+  it('widens the date window by ±flexDays (Block 3)', async () => {
+    mockParams = { from: 'Galway', to: 'Dublin', date: '2026-06-10', flexDays: '2', seats: '1', womenOnly: 'false' };
+    render(<SearchResultsScreen />);
+    await waitFor(() => expect(screen.getByTestId('ride-card-r1')).toBeTruthy());
+    const gteVals = mockDbCalls.gte.map((a) => a[1]);
+    const lteVals = mockDbCalls.lte.map((a) => a[1]);
+    expect(gteVals).toContain('2026-06-08T00:00:00.000Z'); // 10th − 2 days
+    expect(lteVals).toContain('2026-06-12T23:59:59.999Z'); // 10th + 2 days
+  });
+
+  it('uses an exact-day window when flexDays is 0', async () => {
+    mockParams = { from: 'Galway', to: 'Dublin', date: '2026-06-10', flexDays: '0', seats: '1', womenOnly: 'false' };
+    render(<SearchResultsScreen />);
+    await waitFor(() => expect(screen.getByTestId('ride-card-r1')).toBeTruthy());
+    expect(mockDbCalls.gte.map((a) => a[1])).toContain('2026-06-10T00:00:00.000Z');
+    expect(mockDbCalls.lte.map((a) => a[1])).toContain('2026-06-10T23:59:59.999Z');
   });
 });

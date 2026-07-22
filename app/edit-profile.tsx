@@ -18,12 +18,14 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
+  Image,
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -36,6 +38,18 @@ import {
 } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { uploadStudentCard } from '../services/studentCard';
+import { pickProfilePhoto, pickStudentCardImage } from '../services/imagePicker';
+import { getAvatarUrl, uploadAvatar } from '../services/avatar';
+import type { UniversityVerificationStatus } from '../types/database';
+
+// Labels + colours for the university verification status badge.
+const UNI_STATUS: Record<UniversityVerificationStatus, { label: string; color: string }> = {
+  unverified: { label: 'Not verified',     color: Colors.textSecondary },
+  pending:    { label: 'Pending review',   color: Colors.amber },
+  verified:   { label: 'Verified',         color: Colors.verified },
+  rejected:   { label: 'Rejected — re-upload', color: Colors.sos },
+};
 
 // ─── Spec-local constants ─────────────────────────────────────────────────────
 
@@ -97,32 +111,51 @@ function PrefChip({ label, selected, onPress, testID }: PrefChipProps) {
 
 export default function EditProfileScreen(): React.ReactElement {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
   const [bio,        setBio]        = useState('');
   const [university, setUniversity] = useState('');
   const [prefs,      setPrefs]      = useState<TravelPreferences>(DEFAULT_PREFS);
+  const [uniStatus,  setUniStatus]  = useState<UniversityVerificationStatus>('unverified');
+  const [uploading,  setUploading]  = useState(false);
+  const [uploadNote, setUploadNote] = useState<string | null>(null);
+  const [avatarUrl,  setAvatarUrl]  = useState<string | null>(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarNote, setAvatarNote] = useState<string | null>(null);
   const [isLoading,  setIsLoading]  = useState(true);
   const [isSaving,   setIsSaving]   = useState(false);
   const [saveError,  setSaveError]  = useState<string | null>(null);
+
+  const universityMissing = university.trim().length === 0;
 
   // ─── Load existing profile ─────────────────────────────────────────────────
 
   const loadProfile = useCallback(async () => {
     if (!user) { setIsLoading(false); return; }
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
-        .select('bio, university, travel_preferences')
+        .select('bio, university, travel_preferences, university_verification_status, avatar_url')
         .eq('user_id', user.id)
         .single();
+
+      // PGRST116 = no row yet (first-time profile) — not an error state.
+      if (error && error.code !== 'PGRST116') {
+        setSaveError('Could not load your profile. Please try again.');
+        return;
+      }
 
       if (data) {
         setBio(data.bio ?? '');
         setUniversity(data.university ?? '');
+        setUniStatus((data.university_verification_status ?? 'unverified') as UniversityVerificationStatus);
         const saved = (data.travel_preferences ?? {}) as Partial<TravelPreferences>;
         setPrefs({ ...DEFAULT_PREFS, ...saved });
+        setAvatarUrl(await getAvatarUrl(data.avatar_url ?? null));
       }
+    } catch {
+      setSaveError('Could not load your profile. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -136,8 +169,48 @@ export default function EditProfileScreen(): React.ReactElement {
     setPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const handlePickAvatar = async () => {
+    if (!user || avatarBusy) return;
+    setAvatarNote(null);
+    setAvatarBusy(true);
+    try {
+      const bytes = await pickProfilePhoto();
+      if (!bytes) return; // cancelled or permission denied — leave as-is
+      const res = await uploadAvatar(user.id, bytes);
+      if (!res.ok) { setAvatarNote('Could not save your photo. Please try again.'); return; }
+      setAvatarUrl(await getAvatarUrl(res.path));
+    } catch {
+      setAvatarNote('Could not save your photo. Please try again.');
+    } finally {
+      setAvatarBusy(false);
+    }
+  };
+
+  const handleUploadStudentCard = async () => {
+    if (!user) return;
+    setUploadNote(null);
+    setUploading(true);
+    try {
+      const bytes = await pickStudentCardImage();
+      if (!bytes) {
+        // Cancelled, or photo-library permission denied.
+        setUploadNote('No photo selected. Allow photo access in Settings if the picker didn\'t open.');
+        return;
+      }
+      const result = await uploadStudentCard(user.id, bytes);
+      if (!result.ok) { setUploadNote('Upload failed. Please try again.'); return; }
+      setUniStatus(result.status);
+      setUploadNote('Student card uploaded — we’ll review it shortly.');
+    } catch {
+      setUploadNote('Upload failed. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!user) return;
+    if (universityMissing) { setSaveError('University is required.'); return; }
     setSaveError(null);
     setIsSaving(true);
     try {
@@ -174,7 +247,7 @@ export default function EditProfileScreen(): React.ReactElement {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Spacing.lg }]}
       showsVerticalScrollIndicator={false}
       testID="edit-profile-screen"
     >
@@ -193,12 +266,25 @@ export default function EditProfileScreen(): React.ReactElement {
         <View style={styles.headerSpacer} />
       </View>
 
-      {/* ── Photo placeholder ─────────────────────────────────────────────────── */}
+      {/* ── Profile photo ─────────────────────────────────────────────────────── */}
       <View style={styles.photoSection}>
-        <View style={styles.photoPlaceholder} testID="photo-placeholder">
-          <Ionicons name="camera-outline" size={28} color={Colors.textSecondary} />
-        </View>
-        <Text style={styles.photoHint}>Photo upload coming soon</Text>
+        <TouchableOpacity
+          onPress={handlePickAvatar}
+          disabled={avatarBusy}
+          accessibilityRole="button"
+          accessibilityLabel="Change profile photo"
+          testID="photo-picker"
+        >
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.photo} testID="profile-photo" />
+          ) : (
+            <View style={styles.photoPlaceholder} testID="photo-placeholder">
+              <Ionicons name="camera-outline" size={28} color={Colors.textSecondary} />
+            </View>
+          )}
+        </TouchableOpacity>
+        <Text style={styles.photoHint}>{avatarBusy ? 'Uploading…' : 'Tap to change your photo'}</Text>
+        {avatarNote && <Text style={styles.photoError} testID="avatar-error">{avatarNote}</Text>}
       </View>
 
       {/* ── Bio ──────────────────────────────────────────────────────────────── */}
@@ -210,20 +296,50 @@ export default function EditProfileScreen(): React.ReactElement {
           onChangeText={setBio}
           multiline
           numberOfLines={3}
+          style={styles.centeredInput}
           testID="bio-input"
         />
       </View>
 
-      {/* ── University ───────────────────────────────────────────────────────── */}
+      {/* ── University (mandatory) ───────────────────────────────────────────── */}
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>University</Text>
+        <Text style={styles.sectionLabel}>University *</Text>
         <Input
           placeholder="e.g. UCD, TCD, DCU"
           value={university}
           onChangeText={setUniversity}
           autoCapitalize="words"
+          style={styles.centeredInput}
           testID="university-input"
         />
+        {universityMissing && (
+          <Text style={styles.requiredHint} testID="university-required">University is required.</Text>
+        )}
+
+        {/* University verification (Block 6) */}
+        <View style={styles.verifyRow}>
+          <Text style={styles.verifyLabel}>Student card</Text>
+          <Text style={[styles.verifyStatus, { color: UNI_STATUS[uniStatus].color }]} testID="uni-status">
+            {UNI_STATUS[uniStatus].label}
+          </Text>
+        </View>
+        <Text style={styles.verifyHint}>
+          Upload a photo of your student card. The name must match the name on your verified ID.
+        </Text>
+        <TouchableOpacity
+          style={styles.uploadBtn}
+          onPress={handleUploadStudentCard}
+          disabled={uploading}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: uploading }}
+          testID="upload-student-card"
+        >
+          <Ionicons name="cloud-upload-outline" size={18} color={Colors.primary} />
+          <Text style={styles.uploadBtnText}>
+            {uploading ? 'Uploading…' : 'Upload student card'}
+          </Text>
+        </TouchableOpacity>
+        {uploadNote && <Text style={styles.verifyHint} testID="upload-note">{uploadNote}</Text>}
       </View>
 
       {/* ── Travel preferences ───────────────────────────────────────────────── */}
@@ -254,7 +370,7 @@ export default function EditProfileScreen(): React.ReactElement {
       <Button
         title={isSaving ? 'Saving…' : 'Save changes'}
         onPress={handleSave}
-        disabled={isSaving}
+        disabled={isSaving || universityMissing}
         style={styles.saveButton}
         testID="save-button"
       />
@@ -270,8 +386,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   scrollContent: {
+    // paddingTop is set inline (insets.top + Spacing.lg) so the content clears
+    // the status bar/Dynamic Island on every device instead of a fixed value.
     paddingHorizontal: Spacing.screenPadding,
-    paddingTop: Spacing.xxxl + Spacing.xl,
     paddingBottom: Spacing.xxxxxl,
   },
   centerState: {
@@ -312,6 +429,17 @@ const styles = StyleSheet.create({
   photoHint: {
     ...Typography.bodySmall,
     color: Colors.textTertiary,
+  },
+  photo: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    marginBottom: Spacing.sm,
+  },
+  photoError: {
+    ...Typography.bodySmall,
+    color: Colors.sos,
+    marginTop: Spacing.xs,
   },
 
   section: {
@@ -354,6 +482,49 @@ const styles = StyleSheet.create({
   },
   prefChipLabelSelected: {
     color: PREF_CHIP_SELECTED_TXT,
+  },
+
+  centeredInput: {
+    textAlign: 'center',
+  },
+  requiredHint: {
+    ...Typography.bodySmall,
+    color: Colors.sos,
+    marginTop: Spacing.xs,
+  },
+  verifyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: Spacing.lg,
+  },
+  verifyLabel: {
+    ...Typography.bodyMedium,
+    color: Colors.textPrimary,
+  },
+  verifyStatus: {
+    ...Typography.bodySmall,
+    fontFamily: FontFamily.medium,
+  },
+  verifyHint: {
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
+    marginTop: Spacing.xs,
+  },
+  uploadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.primaryLight,
+    borderRadius: BorderRadius.medium,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    alignSelf: 'flex-start',
+    marginTop: Spacing.sm,
+  },
+  uploadBtnText: {
+    ...Typography.bodyMedium,
+    color: Colors.primary,
   },
 
   errorText: {

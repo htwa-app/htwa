@@ -29,6 +29,7 @@ import {
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -51,34 +52,49 @@ const TOGGLE_TRACK_OFF = 'rgba(40,30,20,0.15)';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+// Kept as `type`, not `interface` — an interface here fails to structurally
+// satisfy Record<string, unknown> at the profiles.vehicle_details upsert call
+// site below (TS2322), unlike a type alias for the same plain object shape.
 export type VehicleDetails = {
-  make:    string;
-  model:   string;
-  year:    string;
-  colour:  string;
-  seats:   number;
-  hasAC:   boolean;
-  dashcam: boolean;
+  make:         string;
+  model:        string;
+  year:         string;
+  colour:       string;
+  registration: string;   // 2A-a — shown to booked passengers on the driver-verify panel
+  seats:        number;
+  hasAC:        boolean;
+  dashcam:      boolean;
 };
 
 const DEFAULT_VEHICLE: VehicleDetails = {
-  make:    '',
-  model:   '',
-  year:    '',
-  colour:  '',
-  seats:   4,
-  hasAC:   false,
-  dashcam: false,
+  make:         '',
+  model:        '',
+  year:         '',
+  colour:       '',
+  registration: '',
+  seats:        4,
+  hasAC:        false,
+  dashcam:      false,
 };
+
+/**
+ * Fields a driver must have on file before posting a journey — passengers
+ * verify the car against these (2A-a). Shared with offer-ride's gate.
+ */
+export function vehicleDetailsComplete(v: Partial<VehicleDetails> | null | undefined): boolean {
+  return !!v && !!v.make?.trim() && !!v.model?.trim() && !!v.colour?.trim() && !!v.registration?.trim();
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function VehicleDetailsScreen(): React.ReactElement {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
   const [vehicle,   setVehicle]   = useState<VehicleDetails>(DEFAULT_VEHICLE);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [isSaving,  setIsSaving]  = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -86,16 +102,22 @@ export default function VehicleDetailsScreen(): React.ReactElement {
 
   const loadVehicle = useCallback(async () => {
     if (!user) { setIsLoading(false); return; }
+    setLoadError(false);
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('vehicle_details')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
+      // A failed fetch must not render as a blank first-time form — the driver
+      // could unknowingly overwrite real details with empties.
+      if (error) { setLoadError(true); return; }
 
       if (data?.vehicle_details) {
         setVehicle({ ...DEFAULT_VEHICLE, ...(data.vehicle_details as Partial<VehicleDetails>) });
       }
+    } catch {
+      setLoadError(true);
     } finally {
       setIsLoading(false);
     }
@@ -121,6 +143,10 @@ export default function VehicleDetailsScreen(): React.ReactElement {
   const handleSave = async () => {
     if (!user) return;
     setSaveError(null);
+    if (!vehicleDetailsComplete(vehicle)) {
+      setSaveError('Make, model, colour and registration are required — passengers use them to verify your car.');
+      return;
+    }
     setIsSaving(true);
     try {
       const { error } = await supabase.from('profiles').upsert(
@@ -146,12 +172,27 @@ export default function VehicleDetailsScreen(): React.ReactElement {
     );
   }
 
+  if (loadError) {
+    return (
+      <View style={styles.centerState} testID="vehicle-load-error">
+        <Text style={styles.errorText}>Couldn't load your vehicle details.</Text>
+        <TouchableOpacity
+          onPress={() => { setIsLoading(true); void loadVehicle(); }}
+          accessibilityRole="button"
+          testID="vehicle-retry"
+        >
+          <Text style={styles.retryText}>Try again</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Spacing.lg }]}
       showsVerticalScrollIndicator={false}
       testID="vehicle-details-screen"
     >
@@ -221,6 +262,19 @@ export default function VehicleDetailsScreen(): React.ReactElement {
               testID="colour-input"
             />
           </View>
+        </View>
+        <View style={styles.field}>
+          <Text style={styles.fieldLabel}>Registration number</Text>
+          <Input
+            placeholder="e.g. 191-D-12345"
+            value={vehicle.registration}
+            onChangeText={(v) => setField('registration', v)}
+            autoCapitalize="characters"
+            testID="registration-input"
+          />
+          <Text style={styles.fieldHint}>
+            Shown to your booked passengers so they can verify they're getting into the right car.
+          </Text>
         </View>
       </View>
 
@@ -324,8 +378,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   scrollContent: {
+    // paddingTop is set inline (insets.top + Spacing.lg) so the content clears
+    // the status bar/Dynamic Island on every device instead of a fixed value.
     paddingHorizontal: Spacing.screenPadding,
-    paddingTop: Spacing.xxxl + Spacing.xl,
     paddingBottom: Spacing.xxxxxl,
     gap: Spacing.md,
   },
@@ -381,6 +436,16 @@ const styles = StyleSheet.create({
     ...Typography.bodySmall,
     color: Colors.textSecondary,
     marginBottom: Spacing.xs,
+  },
+  fieldHint: {
+    ...Typography.bodySmall,
+    color: Colors.textTertiary,
+    marginTop: Spacing.xs,
+  },
+  retryText: {
+    ...Typography.bodyMedium,
+    color: Colors.primary,
+    marginTop: Spacing.sm,
   },
 
   rowCard: {

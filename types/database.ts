@@ -53,27 +53,36 @@ export type UserUpdate = {
 
 // ─── verification ─────────────────────────────────────────────────────────────
 
+export type VerificationStatus = 'pending' | 'approved' | 'rejected';
+
 export type VerificationRow = {
-  id:              string;         // uuid
-  user_id:         string;         // uuid → public.users.id
-  id_verified:     boolean;
-  selfie_verified: boolean;
-  verified_at:     string | null;  // timestamptz or null
+  id:                string;         // uuid
+  user_id:           string;         // uuid → public.users.id
+  selfie_url:        string | null;  // migration 20260719000002 — live-captured selfie (never an ID document)
+  verified_at:       string | null;  // timestamptz or null; legacy — superseded by reviewed_at
+  date_of_birth:     string | null;  // migration 20260719200001 — DATE as YYYY-MM-DD
+  id_document_path:  string | null;  // any government photo ID — private, review-only, never shown to other users
+  status:            VerificationStatus;
+  review_note:       string | null;
+  submitted_at:      string;
+  reviewed_at:       string | null;
 }
 
 export type VerificationInsert = {
-  id?:              string;        // defaults to gen_random_uuid()
-  user_id:          string;
-  id_verified?:     boolean;       // defaults to false
-  selfie_verified?: boolean;       // defaults to false
-  verified_at?:     string | null;
+  id?:                string;        // defaults to gen_random_uuid()
+  user_id:            string;
+  selfie_url?:        string | null;
+  verified_at?:       string | null;
+  date_of_birth?:     string | null;
+  id_document_path?:  string | null;
+  status?:            VerificationStatus; // owner writes forced to 'pending' by trigger
+  review_note?:       string | null;
 }
 
-export type VerificationUpdate = {
-  id_verified?:     boolean;
-  selfie_verified?: boolean;
-  verified_at?:     string | null;
-}
+export type VerificationUpdate = Partial<VerificationInsert> & {
+  // Review-only fields — set by the dashboard/service role, never by app code.
+  reviewed_at?: string | null;
+};
 
 // ─── profiles ─────────────────────────────────────────────────────────────────
 
@@ -86,7 +95,14 @@ export type ProfileRow = {
   nominated_contact:    Record<string, unknown> | null;  // jsonb
   vehicle_details:      Record<string, unknown> | null;  // jsonb — migration 20260531000001
   women_only_mode:      boolean;                          // migration 20260531000001
+  university_verification_status: UniversityVerificationStatus; // migration 20260601000002
+  student_card_url:     string | null;                    // migration 20260601000002
+  avatar_url:           string | null;                    // migration 20260719000006
+  notification_prefs:   Record<string, boolean>;          // migration 20260719000007
+  expo_push_token:      string | null;                    // migration 20260722010001
 }
+
+export type UniversityVerificationStatus = 'unverified' | 'pending' | 'verified' | 'rejected';
 
 export type ProfileInsert = {
   id?:                   string;       // defaults to gen_random_uuid()
@@ -97,6 +113,11 @@ export type ProfileInsert = {
   nominated_contact?:    Record<string, unknown> | null;
   vehicle_details?:      Record<string, unknown> | null;
   women_only_mode?:      boolean;      // defaults to false
+  university_verification_status?: UniversityVerificationStatus;
+  student_card_url?:     string | null;
+  avatar_url?:           string | null;
+  notification_prefs?:   Record<string, boolean>;
+  expo_push_token?:      string | null;
 }
 
 export type ProfileUpdate = {
@@ -106,11 +127,16 @@ export type ProfileUpdate = {
   nominated_contact?:    Record<string, unknown> | null;
   vehicle_details?:      Record<string, unknown> | null;
   women_only_mode?:      boolean;
+  university_verification_status?: UniversityVerificationStatus;
+  student_card_url?:     string | null;
+  avatar_url?:           string | null;
+  notification_prefs?:   Record<string, boolean>;
+  expo_push_token?:      string | null;
 }
 
 // ─── rides ────────────────────────────────────────────────────────────────────
 
-export type RideStatus = 'active' | 'full' | 'completed' | 'cancelled';
+export type RideStatus = 'active' | 'full' | 'in_progress' | 'completed' | 'cancelled';
 
 /** Geographic point stored in the *_coords jsonb columns. */
 export type Coords = { lat: number; lng: number };
@@ -129,6 +155,9 @@ export type RideRow = {
   currency:           Currency;
   distance_km:        number | null; // numeric(10,2)
   women_only:         boolean;
+  luggage_note:       string | null;  // migration 20260601000004 (Block 8)
+  estimated_duration_seconds: number | null; // migration 20260601000005 (Change 2)
+  window_end:         string | null;  // migration 20260601000005 — overlap guard
   status:             RideStatus;
   created_at:         string | null;
 }
@@ -147,6 +176,9 @@ export type RideInsert = {
   currency:            Currency;
   distance_km?:        number | null;
   women_only?:         boolean;       // defaults to false
+  luggage_note?:       string | null;
+  estimated_duration_seconds?: number | null;
+  window_end?:         string | null;
   status?:             RideStatus;    // defaults to 'active'
   created_at?:         string | null;
 }
@@ -163,12 +195,14 @@ export type RideUpdate = {
   currency?:           Currency;
   distance_km?:        number | null;
   women_only?:         boolean;
+  luggage_note?:       string | null;
   status?:             RideStatus;
 }
 
 // ─── bookings ─────────────────────────────────────────────────────────────────
 
 export type BookingStatus = 'pending' | 'confirmed' | 'declined' | 'cancelled';
+export type ChatStatus = 'open' | 'closed'; // migration 20260601000006 (Change 3)
 
 export type BookingRow = {
   id:           string;        // uuid
@@ -176,6 +210,10 @@ export type BookingRow = {
   passenger_id: string;        // uuid → public.users.id
   seats_booked: number;
   status:       BookingStatus;
+  chat_status:    ChatStatus;
+  chat_closed_at: string | null;
+  chat_closed_by: string | null;
+  payment_intent_id: string | null; // migration 20260719000002 — written by create-payment-intent
   created_at:   string | null;
 }
 
@@ -185,12 +223,19 @@ export type BookingInsert = {
   passenger_id:  string;
   seats_booked?: number;        // defaults to 1
   status?:       BookingStatus; // defaults to 'pending'
+  chat_status?:    ChatStatus;  // defaults to 'open'
+  chat_closed_at?: string | null;
+  chat_closed_by?: string | null;
+  payment_intent_id?: string | null;
   created_at?:   string | null;
 }
 
 export type BookingUpdate = {
   seats_booked?: number;
   status?:       BookingStatus;
+  chat_status?:    ChatStatus;
+  chat_closed_at?: string | null;
+  chat_closed_by?: string | null;
 }
 
 // ─── messages ─────────────────────────────────────────────────────────────────
@@ -242,6 +287,242 @@ export type ReviewUpdate = {
   comment?: string | null;
 }
 
+// ─── driver pricing + mileage (migration 20260601000001) ──────────────────────
+
+export type TaxResidence = 'ROI' | 'UK';
+export type EngineCcBand  = 'le1200' | 'cc1201to1500' | 'ge1501';
+export type DistanceUnitDb = 'km' | 'mile';
+export type MileageSource = 'journey' | 'manual';
+
+export type DriverPricingProfileRow = {
+  user_id:                  string;
+  tax_residence:            TaxResidence;
+  engine_cc:                EngineCcBand;
+  insurance_cert_confirmed: boolean;
+  notify_insurer_confirmed: boolean;
+  declaration_version:      string | null;
+  declaration_accepted_at:  string | null;
+  created_at:               string | null;  // TIMESTAMPTZ DEFAULT NOW(), no NOT NULL
+  updated_at:               string | null;  // TIMESTAMPTZ DEFAULT NOW(), no NOT NULL
+}
+
+export type DriverPricingProfileInsert = {
+  user_id:                   string;
+  tax_residence:             TaxResidence;
+  engine_cc:                 EngineCcBand;
+  insurance_cert_confirmed?: boolean;
+  notify_insurer_confirmed?: boolean;
+  declaration_version?:      string | null;
+  declaration_accepted_at?:  string | null;
+}
+
+export type DriverPricingProfileUpdate = Partial<DriverPricingProfileInsert>;
+
+export type MileageIncrementRow = {
+  id:         string;
+  driver_id:  string;
+  journey_id: string | null;
+  amount:     number;
+  unit:       DistanceUnitDb;
+  source:     MileageSource;
+  created_at: string | null;  // TIMESTAMPTZ DEFAULT NOW(), no NOT NULL
+}
+
+export type MileageIncrementInsert = {
+  driver_id:   string;
+  journey_id?: string | null;
+  amount:      number;
+  unit:        DistanceUnitDb;
+  source:      MileageSource;
+}
+
+export type PricingRateRow = {
+  id:           string;
+  jurisdiction: TaxResidence;
+  band_index:   number;
+  engine_cc:    EngineCcBand | null;
+  upper_bound:  number;
+  rate:         number;
+  unit:         DistanceUnitDb;
+  currency:     Currency;
+  effective_from: string;
+  created_at:   string | null;  // TIMESTAMPTZ DEFAULT NOW(), no NOT NULL
+}
+
+export type PricingConfigRow = {
+  key:         string;
+  value:       number;
+  description: string | null;
+}
+
+// ─── payment_accounts (migration 20260601000003) ──────────────────────────────
+
+export type ConnectStatus = 'none' | 'pending' | 'active' | 'restricted';
+
+export type PaymentAccountRow = {
+  user_id:                   string;
+  stripe_connect_account_id: string | null;
+  connect_status:            ConnectStatus;
+  stripe_customer_id:        string | null;
+  has_payment_method:        boolean;
+  payment_method_brand:      string | null;
+  payment_method_last4:      string | null;
+  created_at:                string | null;  // TIMESTAMPTZ DEFAULT NOW(), no NOT NULL
+  updated_at:                string | null;  // TIMESTAMPTZ DEFAULT NOW(), no NOT NULL
+}
+
+export type PaymentAccountInsert = {
+  user_id:                    string;
+  stripe_connect_account_id?: string | null;
+  connect_status?:            ConnectStatus;
+  stripe_customer_id?:        string | null;
+  has_payment_method?:        boolean;
+  payment_method_brand?:      string | null;
+  payment_method_last4?:      string | null;
+}
+
+export type PaymentAccountUpdate = Partial<PaymentAccountInsert>;
+
+// ─── Safety suite (migration 20260719000001) ─────────────────────────────────
+
+/** Per-journey nominated contact — the tracking/alert system reads THIS, never the profile default. */
+export type JourneyContactRow = {
+  id:               string;         // uuid
+  ride_id:          string;         // uuid → public.rides.id
+  user_id:          string;         // uuid → the participant who nominated the contact
+  contact_name:     string;
+  contact_phone:    string;
+  contact_user_id:  string | null;  // set when the contact is an htwa user (in-app live view)
+  tracking_token:   string;         // uuid — credential for the tokenised web link
+  token_expires_at: string | null;  // set by trigger when the journey completes
+  created_at:       string;
+}
+
+export type JourneyContactInsert = {
+  id?:               string;
+  ride_id:           string;
+  user_id:           string;
+  contact_name:      string;
+  contact_phone:     string;
+  contact_user_id?:  string | null;
+  tracking_token?:   string;
+  token_expires_at?: string | null;
+}
+
+export type JourneyContactUpdate = Partial<JourneyContactInsert>;
+
+export type TripLocationRow = {
+  id:          number;         // bigint identity
+  ride_id:     string;         // uuid → public.rides.id
+  lat:         number;
+  lng:         number;
+  heading:     number | null;
+  speed_mps:   number | null;
+  recorded_at: string;
+}
+
+export type TripLocationInsert = {
+  ride_id:      string;
+  lat:          number;
+  lng:          number;
+  heading?:     number | null;
+  speed_mps?:   number | null;
+  recorded_at?: string;
+}
+
+export type TripAlertType = 'sos' | 'off_course' | 'signal_lost';
+
+export type TripAlertRow = {
+  id:         string;          // uuid
+  ride_id:    string;          // uuid → public.rides.id
+  raised_by:  string;          // uuid → public.users.id
+  alert_type: TripAlertType;
+  lat:        number | null;
+  lng:        number | null;
+  detail:     string | null;
+  channels:   string[];        // jsonb — delivery channels used, e.g. ["sms","push"]
+  created_at: string;
+}
+
+export type TripAlertInsert = {
+  id?:        string;
+  ride_id:    string;
+  raised_by:  string;
+  alert_type: TripAlertType;
+  lat?:       number | null;
+  lng?:       number | null;
+  detail?:    string | null;
+  channels?:  string[];
+}
+
+// ─── Disclosure + waiver (migration 20260719000002) ──────────────────────────
+
+export type WaiverRole = 'driver' | 'passenger';
+
+export type WaiverAcceptanceRow = {
+  id:               string;        // uuid
+  user_id:          string;        // uuid → public.users.id
+  ride_id:          string | null;
+  booking_id:       string | null;
+  role:             WaiverRole;
+  document_version: string;        // e.g. "2026-07-18" — legal/verification-responsibility-waiver.md version
+  accepted_at:      string;
+}
+
+export type WaiverAcceptanceInsert = {
+  id?:               string;
+  user_id:           string;
+  ride_id?:          string | null;
+  booking_id?:       string | null;
+  role:              WaiverRole;
+  document_version:  string;
+}
+
+/** Service-role-only review queue (no client RLS policies) — typed for Edge Functions/tests. */
+export type AccountFlagRow = {
+  id:         string;
+  user_id:    string;
+  flag_type:  string;
+  detail:     string | null;
+  raised_by:  string | null;
+  resolved:   boolean;
+  created_at: string;
+}
+
+// ─── Driver verification (migration 20260719100001) ──────────────────────────
+
+export type DriverVerificationStatus = 'pending' | 'approved' | 'rejected';
+
+export type DriverVerificationRow = {
+  user_id:            string;
+  licence_photo_path: string;   // driver-verifications bucket — review-only
+  selfie_photo_path:  string;   // verification-selfies bucket — the disclosure photo
+  car_photo_path:     string;   // driver-verifications bucket — review-only
+  car_make:           string;
+  car_model:          string;
+  car_registration:   string;
+  car_colour:         string;
+  status:             DriverVerificationStatus;
+  review_note:        string | null;
+  submitted_at:       string;
+  reviewed_at:        string | null;
+}
+
+export type DriverVerificationInsert = {
+  user_id:            string;
+  licence_photo_path: string;
+  selfie_photo_path:  string;
+  car_photo_path:     string;
+  car_make:           string;
+  car_model:          string;
+  car_registration:   string;
+  car_colour:         string;
+  status?:            DriverVerificationStatus; // owner writes forced to 'pending' by trigger
+  review_note?:       string | null;
+}
+
+export type DriverVerificationUpdate = Partial<DriverVerificationInsert>;
+
 // ─── Database (Supabase client generic) ───────────────────────────────────────
 
 export type Database = {
@@ -289,12 +570,94 @@ export type Database = {
         Update: ReviewUpdate;
         Relationships: [];
       };
+      driver_pricing_profiles: {
+        Row:    DriverPricingProfileRow;
+        Insert: DriverPricingProfileInsert;
+        Update: DriverPricingProfileUpdate;
+        Relationships: [];
+      };
+      driver_mileage_increments: {
+        Row:    MileageIncrementRow;
+        Insert: MileageIncrementInsert;
+        Update: Partial<MileageIncrementInsert>;
+        Relationships: [];
+      };
+      pricing_rates: {
+        Row:    PricingRateRow;
+        Insert: Partial<PricingRateRow>;
+        Update: Partial<PricingRateRow>;
+        Relationships: [];
+      };
+      pricing_config: {
+        Row:    PricingConfigRow;
+        Insert: PricingConfigRow;
+        Update: Partial<PricingConfigRow>;
+        Relationships: [];
+      };
+      payment_accounts: {
+        Row:    PaymentAccountRow;
+        Insert: PaymentAccountInsert;
+        Update: PaymentAccountUpdate;
+        Relationships: [];
+      };
+      journey_contacts: {
+        Row:    JourneyContactRow;
+        Insert: JourneyContactInsert;
+        Update: JourneyContactUpdate;
+        Relationships: [];
+      };
+      trip_locations: {
+        Row:    TripLocationRow;
+        Insert: TripLocationInsert;
+        Update: Partial<TripLocationInsert>;
+        Relationships: [];
+      };
+      trip_alerts: {
+        Row:    TripAlertRow;
+        Insert: TripAlertInsert;
+        Update: Partial<TripAlertInsert>;
+        Relationships: [];
+      };
+      waiver_acceptances: {
+        Row:    WaiverAcceptanceRow;
+        Insert: WaiverAcceptanceInsert;
+        Update: Partial<WaiverAcceptanceInsert>;
+        Relationships: [];
+      };
+      account_flags: {
+        Row:    AccountFlagRow;
+        Insert: Partial<AccountFlagRow>;
+        Update: Partial<AccountFlagRow>;
+        Relationships: [];
+      };
+      driver_verifications: {
+        Row:    DriverVerificationRow;
+        Insert: DriverVerificationInsert;
+        Update: DriverVerificationUpdate;
+        Relationships: [];
+      };
     };
     Views: { [_ in never]: never };
     Functions: {
       book_ride: {
         Args: { p_ride_id: string; p_passenger_id: string; p_seats: number };
         Returns: undefined;
+      };
+      close_chat: {
+        Args: { p_booking_id: string };
+        Returns: undefined;
+      };
+      restore_ride_seats: {
+        Args: { p_ride_id: string; p_seats: number };
+        Returns: undefined;
+      };
+      get_tracking_snapshot: {
+        Args: { p_token: string };
+        Returns: Record<string, unknown>;
+      };
+      get_driver_disclosure: {
+        Args: { p_ride_id: string };
+        Returns: Record<string, unknown>;
       };
     };
     Enums:          { [_ in never]: never };

@@ -10,6 +10,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { formatCurrency } from '../../utils/currency';
 import { getSavingVsPublicTransport } from '../../utils/publicTransportFares';
@@ -17,6 +18,7 @@ import { calculateCO2Savings } from '../../utils/carbonCalculator';
 import { Colors, Typography, Spacing, BorderRadius, Shadows, FontFamily } from '../../constants/theme';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import type { BookingStatus, ChatStatus } from '../../types/database';
 
 type FilterTab = 'all' | 'rider' | 'driver' | 'cancelled';
 
@@ -30,10 +32,16 @@ interface TripHistoryItem {
   status:        string;
   role:          'driver' | 'passenger';
   otherPartyName: string;
+  bookingId?:    string;       // passenger items — chat is booking-scoped (Change 3)
+  bookingStatus?: BookingStatus;
+  chatStatus?:   ChatStatus;
+  /** Driver items — one chat per confirmed passenger booking. */
+  passengerChats?: Array<{ bookingId: string; passengerName: string; chatStatus: ChatStatus }>;
 }
 
 export default function HistoryScreen(): React.ReactElement {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [trips,     setTrips]     = useState<TripHistoryItem[]>([]);
   const [filter,    setFilter]    = useState<FilterTab>('all');
@@ -47,16 +55,48 @@ export default function HistoryScreen(): React.ReactElement {
     try {
       const [driverRes, passengerRes] = await Promise.all([
         supabase.from('rides').select('id, from_location, to_location, departure_datetime, cost_per_seat, currency, status').eq('driver_id', user.id).order('departure_datetime', { ascending: false }),
-        supabase.from('bookings').select('id, status, ride:rides(id, from_location, to_location, departure_datetime, cost_per_seat, currency, status, driver:users!driver_id(full_name))').eq('passenger_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('bookings').select('id, status, chat_status, ride:rides(id, from_location, to_location, departure_datetime, cost_per_seat, currency, status, driver:users!driver_id(full_name))').eq('passenger_id', user.id).order('created_at', { ascending: false }),
       ]);
       if (driverRes.error || passengerRes.error) {
         setError('Could not load your trips. Please try again.');
         return;
       }
+      // Driver-side chat list: confirmed bookings (each carries its own chat)
+      // on my rides, with passenger names. A failure here degrades to cards
+      // without chat links (logged), not a broken History tab.
+      const chatsByRide = new Map<string, Array<{ bookingId: string; passengerName: string; chatStatus: ChatStatus }>>();
+      const driverRideIds = (driverRes.data ?? []).map((r) => r.id);
+      if (driverRideIds.length > 0) {
+        const { data: driverBookings, error: dbErr } = await supabase
+          .from('bookings')
+          .select('id, ride_id, chat_status, passenger_id')
+          .in('ride_id', driverRideIds)
+          .eq('status', 'confirmed');
+        if (dbErr) {
+          console.error('[History] driver bookings fetch failed:', dbErr.message);
+        } else if (driverBookings && driverBookings.length > 0) {
+          const passengerIds = [...new Set(driverBookings.map((b) => b.passenger_id))];
+          const { data: passengers, error: pErr } = await supabase
+            .from('users').select('id, full_name').in('id', passengerIds);
+          if (pErr) console.error('[History] passenger names fetch failed:', pErr.message);
+          const nameById = new Map((passengers ?? []).map((u) => [u.id, u.full_name]));
+          for (const b of driverBookings) {
+            const list = chatsByRide.get(b.ride_id) ?? [];
+            list.push({
+              bookingId: b.id,
+              passengerName: nameById.get(b.passenger_id) ?? 'Passenger',
+              chatStatus: (b.chat_status as ChatStatus) ?? 'open',
+            });
+            chatsByRide.set(b.ride_id, list);
+          }
+        }
+      }
+
       const driverItems: TripHistoryItem[] = (driverRes.data ?? []).map((r: Record<string, unknown>) => ({
         id: r.id as string, from_location: r.from_location as string, to_location: r.to_location as string,
         departure_datetime: r.departure_datetime as string, cost_per_seat: r.cost_per_seat as number,
         currency: r.currency as 'EUR' | 'GBP', status: r.status as string, role: 'driver', otherPartyName: 'Passenger',
+        passengerChats: chatsByRide.get(r.id as string) ?? [],
       }));
       const passengerItems: TripHistoryItem[] = (passengerRes.data ?? []).map((b: Record<string, unknown>) => {
         const ride = b.ride as Record<string, unknown> | null;
@@ -70,6 +110,9 @@ export default function HistoryScreen(): React.ReactElement {
           currency: (ride?.currency as 'EUR' | 'GBP' | undefined) ?? 'EUR',
           status: (ride?.status as string | undefined) ?? b.status as string,
           role: 'passenger', otherPartyName: (driver?.full_name as string | undefined) ?? 'Driver',
+          bookingId: b.id as string,
+          bookingStatus: b.status as BookingStatus,
+          chatStatus: (b.chat_status as ChatStatus | undefined) ?? 'open',
         };
       });
       setTrips([...driverItems, ...passengerItems].sort((a, b) => new Date(b.departure_datetime).getTime() - new Date(a.departure_datetime).getTime()));
@@ -102,7 +145,7 @@ export default function HistoryScreen(): React.ReactElement {
   if (error) return <View style={styles.center} testID="history-error"><Text style={styles.emptyText}>{error}</Text></View>;
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.scrollContent} testID="history-screen">
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Spacing.lg }]} testID="history-screen">
       {/* Stats header */}
       <View style={styles.statsRow} testID="stats-header">
         <View style={styles.statCard}>
@@ -116,6 +159,18 @@ export default function HistoryScreen(): React.ReactElement {
           <Text style={styles.statLabel}>CO₂ saved</Text>
         </View>
       </View>
+
+      {/* Upcoming journeys (calendar view of booked/offered journeys) */}
+      <TouchableOpacity
+        style={styles.upcomingLink}
+        onPress={() => router.push('/my-rides')}
+        accessibilityRole="button"
+        testID="upcoming-journeys-link"
+      >
+        <Ionicons name="calendar-outline" size={18} color={Colors.primary} />
+        <Text style={styles.upcomingLinkText}>My upcoming journeys</Text>
+        <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
+      </TouchableOpacity>
 
       {/* Filter tabs */}
       <View style={styles.filterRow} testID="filter-tabs">
@@ -149,6 +204,37 @@ export default function HistoryScreen(): React.ReactElement {
                   </Text>
                 )}
               </View>
+              {/* Driver: one chat per confirmed passenger booking. */}
+              {trip.role === 'driver' && (trip.passengerChats ?? []).map((chat) => (
+                <TouchableOpacity
+                  key={chat.bookingId}
+                  style={styles.chatLink}
+                  onPress={() => router.push(`/chat/${chat.bookingId}`)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Chat with ${chat.passengerName}`}
+                  testID={`driver-chat-link-${chat.bookingId}`}
+                >
+                  <Ionicons name="chatbubble-ellipses-outline" size={16} color={Colors.primary} />
+                  <Text style={styles.chatLinkText}>
+                    {chat.chatStatus === 'closed' ? `Chat with ${chat.passengerName} (closed)` : `Message ${chat.passengerName}`}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              {/* Chat opens once the driver accepts (booking confirmed); closed chats stay read-only (Change 3). */}
+              {trip.role === 'passenger' && trip.bookingId && trip.bookingStatus === 'confirmed' && (
+                <TouchableOpacity
+                  style={styles.chatLink}
+                  onPress={() => router.push(`/chat/${trip.bookingId}`)}
+                  accessibilityRole="button"
+                  accessibilityLabel={trip.chatStatus === 'closed' ? 'View closed chat' : 'Open chat'}
+                  testID={`chat-link-${trip.bookingId}`}
+                >
+                  <Ionicons name="chatbubble-ellipses-outline" size={16} color={Colors.primary} />
+                  <Text style={styles.chatLinkText}>
+                    {trip.chatStatus === 'closed' ? 'View chat (closed)' : 'Message driver'}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </TouchableOpacity>
           );
         })
@@ -159,12 +245,20 @@ export default function HistoryScreen(): React.ReactElement {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.background },
-  scrollContent: { paddingHorizontal: Spacing.screenPadding, paddingTop: Spacing.xxxl + Spacing.xl, paddingBottom: Spacing.xxxxxl, gap: Spacing.md },
+  // paddingTop is set inline (insets.top + Spacing.lg) so content clears the status bar/Dynamic Island on every device instead of a fixed value.
+  scrollContent: { paddingHorizontal: Spacing.screenPadding, paddingBottom: Spacing.xxxxxl, gap: Spacing.md },
   center: { flex: 1, backgroundColor: Colors.background, alignItems: 'center', justifyContent: 'center' },
   statsRow: { flexDirection: 'row', gap: Spacing.md },
   statCard: { flex: 1, backgroundColor: Colors.primary, borderRadius: BorderRadius.large, padding: Spacing.cardPadding, alignItems: 'center', gap: Spacing.xs },
   statValue: { fontSize: 20, fontFamily: FontFamily.bold, color: Colors.surface },
   statLabel: { ...Typography.bodySmall, color: Colors.surface, opacity: 0.85 },
+  upcomingLink: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    backgroundColor: Colors.surface, borderRadius: BorderRadius.large,
+    borderWidth: 1, borderColor: Colors.border,
+    paddingHorizontal: Spacing.cardPadding, paddingVertical: Spacing.md,
+  },
+  upcomingLinkText: { ...Typography.bodyMedium, color: Colors.textPrimary, flex: 1 },
   filterRow: { flexDirection: 'row', backgroundColor: Colors.primaryLight, borderRadius: BorderRadius.full, padding: 4, gap: 2 },
   filterTab: { flex: 1, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full, alignItems: 'center' },
   filterTabActive: { backgroundColor: Colors.primary },
@@ -178,4 +272,6 @@ const styles = StyleSheet.create({
   tripMeta: { flexDirection: 'row', justifyContent: 'space-between' },
   tripDate: { ...Typography.bodySmall, color: Colors.textTertiary },
   savings: { ...Typography.bodySmall, color: Colors.verified },
+  chatLink: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginTop: Spacing.xs },
+  chatLinkText: { ...Typography.bodySmall, color: Colors.primary, fontFamily: FontFamily.medium },
 });

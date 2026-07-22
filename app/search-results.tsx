@@ -16,6 +16,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '../components/Avatar';
 import { Badge } from '../components/Badge';
@@ -46,9 +47,10 @@ interface RideResult {
 
 export default function SearchResultsScreen(): React.ReactElement {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{
     from: string; to: string; date: string;
-    seats: string; womenOnly: string;
+    flexDays: string; seats: string; womenOnly: string;
   }>();
 
   const [rides,     setRides]     = useState<RideResult[]>([]);
@@ -58,6 +60,8 @@ export default function SearchResultsScreen(): React.ReactElement {
   const parsedSeats = parseInt(params.seats ?? '1', 10);
   const minSeats    = Number.isFinite(parsedSeats) && parsedSeats > 0 ? parsedSeats : 1;
   const womenOnly   = params.womenOnly === 'true';
+  const parsedFlex  = parseInt(params.flexDays ?? '0', 10);
+  const flexDays    = Number.isFinite(parsedFlex) && parsedFlex > 0 ? Math.min(3, parsedFlex) : 0;
 
   const fetchRides = useCallback(async () => {
     setIsLoading(true);
@@ -82,29 +86,38 @@ export default function SearchResultsScreen(): React.ReactElement {
       }
 
       if (params.date) {
-        const startOfDay = `${params.date}T00:00:00.000Z`;
-        const endOfDay   = `${params.date}T23:59:59.999Z`;
-        query = query.gte('departure_datetime', startOfDay).lte('departure_datetime', endOfDay);
+        // Widen the window by ±flexDays around the chosen date (Block 3).
+        const base  = new Date(`${params.date}T00:00:00.000Z`);
+        // A malformed date param would make toISOString() throw — skip the date
+        // filter (rather than crash) if it doesn't parse.
+        if (!Number.isNaN(base.getTime())) {
+          const start = new Date(base); start.setUTCDate(start.getUTCDate() - flexDays);
+          const end   = new Date(base); end.setUTCDate(end.getUTCDate() + flexDays);
+          const startOfWindow = `${start.toISOString().slice(0, 10)}T00:00:00.000Z`;
+          const endOfWindow   = `${end.toISOString().slice(0, 10)}T23:59:59.999Z`;
+          query = query.gte('departure_datetime', startOfWindow).lte('departure_datetime', endOfWindow);
+        }
       }
 
       const { data, error: dbError } = await query;
-      if (dbError) { setError('Could not load rides. Please try again.'); return; }
+      if (dbError) { setError('Could not load journeys. Please try again.'); return; }
 
       // Collect unique driver IDs for a single batch verification query
       const driverIds = (data ?? [])
         .map((r: Record<string, unknown>) => r.driver_id as string | undefined)
         .filter((id): id is string => Boolean(id));
 
-      const { data: verifs } = driverIds.length > 0
+      const { data: verifs, error: verifsError } = driverIds.length > 0
         ? await supabase
             .from('verification')
-            .select('user_id, id_verified, selfie_verified')
+            .select('user_id, status')
             .in('user_id', driverIds)
-        : { data: [] };
+        : { data: [], error: null };
+      if (verifsError) { setError('Could not load journeys. Please try again.'); return; }
 
       const verifiedSet = new Set(
         (verifs ?? [])
-          .filter((v: Record<string, unknown>) => v.id_verified === true && v.selfie_verified === true)
+          .filter((v: Record<string, unknown>) => v.status === 'approved')
           .map((v: Record<string, unknown>) => v.user_id as string),
       );
 
@@ -127,11 +140,11 @@ export default function SearchResultsScreen(): React.ReactElement {
       });
       setRides(rideList);
     } catch {
-      setError('Could not load rides. Please try again.');
+      setError('Could not load journeys. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  }, [params.from, params.to, params.date, minSeats, womenOnly]);
+  }, [params.from, params.to, params.date, flexDays, minSeats, womenOnly]);
 
   useEffect(() => { void fetchRides(); }, [fetchRides]);
 
@@ -163,7 +176,7 @@ export default function SearchResultsScreen(): React.ReactElement {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Spacing.lg }]}
       showsVerticalScrollIndicator={false}
       testID="search-results-screen"
     >
@@ -185,16 +198,16 @@ export default function SearchResultsScreen(): React.ReactElement {
       </View>
 
       <Text style={styles.resultCount} testID="result-count">
-        {rides.length} ride{rides.length !== 1 ? 's' : ''} found
+        {rides.length} journey{rides.length !== 1 ? 's' : ''} found
       </Text>
 
       {/* Empty state */}
       {rides.length === 0 && (
         <View style={styles.emptyState} testID="empty-state">
           <Ionicons name="car-outline" size={48} color={Colors.textTertiary} />
-          <Text style={styles.emptyTitle}>No rides found</Text>
+          <Text style={styles.emptyTitle}>No journeys found</Text>
           <Text style={styles.emptyText}>
-            No rides found for this route on this date. Try different dates or nearby locations.
+            No journeys found for this route on this date. Try different dates or nearby locations.
           </Text>
         </View>
       )}
@@ -265,8 +278,9 @@ export default function SearchResultsScreen(): React.ReactElement {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.background },
   scrollContent: {
+    // paddingTop is set inline (insets.top + Spacing.lg) so the title clears
+    // the status bar/Dynamic Island on every device instead of a fixed value.
     paddingHorizontal: Spacing.screenPadding,
-    paddingTop: Spacing.xxxl + Spacing.xl,
     paddingBottom: Spacing.xxxxxl,
     gap: Spacing.md,
   },

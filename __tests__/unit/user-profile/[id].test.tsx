@@ -26,8 +26,13 @@ jest.mock('@expo/vector-icons', () => {
 // All mutable vars must start with "mock" for Jest hoisting to allow factory access
 let mockUserRow:    Record<string, unknown> | null = { full_name: 'Aoife Murphy' };
 let mockProfileRow: Record<string, unknown> | null = { university: 'TCD', women_only_mode: false };
-let mockVerifyRow:  Record<string, unknown> | null = { id_verified: true, selfie_verified: true };
+let mockVerifyRow:  Record<string, unknown> | null = { status: 'approved' };
 let mockIsPending = false;
+
+jest.mock('../../../services/reviews', () => ({
+  getReviewSummary: jest.fn().mockResolvedValue({ ok: true, summary: { average: null, count: 0, reviews: [] } }),
+  getCompletedTripsCount: jest.fn().mockResolvedValue({ ok: true, count: 0 }),
+}));
 
 jest.mock('../../../lib/supabase', () => ({
   supabase: {
@@ -55,7 +60,7 @@ beforeEach(() => {
   mockIsPending   = false;
   mockUserRow     = { full_name: 'Aoife Murphy' };
   mockProfileRow  = { university: 'TCD', women_only_mode: false };
-  mockVerifyRow   = { id_verified: true, selfie_verified: true };
+  mockVerifyRow   = { status: 'approved' };
 });
 
 import UserProfileScreen from '../../../app/user-profile/[id]';
@@ -98,7 +103,7 @@ describe('UserProfileScreen — data', () => {
   });
 
   it('does not show verified badge when user is not verified', async () => {
-    mockVerifyRow = { id_verified: false, selfie_verified: false };
+    mockVerifyRow = { status: 'pending' };
     render(<UserProfileScreen />);
     await waitFor(() => expect(screen.getByTestId('user-profile-screen')).toBeTruthy());
     expect(screen.queryByTestId('verified-badge')).toBeNull();
@@ -107,7 +112,7 @@ describe('UserProfileScreen — data', () => {
   it('shows women-only badge when womenOnly is true', async () => {
     mockUserRow    = { full_name: 'Siobhan Kelly' };
     mockProfileRow = { university: 'UCC', women_only_mode: true };
-    mockVerifyRow  = { id_verified: true, selfie_verified: true };
+    mockVerifyRow  = { status: 'approved' };
     render(<UserProfileScreen />);
     await waitFor(() => expect(screen.getByTestId('women-only-badge')).toBeTruthy());
   });
@@ -120,7 +125,7 @@ describe('UserProfileScreen — stats', () => {
     render(<UserProfileScreen />);
     await waitFor(() => expect(screen.getByTestId('stat-rating')).toBeTruthy());
     expect(screen.getByTestId('stat-trips')).toBeTruthy();
-    expect(screen.getByTestId('stat-reliability')).toBeTruthy();
+    expect(screen.getByTestId('stat-reviews-count')).toBeTruthy();
   });
 });
 
