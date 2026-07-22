@@ -58,6 +58,22 @@ export function isMapsKeyUsable(key: string | undefined): boolean {
   return key.length >= 20;
 }
 
+/**
+ * The first ACTUALLY usable Maps key across both accepted env var names
+ * (BLOCKERS-FOR-JORDAN.md says EXPO_PUBLIC_GOOGLE_MAPS_KEY; older code used
+ * ..._API_KEY) — or null if neither is usable. Picking via nullish
+ * coalescing alone is wrong: if the primary var is SET but a placeholder,
+ * `??` never falls through to try the other one. Shared with
+ * components/JourneyMap.tsx so both consumers reject blank, invalid, and
+ * placeholder keys identically.
+ */
+export function usableMapsKey(): string | null {
+  const primary = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY;
+  if (isMapsKeyUsable(primary)) return primary as string;
+  const fallback = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+  return isMapsKeyUsable(fallback) ? (fallback as string) : null;
+}
+
 function toUnit(meters: number, unit: DistanceUnit): number {
   const raw = unit === 'km' ? meters / METERS_PER_KM : meters / METERS_PER_MILE;
   return Math.round(raw * 100) / 100;
@@ -77,10 +93,8 @@ export async function computeRouteDistance(
   unit: DistanceUnit,
   fetchImpl: typeof fetch = fetch,
 ): Promise<RouteDistanceResult> {
-  // Both env names are accepted — BLOCKERS-FOR-JORDAN.md says
-  // EXPO_PUBLIC_GOOGLE_MAPS_KEY; older code used ..._API_KEY.
-  const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY ?? process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
-  if (!isMapsKeyUsable(apiKey)) {
+  const apiKey = usableMapsKey();
+  if (!apiKey) {
     return { ok: false, reason: 'no_key' };
   }
   if (!origin.trim() || !destination.trim()) {

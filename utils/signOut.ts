@@ -20,6 +20,19 @@ import { supabase } from '../lib/supabase';
 /** AsyncStorage key prefixes wiped on sign-out: app cache + Supabase tokens. */
 export const SIGN_OUT_KEY_PREFIXES = ['htwa:', 'sb-'];
 
+/**
+ * Wipe cached app state from the previous account. Extracted from
+ * signOutAndClear so callers where supabase.auth.signOut() is EXPECTED to
+ * fail (e.g. after the account was already deleted server-side) can still
+ * guarantee this step runs, instead of losing it inside a swallowed
+ * catch — leaving cache residue for account switching is the actual harm.
+ */
+export async function clearLocalAppState(): Promise<void> {
+  const keys = await AsyncStorage.getAllKeys();
+  const toRemove = keys.filter((k) => SIGN_OUT_KEY_PREFIXES.some((p) => k.startsWith(p)));
+  if (toRemove.length > 0) await AsyncStorage.multiRemove(toRemove);
+}
+
 export async function signOutAndClear(): Promise<void> {
   // 1. Realtime teardown FIRST — a signed-out client must not keep receiving
   //    (or later mix in) the previous user's events.
@@ -35,7 +48,5 @@ export async function signOutAndClear(): Promise<void> {
   if (error) throw error;
 
   // 3. Cached app state from the previous account.
-  const keys = await AsyncStorage.getAllKeys();
-  const toRemove = keys.filter((k) => SIGN_OUT_KEY_PREFIXES.some((p) => k.startsWith(p)));
-  if (toRemove.length > 0) await AsyncStorage.multiRemove(toRemove);
+  await clearLocalAppState();
 }

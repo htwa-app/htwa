@@ -61,7 +61,11 @@
   var SUPABASE_URL = 'https://adrwtjlphjrnrrqjkbfk.supabase.co';
   var ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFkcnd0amxwaGpybnJycWprYmZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNjQxMDUsImV4cCI6MjA5Mzg0MDEwNX0.FTTo9n6s3xR3SeHK68HEdEEno7OG25GaHQWx_E0m-Hc';
   var SIGNAL_LOST_MS = 90000;
-  var token = (location.hash || '').replace(/^#/, '') || new URLSearchParams(location.search).get('t');
+  // Fragment only, never a query string: a URL fragment is never sent to the
+  // server, so it can't leak this live-location token via access logs,
+  // Referer headers, or browser history synced to a server. The one link
+  // generator (services/tracking.ts) already emits fragment-based links only.
+  var token = (location.hash || '').replace(/^#/, '');
 
   var elFollowing = document.getElementById('following');
   var elContent = document.getElementById('content');

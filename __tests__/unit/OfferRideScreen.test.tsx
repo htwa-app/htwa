@@ -361,10 +361,20 @@ describe('OfferRideScreen — driver verification gate (round-2 fix #2)', () => 
     expect(screen.queryByTestId('driver-verification-banner')).toBeNull();
   });
 
-  it('a failed verification check blocks with the load-error state — never silently passes', async () => {
+  it('a failed verification check blocks with its own load-error state (with retry) — never silently passes, and never the unrelated "pricing details" banner', async () => {
     mockGetDriverVerification.mockResolvedValue({ ok: false });
     render(<OfferRideScreen />);
-    await waitFor(() => expect(screen.getByTestId('profile-load-error')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('verification-load-error')).toBeTruthy());
     expect(screen.queryByTestId('driver-verification-banner')).toBeNull();
+    expect(screen.queryByTestId('profile-load-error')).toBeNull();
+  });
+
+  it('retrying a failed verification check re-runs the load and clears the error on success', async () => {
+    mockGetDriverVerification.mockResolvedValueOnce({ ok: false });
+    render(<OfferRideScreen />);
+    await waitFor(() => expect(screen.getByTestId('verification-load-error')).toBeTruthy());
+    mockGetDriverVerification.mockResolvedValue({ ok: true, verification: { status: 'approved' } });
+    fireEvent.press(screen.getByTestId('verification-load-error'));
+    await waitFor(() => expect(screen.queryByTestId('verification-load-error')).toBeNull());
   });
 });

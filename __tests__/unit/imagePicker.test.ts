@@ -88,9 +88,10 @@ describe('captureVerificationSelfie', () => {
     it('returns null if the library fallback is itself cancelled', async () => {
       mockLaunchCamera.mockRejectedValue(CAMERA_UNAVAILABLE);
       mockLaunchLibrary.mockResolvedValue({ canceled: true });
-      jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
       const res = await captureVerificationSelfie();
       expect(res).toBeNull();
+      warnSpy.mockRestore();
     });
   });
 
