@@ -75,7 +75,11 @@
   // directly once real, unlike the app's mobile Maps key.
   var GOOGLE_MAPS_JS_KEY = 'REPLACE_WITH_REAL_MAPS_JS_KEY';
   var SIGNAL_LOST_MS = 90000;
-  var token = (location.hash || '').replace(/^#/, '') || new URLSearchParams(location.search).get('t');
+  // Fragment only, never a query string: a URL fragment is never sent to the
+  // server, so it can't leak this live-location token via access logs,
+  // Referer headers, or browser history synced to a server. The one link
+  // generator (services/tracking.ts) already emits fragment-based links only.
+  var token = (location.hash || '').replace(/^#/, '');
 
   var elFollowing = document.getElementById('following');
   var elContent = document.getElementById('content');

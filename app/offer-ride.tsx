@@ -124,8 +124,12 @@ export default function OfferRideScreen(): React.ReactElement {
     try {
       // Verification gate first — a failed check BLOCKS with retry, it never
       // silently passes (and never tells an approved driver to redo setup).
+      // Kept distinct from profileLoadError: the pricing-profile fetch below
+      // never even ran, so surfacing it as a "pricing details" failure would
+      // be both misleading and, since that banner has no retry action, a
+      // dead end — the verification banner below has one (loadDriverProfile).
       const dv = await getDriverVerification(user.id);
-      if (!dv.ok) { setVerificationLoadError(true); setProfileLoadError(true); return; }
+      if (!dv.ok) { setVerificationLoadError(true); return; }
       setVerificationLoadError(false);
       setVerificationStatus(dv.verification?.status ?? null);
 
@@ -321,6 +325,23 @@ export default function OfferRideScreen(): React.ReactElement {
             Could not load your driver pricing details. Please try again.
           </Text>
         </View>
+      )}
+
+      {/* Verification check itself failed — distinct from "not verified yet":
+          this has its own retry (loadDriverProfile), not the generic pricing
+          banner above, which never even ran this check. */}
+      {profileLoaded && verificationLoadError && (
+        <TouchableOpacity
+          style={styles.setupBanner}
+          onPress={() => void loadDriverProfile()}
+          accessibilityRole="button"
+          testID="verification-load-error"
+        >
+          <Ionicons name="alert-circle-outline" size={20} color={Colors.sos} />
+          <Text style={styles.setupBannerText}>
+            Couldn't check your driver verification status. Tap to try again.
+          </Text>
+        </TouchableOpacity>
       )}
 
       {/* Driver verification gate — no posting until approved (DB-enforced too). */}

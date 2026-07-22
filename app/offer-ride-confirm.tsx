@@ -18,6 +18,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
   StyleSheet,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -170,10 +171,31 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
 
       // The journey's nominated contact — REQUIRED (validated pre-post) and
       // written against the new ride; changeable on Live Trip before departure.
-      const contactRes = await setJourneyContact(posted.id, user.id, {
+      // One retry covers the common transient-network case; the ride is
+      // already live at this point (can't be undone from here without a
+      // bigger atomic-transaction rewrite), so a persistent failure still
+      // proceeds — but with a loud, blocking alert rather than a silent log,
+      // since a live ride with no safety contact is exactly the gap this
+      // feature exists to prevent.
+      let contactRes = await setJourneyContact(posted.id, user.id, {
         name: contactName, phone: contactPhone,
       });
-      if (!contactRes.ok) console.error('[OfferConfirm] journey contact write failed:', contactRes.message);
+      if (!contactRes.ok) {
+        console.error('[OfferConfirm] journey contact write failed, retrying once:', contactRes.message);
+        contactRes = await setJourneyContact(posted.id, user.id, {
+          name: contactName, phone: contactPhone,
+        });
+      }
+      if (!contactRes.ok) {
+        console.error('[OfferConfirm] journey contact write failed after retry:', contactRes.message);
+        await new Promise<void>((resolve) => {
+          Alert.alert(
+            'Nominated contact not saved',
+            'Your journey is live, but we couldn\'t save your nominated contact. Please set it from Live Trip before you depart.',
+            [{ text: 'OK', onPress: () => resolve() }],
+          );
+        });
+      }
 
       router.replace('/ride-posted');
     } catch (e: unknown) {
@@ -297,6 +319,7 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
           placeholderTextColor={Colors.textTertiary}
           value={contactName}
           onChangeText={setContactName}
+          accessibilityLabel="Nominated contact name"
           testID="offer-contact-name"
         />
         <TextInput
@@ -306,6 +329,7 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
           value={contactPhone}
           onChangeText={setContactPhone}
           keyboardType="phone-pad"
+          accessibilityLabel="Nominated contact phone number"
           testID="offer-contact-phone"
         />
       </View>

@@ -30,6 +30,8 @@ import { hasAcceptedWaiver, recordWaiverAcceptance } from '../services/waivers';
 import { sendPushToUser } from '../services/notifications';
 import type { JourneyContactRow } from '../types/database';
 
+const WAIVER_ALREADY_ACCEPTED_TEXT = '✓ Safety acknowledgment already accepted for this journey.';
+
 export default function BookingRequestScreen(): React.ReactElement {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -176,7 +178,7 @@ export default function BookingRequestScreen(): React.ReactElement {
       {/* Safety acknowledgment (2A-d) */}
       {alreadyAccepted ? (
         <Text style={styles.waiverDoneNote} testID="waiver-already-accepted">
-          ✓ Safety acknowledgment already accepted for this journey.
+          {WAIVER_ALREADY_ACCEPTED_TEXT}
         </Text>
       ) : (
         <WaiverAcceptance role="passenger" accepted={waiverAccepted} onChange={setWaiverAccepted} />

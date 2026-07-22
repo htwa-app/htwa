@@ -3,6 +3,7 @@
  * Stage 32 — unit tests for app/offer-ride-confirm.tsx
  */
 import React from 'react';
+import { Alert } from 'react-native';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
 
 const mockBack = jest.fn();
@@ -159,6 +160,10 @@ describe('OfferRideConfirmScreen', () => {
     mockRecordWaiver.mockResolvedValue({ ok: false, message: 'db down' });
     mockSetJourneyContact.mockResolvedValue({ ok: false, message: 'db down' });
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((...args: unknown[]) => {
+      const buttons = args[2] as Array<{ text: string; onPress?: () => void }> | undefined;
+      buttons?.find((b) => b.text === 'OK')?.onPress?.();
+    });
     render(<OfferRideConfirmScreen />);
     await waitForVehicleOk();
     acceptWaiver();
@@ -167,7 +172,34 @@ describe('OfferRideConfirmScreen', () => {
     // must not surface as a post error or block navigation (CLAUDE.md §12).
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/ride-posted'));
     expect(screen.queryByTestId('post-error')).toBeNull();
+    // Retried once before giving up, and warned the driver via a blocking
+    // alert rather than only a console log (a live ride with no contact is
+    // exactly the safety gap this feature exists to prevent).
+    expect(mockSetJourneyContact).toHaveBeenCalledTimes(2);
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Nominated contact not saved',
+      expect.stringContaining('Live Trip'),
+      expect.any(Array),
+    );
     errorSpy.mockRestore();
+    alertSpy.mockRestore();
+  });
+
+  it('does not alert when the contact write succeeds on retry', async () => {
+    mockSetJourneyContact
+      .mockResolvedValueOnce({ ok: false, message: 'transient' })
+      .mockResolvedValueOnce({ ok: true, contact: { id: 'jc-1' } });
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    render(<OfferRideConfirmScreen />);
+    await waitForVehicleOk();
+    acceptWaiver();
+    fireEvent.press(screen.getByTestId('post-button'));
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/ride-posted'));
+    expect(mockSetJourneyContact).toHaveBeenCalledTimes(2);
+    expect(alertSpy).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+    alertSpy.mockRestore();
   });
 
   it('inserts real from_coords/to_coords when the driver picked Places suggestions', async () => {

@@ -69,6 +69,16 @@ async function uploadTo(
   return { ok: true };
 }
 
+/** Remove every already-uploaded file for this submission attempt — called on
+ *  ANY later failure (a subsequent upload, or the final upsert), so a partial
+ *  attempt never leaves orphaned photos behind in storage. */
+async function cleanupUploaded(uploadedPaths: Array<{ bucket: string; path: string }>): Promise<void> {
+  for (const { bucket, path } of uploadedPaths) {
+    const { error } = await supabase.storage.from(bucket).remove([path]);
+    if (error) console.error('[DriverVerification] orphan cleanup failed:', error.message);
+  }
+}
+
 /**
  * Submit (or resubmit) driver verification. Uploads any newly captured photos
  * to versioned paths, then upserts the record — the DB trigger forces status
@@ -97,7 +107,10 @@ export async function submitDriverVerification(
     if (photos.licenceBytes) {
       const path = `${userId}/licence-${ts}.jpg`;
       const up = await uploadTo('driver-verifications', path, photos.licenceBytes);
-      if (!up.ok) return { ok: false, message: 'Could not upload your licence photo. Please try again.' };
+      if (!up.ok) {
+        await cleanupUploaded(uploadedPaths);
+        return { ok: false, message: 'Could not upload your licence photo. Please try again.' };
+      }
       uploadedPaths.push({ bucket: 'driver-verifications', path });
       licencePath = path;
     }
@@ -106,7 +119,10 @@ export async function submitDriverVerification(
     if (photos.selfieBytes) {
       const path = `${userId}/selfie-${ts}.jpg`;
       const up = await uploadTo('verification-selfies', path, photos.selfieBytes);
-      if (!up.ok) return { ok: false, message: 'Could not upload your selfie. Please try again.' };
+      if (!up.ok) {
+        await cleanupUploaded(uploadedPaths);
+        return { ok: false, message: 'Could not upload your selfie. Please try again.' };
+      }
       uploadedPaths.push({ bucket: 'verification-selfies', path });
       selfiePath = path;
     }
@@ -115,12 +131,16 @@ export async function submitDriverVerification(
     if (photos.carBytes) {
       const path = `${userId}/car-${ts}.jpg`;
       const up = await uploadTo('driver-verifications', path, photos.carBytes);
-      if (!up.ok) return { ok: false, message: 'Could not upload your car photo. Please try again.' };
+      if (!up.ok) {
+        await cleanupUploaded(uploadedPaths);
+        return { ok: false, message: 'Could not upload your car photo. Please try again.' };
+      }
       uploadedPaths.push({ bucket: 'driver-verifications', path });
       carPath = path;
     }
 
     if (!licencePath || !selfiePath || !carPath) {
+      await cleanupUploaded(uploadedPaths);
       return { ok: false, message: 'All three photos are required: driving licence, live selfie, and car with visible registration plate.' };
     }
 
@@ -144,10 +164,7 @@ export async function submitDriverVerification(
     if (error || !data) {
       // Remove only the just-uploaded (versioned, orphaned) files — any
       // previously saved photos are untouched.
-      for (const { bucket, path } of uploadedPaths) {
-        const { error: removeError } = await supabase.storage.from(bucket).remove([path]);
-        if (removeError) console.error('[DriverVerification] orphan cleanup failed:', removeError.message);
-      }
+      await cleanupUploaded(uploadedPaths);
       return { ok: false, message: 'Could not submit your driver verification. Please try again.' };
     }
 

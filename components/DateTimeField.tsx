@@ -17,8 +17,12 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, Platform, StyleSheet } from 'react-native';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
+
+/** DateTimeField modal backdrop dim — not in §1 brand palette. */
+const MODAL_BACKDROP_OPACITY = 0.35;
 
 interface Props {
   mode: 'date' | 'time';
@@ -65,6 +69,7 @@ function displayLabel(mode: 'date' | 'time', value: string): string {
 
 export function DateTimeField({ mode, value, onChange, placeholder, minimumDate, maximumDate, testID }: Props): React.ReactElement {
   const [open, setOpen] = useState(false);
+  const insets = useSafeAreaInsets();
   const baseTestID = testID ?? `${mode}-field`;
 
   const handleChange = (event: DateTimePickerEvent, selected?: Date) => {
@@ -138,7 +143,10 @@ export function DateTimeField({ mode, value, onChange, placeholder, minimumDate,
             accessibilityLabel="Close picker"
             testID={`${baseTestID}-backdrop`}
           />
-          <View style={styles.modalSheet} testID={`${baseTestID}-sheet`}>
+          <View
+            style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, Spacing.xxxl) }]}
+            testID={`${baseTestID}-sheet`}
+          >
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{placeholder}</Text>
               <TouchableOpacity
@@ -178,12 +186,13 @@ const styles = StyleSheet.create({
   fieldText: { ...Typography.bodyMedium, color: Colors.textPrimary, flex: 1 },
   placeholderText: { color: Colors.textTertiary },
 
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
+  modalBackdrop: { flex: 1, backgroundColor: `rgba(0,0,0,${MODAL_BACKDROP_OPACITY})` },
   modalSheet: {
     backgroundColor: Colors.surface,
     borderTopLeftRadius: BorderRadius.xl,
     borderTopRightRadius: BorderRadius.xl,
-    paddingBottom: Spacing.xxxl,
+    // paddingBottom set inline: max(safe-area inset, Spacing.xxxl) so the
+    // sheet clears the home indicator on notched devices instead of a fixed value.
   },
   modalHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

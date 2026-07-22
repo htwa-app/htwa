@@ -84,6 +84,12 @@ export default function DriverVerificationScreen(): React.ReactElement {
         setRegistration(res.verification.car_registration);
         setColour(res.verification.car_colour);
       }
+    } catch {
+      // getDriverVerification already catches internally and returns
+      // { ok: false } — this guards against anything unexpected still
+      // escaping, so a rejection can't leave the screen showing the normal
+      // empty-form state instead of the error state.
+      setLoadError(true);
     } finally {
       setIsLoading(false);
     }
