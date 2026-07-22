@@ -26,6 +26,10 @@ const mockDevReset = jest.fn();
 jest.mock('../../utils/devReset', () => ({
   devResetAndSignOut: (...a: unknown[]) => mockDevReset(...a),
 }));
+const mockSignOutAndClear = jest.fn();
+jest.mock('../../utils/signOut', () => ({
+  signOutAndClear: (...a: unknown[]) => mockSignOutAndClear(...a),
+}));
 
 // ── Supabase mock ─────────────────────────────────────────────────────────────
 
@@ -78,6 +82,7 @@ beforeEach(() => {
   });
   mockUserFetch.mockResolvedValue({ data: { currency: 'EUR', gender: 'female' }, error: null });
   mockSignOut.mockResolvedValue({ error: null });
+  mockSignOutAndClear.mockResolvedValue(undefined);
   mockInvoke.mockResolvedValue({ data: { ok: true }, error: null });
 });
 
@@ -168,12 +173,41 @@ describe('SettingsScreen — legal links', () => {
 });
 
 describe('SettingsScreen — account actions', () => {
-  it('signs out and routes to login', async () => {
+  it('sign out asks for confirmation, then clears everything and lands on login', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((...args: unknown[]) => {
+      const buttons = args[2] as Array<{ text: string; onPress?: () => void }>;
+      buttons.find((b) => b.text === 'Sign out')?.onPress?.();
+    });
     render(<SettingsScreen />);
     await waitFor(() => expect(screen.getByTestId('sign-out-button')).toBeTruthy());
     fireEvent.press(screen.getByTestId('sign-out-button'));
-    await waitFor(() => expect(mockSignOut).toHaveBeenCalled());
+    await waitFor(() => expect(mockSignOutAndClear).toHaveBeenCalled());
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/login'));
+    alertSpy.mockRestore();
+  });
+
+  it('cancelling the confirmation signs nothing out', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    render(<SettingsScreen />);
+    await waitFor(() => expect(screen.getByTestId('sign-out-button')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('sign-out-button'));
+    expect(mockSignOutAndClear).not.toHaveBeenCalled();
+    expect(mockReplace).not.toHaveBeenCalled();
+    alertSpy.mockRestore();
+  });
+
+  it('a failed sign-out surfaces an error and stays on settings', async () => {
+    mockSignOutAndClear.mockRejectedValue(new Error('network'));
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((...args: unknown[]) => {
+      const buttons = args[2] as Array<{ text: string; onPress?: () => void }>;
+      buttons.find((b) => b.text === 'Sign out')?.onPress?.();
+    });
+    render(<SettingsScreen />);
+    await waitFor(() => expect(screen.getByTestId('sign-out-button')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('sign-out-button'));
+    await waitFor(() => expect(screen.getByTestId('settings-action-error')).toBeTruthy());
+    expect(mockReplace).not.toHaveBeenCalled();
+    alertSpy.mockRestore();
   });
 
   it('delete account confirms, invokes the Edge Function, signs out', async () => {
@@ -185,7 +219,7 @@ describe('SettingsScreen — account actions', () => {
     await waitFor(() => expect(screen.getByTestId('delete-account-button')).toBeTruthy());
     fireEvent.press(screen.getByTestId('delete-account-button'));
     await waitFor(() => expect(mockInvoke).toHaveBeenCalledWith('delete-account', { body: {} }));
-    await waitFor(() => expect(mockSignOut).toHaveBeenCalled());
+    await waitFor(() => expect(mockSignOutAndClear).toHaveBeenCalled());
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/login'));
     alertSpy.mockRestore();
   });
@@ -200,7 +234,7 @@ describe('SettingsScreen — account actions', () => {
     await waitFor(() => expect(screen.getByTestId('delete-account-button')).toBeTruthy());
     fireEvent.press(screen.getByTestId('delete-account-button'));
     await waitFor(() => expect(screen.getByTestId('settings-action-error')).toBeTruthy());
-    expect(mockSignOut).not.toHaveBeenCalled();
+    expect(mockSignOutAndClear).not.toHaveBeenCalled();
     expect(mockReplace).not.toHaveBeenCalled();
     alertSpy.mockRestore();
   });

@@ -28,6 +28,7 @@ import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { devResetAndSignOut } from '../utils/devReset';
+import { signOutAndClear, clearLocalAppState } from '../utils/signOut';
 import type { Currency, Gender } from '../types/database';
 
 const TOGGLE_TRACK_OFF = 'rgba(40,30,20,0.15)'; // §9.2 switch — not in palette
@@ -164,18 +165,32 @@ export default function SettingsScreen(): React.ReactElement {
     }
   };
 
-  const handleSignOut = async () => {
-    setBusyKey('signout');
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        setActionError('Sign out failed. Please try again.');
-        return;
-      }
-      router.replace('/login');
-    } finally {
-      setBusyKey(null);
-    }
+  const handleSignOut = () => {
+    Alert.alert(
+      'Sign out',
+      'Sign out of htwa on this device? Your account and journeys are untouched.',
+      [
+        { text: 'Stay signed in', style: 'cancel' },
+        {
+          text: 'Sign out',
+          style: 'destructive',
+          onPress: () => void (async () => {
+            setBusyKey('signout');
+            setActionError(null);
+            try {
+              // Clears the session, live realtime channels, and cached state
+              // so signing in as a different account leaves no residue.
+              await signOutAndClear();
+              router.replace('/login');
+            } catch {
+              setActionError('Sign out failed. Please try again.');
+            } finally {
+              setBusyKey(null);
+            }
+          })(),
+        },
+      ],
+    );
   };
 
   const handleDeleteAccount = () => {
@@ -196,7 +211,26 @@ export default function SettingsScreen(): React.ReactElement {
                 setActionError('Account deletion failed. Please try again or contact hello@htwa-app.com.');
                 return;
               }
-              await supabase.auth.signOut();
+              try {
+                await signOutAndClear();
+              } catch (e) {
+                // auth.signOut() failing here is EXPECTED — the account is
+                // already deleted server-side — but the local cache wipe
+                // must still happen, or a future sign-in on this device
+                // could see the deleted account's residue. Retry that part
+                // specifically rather than swallowing the whole failure.
+                console.error('[Settings] signOutAndClear failed post-deletion, retrying local cleanup:', e instanceof Error ? e.message : e);
+                try {
+                  await clearLocalAppState();
+                } catch (cleanupErr) {
+                  setActionError(
+                    'Your account was deleted, but this device\'s cache could not be fully cleared. ' +
+                    'Please reinstall the app or clear its storage before signing in again.',
+                  );
+                  console.error('[Settings] local cache cleanup retry failed:', cleanupErr instanceof Error ? cleanupErr.message : cleanupErr);
+                  return;
+                }
+              }
               router.replace('/login');
             } catch {
               setActionError('Account deletion failed. Please try again or contact hello@htwa-app.com.');
@@ -371,7 +405,7 @@ export default function SettingsScreen(): React.ReactElement {
 
         <TouchableOpacity
           style={[styles.row, styles.rowBorder]}
-          onPress={() => void handleSignOut()}
+          onPress={handleSignOut}
           disabled={busyKey === 'signout'}
           accessibilityRole="button"
           testID="sign-out-button"

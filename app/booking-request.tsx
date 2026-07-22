@@ -28,6 +28,8 @@ import { useAuth } from '../context/AuthContext';
 import { hasAcceptedWaiver, recordWaiverAcceptance } from '../services/waivers';
 import type { JourneyContactRow } from '../types/database';
 
+const WAIVER_ALREADY_ACCEPTED_TEXT = '✓ Safety acknowledgment already accepted for this journey.';
+
 export default function BookingRequestScreen(): React.ReactElement {
   const router = useRouter();
   const { user } = useAuth();
@@ -154,7 +156,11 @@ export default function BookingRequestScreen(): React.ReactElement {
       )}
 
       {/* Safety acknowledgment (2A-d) */}
-      {!alreadyAccepted && (
+      {alreadyAccepted ? (
+        <Text style={styles.waiverDoneNote} testID="waiver-already-accepted">
+          {WAIVER_ALREADY_ACCEPTED_TEXT}
+        </Text>
+      ) : (
         <WaiverAcceptance role="passenger" accepted={waiverAccepted} onChange={setWaiverAccepted} />
       )}
 
@@ -183,4 +189,5 @@ const styles = StyleSheet.create({
   totalLabel: { ...Typography.headingSmall, color: Colors.textPrimary },
   totalValue: { ...Typography.headingSmall, color: Colors.primary },
   errorText: { ...Typography.bodySmall, color: Colors.sos, textAlign: 'center' },
+  waiverDoneNote: { ...Typography.bodySmall, color: Colors.primary, textAlign: 'center' },
 });

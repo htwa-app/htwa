@@ -480,6 +480,40 @@ export type AccountFlagRow = {
   created_at: string;
 }
 
+// ─── Driver verification (migration 20260719100001) ──────────────────────────
+
+export type DriverVerificationStatus = 'pending' | 'approved' | 'rejected';
+
+export type DriverVerificationRow = {
+  user_id:            string;
+  licence_photo_path: string;   // driver-verifications bucket — review-only
+  selfie_photo_path:  string;   // verification-selfies bucket — the disclosure photo
+  car_photo_path:     string;   // driver-verifications bucket — review-only
+  car_make:           string;
+  car_model:          string;
+  car_registration:   string;
+  car_colour:         string;
+  status:             DriverVerificationStatus;
+  review_note:        string | null;
+  submitted_at:       string;
+  reviewed_at:        string | null;
+}
+
+export type DriverVerificationInsert = {
+  user_id:            string;
+  licence_photo_path: string;
+  selfie_photo_path:  string;
+  car_photo_path:     string;
+  car_make:           string;
+  car_model:          string;
+  car_registration:   string;
+  car_colour:         string;
+  status?:            DriverVerificationStatus; // owner writes forced to 'pending' by trigger
+  review_note?:       string | null;
+}
+
+export type DriverVerificationUpdate = Partial<DriverVerificationInsert>;
+
 // ─── Database (Supabase client generic) ───────────────────────────────────────
 
 export type Database = {
@@ -585,6 +619,12 @@ export type Database = {
         Row:    AccountFlagRow;
         Insert: Partial<AccountFlagRow>;
         Update: Partial<AccountFlagRow>;
+        Relationships: [];
+      };
+      driver_verifications: {
+        Row:    DriverVerificationRow;
+        Insert: DriverVerificationInsert;
+        Update: DriverVerificationUpdate;
         Relationships: [];
       };
     };

@@ -4,9 +4,42 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 19 July 2026 (evening) — Hands-on round-2 fixes (branch `feat/full-sweep`, PR #28)
+
+Six fixes from Jordan's walk-through. `tsc --noEmit`: 0 errors; Jest: **1140 passing**; every DB change applied + live-verified; fresh EAS simulator build triggered.
+
+### 1. Tab-navigator crash (realtime double-subscribe) ✅
+Root cause: `supabase.removeChannel` is async, so on remount/Fast Refresh/auth change `supabase.channel(<stable name>)` returned the still-subscribed previous instance and chaining `.on()` threw. All realtime channels (notifications hook, chat screen, tracking subscriptions) now use unique per-mount names + proper effect teardown; account switching tears down the old user's channel. 5 regression tests whose mock reproduces realtime-js's exact semantics.
+
+### 2. Driver verification — the real spec ✅ (10/10 live e2e incl. tamper paths)
+What the gate actually enforced before: only the PRICING profile (tax residence + engine cc) on offer-ride, and a free-text vehicle check on the confirm screen — **nothing required any upload, and nothing was DB-enforced**. Now:
+- `driver_verifications` (migration applied): licence photo + live selfie + car-with-plate photo + make/model/registration/colour, status pending→approved/rejected. Owner writes are trigger-forced to `pending` (self-approval impossible — tamper-tested). Licence+car photos in a locked-down bucket (cross-user signed-URL denied — tested); the selfie goes to the passenger-readable disclosure bucket.
+- **DB wall:** rides INSERT trigger rejects unapproved drivers (`driver_not_approved`) — live-tested no-submission/pending/self-approve-attempt/approved/edit-after-approval paths.
+- UI: new `app/driver-verification.tsx` (camera-only selfie tile, status banners incl. reviewer's rejection note); offer-ride + confirm gate on approved with distinct none/pending/rejected states.
+- `get_driver_disclosure` now serves the REVIEWED vehicle facts.
+- Review flow for Jordan: BLOCKERS-FOR-JORDAN.md item 6 (dashboard steps).
+
+### 3. Sign out + account switching ✅
+`utils/signOut.ts` (production): realtime teardown → Supabase sign-out → `htwa:`/`sb-` cache wipe. Settings sign-out is always visible, confirms first, lands on login; deletion reuses the full clear. Residue covered by: cache-wipe tests, channel account-switch regression test, and all per-user queries keying off the live session.
+
+### 4. iOS time-spinner half off-screen ✅
+The spinner has a fixed ~320pt intrinsic width — inline rendering inside the half-width form column overflowed the screen edge. iOS pickers now open in a centred bottom-sheet modal (width-immune); Android unchanged; string value contracts unchanged.
+
+### 5. Distance copy ✅ (+ env-var bug)
+`no_key` (platform-side: "Distance calculation isn't available yet — journeys can't be priced until it is. This is on our side, not yours.") split from `unavailable` (retryable network copy). Bonus bug: routes.ts read `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` while JourneyMap/BLOCKERS said `EXPO_PUBLIC_GOOGLE_MAPS_KEY` — the key Jordan adds would have enabled maps but never distance. Both names accepted everywhere.
+
+### 6. Audit: "backend built, UI path unwired" sweep ✅
+Traced every 2A feature through the running navigation paths (not tests): passenger waiver+contact gates on booking-request (reachable, blocking) ✓; driver waiver on confirm ✓ (app-level only — documented); driver-verify panel on booking-success/ride-detail/live-trip ✓; pay button reachable from my-rides/history → ride detail ✓; track deep link ✓. **One live gap found & fixed:** the driver-side journey contact was best-effort seeded — a driver with no saved default posted journeys with NO nominated contact. The confirm screen now requires it (pre-filled, blocking, written against the ride).
+
+### Files
+Created: `app/driver-verification.tsx`, `services/driverVerification.ts`, `utils/signOut.ts`, `supabase/migrations/20260719100001_driver_verification.sql`, tests (`useRealtimeNotifications`, `driverVerificationService`, `DriverVerificationScreen`, `signOut`).
+Modified: `hooks/useRealtimeNotifications.ts`, `services/tracking.ts`, `app/chat/[booking_id].tsx`, `components/DateTimeField.tsx`, `components/JourneyMap.tsx`, `services/routes.ts`, `services/imagePicker.ts`, `app/offer-ride.tsx`, `app/offer-ride-confirm.tsx`, `app/settings.tsx`, `types/database.ts`, `constants/legalDocs.ts` (regenerated after legal updates), `legal/{privacy-policy,ADVISER-BRIEFING}.md` (Jordan's), `BLOCKERS-FOR-JORDAN.md`, ~10 test files.
+
+---
+
 ## 18–19 July 2026 — Overnight autonomous full-sweep (branch `feat/full-sweep`, PR to follow #27)
 
-Overnight run on `feat/full-sweep` (branched off `feat/journey-overhaul` — **must merge AFTER PR #27**, then this branch soft-reset-rebases per the squash-merge lesson). **Nothing merged to main.** `tsc --noEmit`: 0 errors throughout. Jest: **1021 → 1153 passing** (net 1103 after dead-code removal; every block committed tsc-0 + suite-green). All 8 migrations written AND applied+verified to the live DB; all 7 Edge Functions deployed and test-invoked against the real backend.
+Overnight run on `feat/full-sweep` (branched off `feat/journey-overhaul` — **must merge AFTER PR #27**, then this branch soft-reset-rebases per the squash-merge lesson). **Nothing merged to main.** `tsc --noEmit`: 0 errors throughout. Jest: **1021 → 1107 passing** (net of dead-code removal; every block committed tsc-0 + suite-green; PR CI green). **EAS iOS simulator build FINISHED**: https://expo.dev/accounts/htwa-app/projects/htwa/builds/67e52170-67d0-45e8-85eb-a12f0187744b — install via `npx eas-cli build:run -p ios` (pick the top build). PR: [#28](https://github.com/htwa-app/htwa/pull/28); CodeRabbit auto-review skipped (155 files > 100-file cap) — review commit-by-commit. All 8 migrations written AND applied+verified to the live DB; all 7 Edge Functions deployed and test-invoked against the real backend.
 
 ### 1. External services — all Edge Functions deployed & verified live ✅
 - Deployed: `create-connect-account` (rewritten to match the app's `{userId}→{url}` contract, reuses accounts, https return URLs — Stripe rejects custom schemes), `create-payment-intent` (**amount now computed server-side** from booking+pricing_config mirroring pricingEngine exactly; client value cross-checked, 409 on mismatch; Connect destination from payment_accounts, never the client; PI id recorded on the booking), `create-setup-intent`, `create-refund` (full refund + transfer reversal + fee refund; `driver_mismatch` flags the driver in `account_flags`; already-refunded = idempotent success), `get-transactions` (Stripe search + refunds), `send-tracking-alert` (Twilio SMS; graceful `{ok:false,reason:'unavailable'}` until creds land), `delete-account` (§7A anonymise-in-place). All JWT-authenticated via shared `_shared/auth.ts` — client-supplied user ids are verified, never trusted.
@@ -17,7 +50,7 @@ Overnight run on `feat/full-sweep` (branched off `feat/journey-overhaul` — **m
 - **`services/tracking.ts`:** contact management (last-used → profile default pre-fill), throttled location publishing with last-known retention, `raiseAlert` (audit-insert-first; realtime + SMS channels recorded), silent `sendSOS` (live GPS → last-published → last-persisted fallback).
 - **`utils/routeCorridor.ts`:** off-course detection — generous straight-line corridor until the Maps key lands, sustained-deviation state machine (6 consecutive samples ≈ 90s), flags exactly once.
 - **Live Trip screen rewritten:** driver start/complete lifecycle (zero-row-guarded), publishing + corridor monitoring while in progress, silent SOS with subtle confirmation, per-journey NominatedContactCard, tokenised share link, passenger live/signal-lost view, watch-cards for journeys you're the nominated contact of.
-- **`app/track/[token].tsx` + `web/track.html`:** tokenised tracking (in-app + static web page for contacts without the app) — live, signal-lost with last-seen time+position, completed, expired-token, invalid-token, SOS/off-course banners. Web page needs hosting (BLOCKERS #5).
+- **`app/track/[token].tsx` + `website/track/index.html`:** tokenised tracking (in-app + static web page for contacts without the app) — live, signal-lost with last-seen time+position, completed, expired-token, invalid-token, SOS/off-course banners. Web page deploys automatically on merge (Netlify serves website/ at htwa-app.com).
 - Live-verified: waiver gate, women-only enforcement inside the RPC, immutable audit, RLS grants/denials, token expiry on completion, anon snapshot.
 
 ### 2A. Verification disclosure + waiver flow ✅
@@ -46,13 +79,13 @@ Real settings: notification prefs (`profiles.notification_prefs`), default nomin
 Driver-side chat list in History (one chat per confirmed passenger); global OfflineBanner in the root layout; **OTP email fix:** the confirmation template still sent a ConfirmationURL link (the verify-screen resend path would have emailed a dead link) — both templates now send the 6-digit code, expiry 3600s→900s; dead code removed (`app/home.tsx`, `utils/tracking.ts`); TODOs triaged (OAuth/Stripe Identity/OCR are Phase 15 + BLOCKERS).
 
 ### Files created
-`BLOCKERS-FOR-JORDAN.md`, `app/legal/[doc].tsx`, `app/track/[token].tsx`, `components/DateTimeField.tsx`, `components/DriverVerifyPanel.tsx`, `components/JourneyMap.tsx`, `components/NominatedContactCard.tsx`, `components/OfflineBanner.tsx`, `components/WaiverAcceptance.tsx`, `constants/legalDocs.ts`, `constants/legalWaiver.ts`, `hooks/useRealtimeNotifications.ts`, `services/avatar.ts`, `services/reviews.ts`, `services/tracking.ts`, `services/verificationSelfie.ts`, `services/waivers.ts`, `supabase/functions/_shared/auth.ts`, `supabase/functions/{create-refund,create-setup-intent,delete-account,get-transactions,send-tracking-alert}/index.ts`, `supabase/migrations/20260719000001..8` (safety suite, disclosure/waiver, book_ride hardening, ride visibility, RLS recursion fix, avatars, notification prefs, realtime publication), `utils/routeCorridor.ts`, `web/track.html`, tests: `DriverVerifyPanel/LegalDocScreen/NominatedContactCard/TrackingScreen/legalDocs/legalWaiver/reviewsService/routeCorridor/trackingService` + legal docs (`legal/ADVISER-BRIEFING.md`, `legal/verification-responsibility-waiver.md` — from the legal session, committed here).
+`BLOCKERS-FOR-JORDAN.md`, `app/legal/[doc].tsx`, `app/track/[token].tsx`, `components/DateTimeField.tsx`, `components/DriverVerifyPanel.tsx`, `components/JourneyMap.tsx`, `components/NominatedContactCard.tsx`, `components/OfflineBanner.tsx`, `components/WaiverAcceptance.tsx`, `constants/legalDocs.ts`, `constants/legalWaiver.ts`, `hooks/useRealtimeNotifications.ts`, `services/avatar.ts`, `services/reviews.ts`, `services/tracking.ts`, `services/verificationSelfie.ts`, `services/waivers.ts`, `supabase/functions/_shared/auth.ts`, `supabase/functions/{create-refund,create-setup-intent,delete-account,get-transactions,send-tracking-alert}/index.ts`, `supabase/migrations/20260719000001..8` (safety suite, disclosure/waiver, book_ride hardening, ride visibility, RLS recursion fix, avatars, notification prefs, realtime publication), `utils/routeCorridor.ts`, `website/track/index.html` (corrected 22 Jul — this entry originally listed the stale path `web/track.html`; the file lives at `website/track/index.html`, per the later note in this file about where Netlify serves it from), tests: `DriverVerifyPanel/LegalDocScreen/NominatedContactCard/TrackingScreen/legalDocs/legalWaiver/reviewsService/routeCorridor/trackingService` + legal docs (`legal/ADVISER-BRIEFING.md`, `legal/verification-responsibility-waiver.md` — from the legal session, committed here).
 
 ### Files modified
 `app.json`, `app/(tabs)/{_layout,history,index,live-trip,profile}.tsx`, `app/_layout.tsx`, `app/booking-request.tsx`, `app/booking-requests/[rideId].tsx`, `app/booking-success.tsx`, `app/edit-profile.tsx`, `app/id-verify.tsx`, `app/login.tsx`, `app/my-rides.tsx`, `app/offer-ride-confirm.tsx`, `app/offer-ride.tsx`, `app/ride/[id].tsx`, `app/settings.tsx`, `app/user-profile/[id].tsx`, `app/vehicle-details.tsx`, `app/verify.tsx`, `jest.config.js`, `legal/{privacy-policy,terms-of-service}.md`, `package.json`, `package-lock.json`, `services/{bookings,imagePicker}.ts`, `supabase/functions/{create-connect-account,create-payment-intent}/index.ts`, `types/database.ts`, ~20 test files. Deleted: `app/home.tsx`, `utils/tracking.ts` + 3 test files.
 
 ### Human tasks (see BLOCKERS-FOR-JORDAN.md for exact steps)
-1. Google Maps API key  2. Stripe Connect platform profile (live mode only — test mode verified working)  3. Twilio credentials (SMS to contacts)  4. Apple/Google developer accounts (push + stores)  5. Host `web/track.html` at htwa-app.com/track.
+1. Google Maps API key  2. Stripe Connect platform profile (live mode only — test mode verified working)  3. Twilio credentials (SMS to contacts)  4. Apple/Google developer accounts (push + stores)  ~~5. Host the tracking page~~ — resolved: htwa-app.com is Netlify-served from this repo's `website/`; the page now lives at `website/track/index.html` and goes live on merge.
 
 ---
 

@@ -88,7 +88,7 @@ export default function ChatScreen(): React.ReactElement {
   useEffect(() => {
     if (!booking_id) return;
     const channel = supabase
-      .channel(`chat:${booking_id}`)
+      .channel(`chat:${booking_id}:${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'messages',
         filter: `booking_id=eq.${booking_id}`,

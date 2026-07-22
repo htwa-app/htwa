@@ -36,6 +36,11 @@ jest.mock('../../context/AuthContext', () => ({ useAuth: () => mockUseAuth() }))
 
 // Block 2 — distance is auto-calculated via the Routes helper (no manual input).
 const mockComputeDistance = jest.fn();
+const mockGetDriverVerification = jest.fn();
+jest.mock('../../services/driverVerification', () => ({
+  getDriverVerification: (...a: unknown[]) => mockGetDriverVerification(...a),
+}));
+
 jest.mock('../../services/routes', () => ({
   computeRouteDistance: (...args: unknown[]) => mockComputeDistance(...args),
 }));
@@ -87,6 +92,7 @@ jest.mock('../../components/RouteInput', () => {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockGetDriverVerification.mockResolvedValue({ ok: true, verification: { status: 'approved' } });
   mockUseAuth.mockReturnValue({ user: { id: 'u1' } });
   mockProfile.mockResolvedValue({ data: { tax_residence: 'ROI', engine_cc: 'le1200' }, error: null });
   mockIncrements.mockResolvedValue({ data: [], error: null });
@@ -308,5 +314,67 @@ describe('OfferRideScreen — Block 4 fixed cost-share pricing', () => {
     fireEvent.changeText(screen.getByTestId('time-input'), '09:00');
     await waitFor(() => expect(screen.getByTestId('distance-value')).toBeTruthy(), { timeout: 2000 });
     expect(screen.getByTestId('review-button').props.accessibilityState?.disabled).toBe(true);
+  });
+});
+
+describe('OfferRideScreen — driver verification gate (round-2 fix #2)', () => {
+  async function fillEverything() {
+    await waitFor(() => expect(screen.getByTestId('from-input')).toBeTruthy());
+    fireEvent.changeText(screen.getByTestId('from-input'), 'Dublin');
+    fireEvent.changeText(screen.getByTestId('to-input'), 'Galway');
+    fireEvent.changeText(screen.getByTestId('date-input'), '2026-06-01');
+    fireEvent.changeText(screen.getByTestId('time-input'), '09:00');
+  }
+
+  it('no submission yet: banner shown, Review stays disabled even with a complete form', async () => {
+    mockGetDriverVerification.mockResolvedValue({ ok: true, verification: null });
+    render(<OfferRideScreen />);
+    await waitFor(() => expect(screen.getByTestId('driver-verification-banner')).toBeTruthy());
+    await fillEverything();
+    await waitFor(() => expect(screen.getByTestId('review-button')).toBeTruthy());
+    expect(screen.getByTestId('review-button').props.accessibilityState?.disabled).toBe(true);
+  });
+
+  it('pending: distinct banner copy, Review disabled', async () => {
+    mockGetDriverVerification.mockResolvedValue({ ok: true, verification: { status: 'pending' } });
+    render(<OfferRideScreen />);
+    await waitFor(() => expect(screen.getByTestId('driver-verification-banner')).toHaveTextContent(/under review/i));
+    await fillEverything();
+    expect(screen.getByTestId('review-button').props.accessibilityState?.disabled).toBe(true);
+  });
+
+  it('rejected: fix-and-resubmit copy, banner navigates to driver verification', async () => {
+    mockGetDriverVerification.mockResolvedValue({ ok: true, verification: { status: 'rejected' } });
+    render(<OfferRideScreen />);
+    await waitFor(() => expect(screen.getByTestId('driver-verification-banner')).toHaveTextContent(/wasn't approved/i));
+    fireEvent.press(screen.getByTestId('driver-verification-banner'));
+    expect(mockPush).toHaveBeenCalledWith('/driver-verification');
+  });
+
+  it('approved: no banner, Review enables with a complete form', async () => {
+    render(<OfferRideScreen />);
+    await fillEverything();
+    await waitFor(
+      () => expect(screen.getByTestId('review-button').props.accessibilityState?.disabled).toBe(false),
+      { timeout: 2000 },
+    );
+    expect(screen.queryByTestId('driver-verification-banner')).toBeNull();
+  });
+
+  it('a failed verification check blocks with its own load-error state (with retry) — never silently passes, and never the unrelated "pricing details" banner', async () => {
+    mockGetDriverVerification.mockResolvedValue({ ok: false });
+    render(<OfferRideScreen />);
+    await waitFor(() => expect(screen.getByTestId('verification-load-error')).toBeTruthy());
+    expect(screen.queryByTestId('driver-verification-banner')).toBeNull();
+    expect(screen.queryByTestId('profile-load-error')).toBeNull();
+  });
+
+  it('retrying a failed verification check re-runs the load and clears the error on success', async () => {
+    mockGetDriverVerification.mockResolvedValueOnce({ ok: false });
+    render(<OfferRideScreen />);
+    await waitFor(() => expect(screen.getByTestId('verification-load-error')).toBeTruthy());
+    mockGetDriverVerification.mockResolvedValue({ ok: true, verification: { status: 'approved' } });
+    fireEvent.press(screen.getByTestId('verification-load-error'));
+    await waitFor(() => expect(screen.queryByTestId('verification-load-error')).toBeNull());
   });
 });

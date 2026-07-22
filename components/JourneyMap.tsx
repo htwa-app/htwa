@@ -15,6 +15,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing } from '../constants/theme';
+import { usableMapsKey } from '../services/routes';
 
 export interface JourneyMapProps {
   from?: { lat: number; lng: number } | null;
@@ -28,7 +29,10 @@ export interface JourneyMapProps {
 }
 
 export function mapsAvailable(): boolean {
-  return !!process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY;
+  // Shares services/routes.ts's placeholder-aware key check — a raw
+  // truthiness/nullish check would treat a SET-but-placeholder key as
+  // available and try to render the native map with a key that won't work.
+  return usableMapsKey() !== null;
 }
 
 export function JourneyMap({ from, to, current, stubText, style, testID }: JourneyMapProps): React.ReactElement {

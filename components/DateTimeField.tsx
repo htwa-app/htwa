@@ -7,15 +7,22 @@
  *   - mode "date" → value "YYYY-MM-DD"
  *   - mode "time" → value "HH:MM" (24h)
  *
- * Renders as a tappable field; the native picker opens on press (Android shows
- * its own dialog; iOS renders an inline spinner below the field while open).
+ * Renders as a tappable field. Android shows its native dialog. iOS renders
+ * the spinner inside a CENTRED bottom-sheet modal — the spinner has a fixed
+ * intrinsic width (~320pt), so rendering it inline inside a half-width form
+ * column pushed it off the right edge of the screen (hands-on round 2, fix #4).
+ * The modal is immune to the field's container width.
  */
 
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Platform, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, Platform, StyleSheet } from 'react-native';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
+
+/** DateTimeField modal backdrop dim — not in §1 brand palette. */
+const MODAL_BACKDROP_OPACITY = 0.35;
 
 interface Props {
   mode: 'date' | 'time';
@@ -60,12 +67,27 @@ function displayLabel(mode: 'date' | 'time', value: string): string {
 
 export function DateTimeField({ mode, value, onChange, placeholder, minimumDate, testID }: Props): React.ReactElement {
   const [open, setOpen] = useState(false);
+  const insets = useSafeAreaInsets();
+  const baseTestID = testID ?? `${mode}-field`;
 
   const handleChange = (event: DateTimePickerEvent, selected?: Date) => {
-    // Android fires 'dismissed' on cancel; the dialog closes itself either way.
+    // Android's dialog closes itself and fires 'dismissed' on cancel.
     if (Platform.OS === 'android') setOpen(false);
     if (event.type === 'dismissed' || !selected) return;
     onChange(toValue(mode, selected));
+  };
+
+  // iOS "Done": the spinner opens already showing today's date / the current
+  // time (toDate's fallback for an empty value), but never fires onChange
+  // until the user actually scrolls a wheel. Tapping Done immediately closed
+  // the sheet with nothing committed — silently rejecting "post/search for
+  // right now" even though that's exactly what was on screen. Re-deriving
+  // from `value` via toDate/toValue is a no-op if the user did scroll
+  // (round-trips the already-committed value) and commits the visible
+  // default when they didn't.
+  const handleDone = () => {
+    onChange(toValue(mode, toDate(mode, value)));
+    setOpen(false);
   };
 
   return (
@@ -75,7 +97,7 @@ export function DateTimeField({ mode, value, onChange, placeholder, minimumDate,
         onPress={() => setOpen((o) => !o)}
         accessibilityRole="button"
         accessibilityLabel={value ? `${placeholder}: ${displayLabel(mode, value)}` : placeholder}
-        testID={testID ?? `${mode}-field`}
+        testID={baseTestID}
       >
         <Ionicons
           name={mode === 'date' ? 'calendar-outline' : 'time-outline'}
@@ -84,31 +106,67 @@ export function DateTimeField({ mode, value, onChange, placeholder, minimumDate,
         />
         <Text
           style={[styles.fieldText, !value && styles.placeholderText]}
-          testID={`${testID ?? `${mode}-field`}-value`}
+          testID={`${baseTestID}-value`}
         >
           {value ? displayLabel(mode, value) : placeholder}
         </Text>
       </TouchableOpacity>
 
-      {open && (
+      {/* Android: the native dialog presents itself when the picker renders. */}
+      {open && Platform.OS !== 'ios' && (
         <DateTimePicker
           value={toDate(mode, value)}
           mode={mode}
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          display="default"
           minimumDate={mode === 'date' ? minimumDate : undefined}
           onChange={handleChange}
-          testID={`${testID ?? `${mode}-field`}-picker`}
+          testID={`${baseTestID}-picker`}
         />
       )}
-      {open && Platform.OS === 'ios' && (
-        <TouchableOpacity
-          style={styles.doneBtn}
-          onPress={() => setOpen(false)}
-          accessibilityRole="button"
-          testID={`${testID ?? `${mode}-field`}-done`}
+
+      {/* iOS: centred bottom sheet — the spinner's fixed intrinsic width made
+          inline rendering overflow narrow containers (round-2 fix #4). */}
+      {Platform.OS === 'ios' && (
+        <Modal
+          visible={open}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setOpen(false)}
         >
-          <Text style={styles.doneText}>Done</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setOpen(false)}
+            accessibilityLabel="Close picker"
+            testID={`${baseTestID}-backdrop`}
+          />
+          <View
+            style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, Spacing.xxxl) }]}
+            testID={`${baseTestID}-sheet`}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{placeholder}</Text>
+              <TouchableOpacity
+                onPress={handleDone}
+                accessibilityRole="button"
+                testID={`${baseTestID}-done`}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.doneText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.pickerWrap}>
+              <DateTimePicker
+                value={toDate(mode, value)}
+                mode={mode}
+                display="spinner"
+                minimumDate={mode === 'date' ? minimumDate : undefined}
+                onChange={handleChange}
+                testID={`${baseTestID}-picker`}
+              />
+            </View>
+          </View>
+        </Modal>
       )}
     </View>
   );
@@ -123,6 +181,22 @@ const styles = StyleSheet.create({
   },
   fieldText: { ...Typography.bodyMedium, color: Colors.textPrimary, flex: 1 },
   placeholderText: { color: Colors.textTertiary },
-  doneBtn: { alignSelf: 'flex-end', paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md },
+
+  modalBackdrop: { flex: 1, backgroundColor: `rgba(0,0,0,${MODAL_BACKDROP_OPACITY})` },
+  modalSheet: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: BorderRadius.xl,
+    borderTopRightRadius: BorderRadius.xl,
+    // paddingBottom set inline: max(safe-area inset, Spacing.xxxl) so the
+    // sheet clears the home indicator on notched devices instead of a fixed value.
+  },
+  modalHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: Spacing.screenPadding, paddingVertical: Spacing.md,
+    borderBottomWidth: 1, borderBottomColor: Colors.border,
+  },
+  modalTitle: { ...Typography.headingSmall, color: Colors.textPrimary },
   doneText: { ...Typography.bodyMedium, color: Colors.primary },
+  // Centres the fixed-width spinner regardless of screen size.
+  pickerWrap: { alignItems: 'center', justifyContent: 'center' },
 });

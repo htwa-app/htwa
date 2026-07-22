@@ -2,7 +2,7 @@
  * __tests__/unit/routes.test.ts
  * Block 2 — unit tests for services/routes.ts (Google Routes distance helper)
  */
-import { computeRouteDistance, isMapsKeyUsable, parseDurationSeconds } from '../../services/routes';
+import { computeRouteDistance, isMapsKeyUsable, usableMapsKey, parseDurationSeconds } from '../../services/routes';
 
 // Neutral test key: ≥20 chars, no PLACEHOLDER, and deliberately NOT shaped like
 // a real Google API key (no AIza prefix) so it doesn't trip secret scanners.
@@ -37,15 +37,47 @@ describe('isMapsKeyUsable', () => {
   });
 });
 
-describe('computeRouteDistance', () => {
-  const ORIGINAL = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
-  afterEach(() => { process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY = ORIGINAL; });
+describe('usableMapsKey', () => {
+  const ORIGINAL_PRIMARY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY;
+  const ORIGINAL_FALLBACK = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+  afterEach(() => {
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY = ORIGINAL_PRIMARY;
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY = ORIGINAL_FALLBACK;
+  });
 
-  it('returns unavailable (no throw) when the key is a placeholder', async () => {
+  it('uses the primary var when it is usable', () => {
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY = REAL_KEY;
+    delete process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+    expect(usableMapsKey()).toBe(REAL_KEY);
+  });
+
+  it('falls back to the secondary var when the primary is SET but a placeholder — not just when it is unset', () => {
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY = PLACEHOLDER_KEY;
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY = REAL_KEY;
+    expect(usableMapsKey()).toBe(REAL_KEY);
+  });
+
+  it('returns null when neither var is usable', () => {
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY = PLACEHOLDER_KEY;
+    delete process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+    expect(usableMapsKey()).toBeNull();
+  });
+});
+
+describe('computeRouteDistance', () => {
+  const ORIGINAL_PRIMARY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY;
+  const ORIGINAL = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+  beforeEach(() => { delete process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY; }); // isolate from the primary var
+  afterEach(() => {
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY = ORIGINAL_PRIMARY;
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY = ORIGINAL;
+  });
+
+  it('returns no_key (no throw) when the key is a placeholder', async () => {
     process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY = PLACEHOLDER_KEY;
     const fetchSpy = mockFetch(208000);
     const r = await computeRouteDistance('Galway', 'Dublin', 'km', fetchSpy);
-    expect(r).toEqual({ ok: false, reason: 'unavailable' });
+    expect(r).toEqual({ ok: false, reason: 'no_key' });
     expect(fetchSpy).not.toHaveBeenCalled(); // never even hits the network
   });
 

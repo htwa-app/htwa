@@ -57,8 +57,13 @@ export function useRealtimeNotifications(): void {
       }
     })();
 
+    // Channel name must be unique PER MOUNT, not just per user: removeChannel
+    // is async, so on a fast remount (Fast Refresh, tab relayout, auth change)
+    // supabase.channel(<same name>) returns the still-subscribed old instance
+    // and chaining .on() onto it throws "cannot add postgres_changes callbacks
+    // after subscribe()" — which crashed the whole tab navigator.
     const channel = supabase
-      .channel(`user-notifications:${user.id}`)
+      .channel(`user-notifications:${user.id}:${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'bookings' },

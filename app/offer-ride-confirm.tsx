@@ -14,9 +14,11 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
+  TextInput,
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
   StyleSheet,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -38,7 +40,7 @@ import { checkDriverOverlap } from '../services/journeyConflicts';
 import { computeWindowEnd } from '../utils/journeyWindow';
 import { recordWaiverAcceptance } from '../services/waivers';
 import { getDefaultContact, setJourneyContact } from '../services/tracking';
-import { vehicleDetailsComplete, type VehicleDetails } from './vehicle-details';
+import { getDriverVerification } from '../services/driverVerification';
 
 export default function OfferRideConfirmScreen(): React.ReactElement {
   const router = useRouter();
@@ -53,23 +55,38 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
   const [isPosting, setIsPosting] = useState(false);
   const [postError, setPostError] = useState<string | null>(null);
   const [waiverAccepted, setWaiverAccepted] = useState(false);
-  // 2A-a: null = still checking, false = incomplete (blocks posting), true = ok.
+  // Round-2 fix #2: posting requires an APPROVED driver verification.
+  // null = still checking; the DB trigger is the authoritative wall.
   const [vehicleOk, setVehicleOk] = useState<boolean | null>(null);
   const [vehicleCheckError, setVehicleCheckError] = useState(false);
+  // Round-2 audit: every journey REQUIRES a nominated contact (the waiver says
+  // so) — collected here pre-post and written right after the insert, instead
+  // of the old best-effort seeding that silently skipped drivers without a
+  // saved default.
+  const [contactName, setContactName] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const contactComplete = contactName.trim().length > 0 && contactPhone.trim().length > 0;
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    void getDefaultContact(user.id).then((def) => {
+      if (cancelled || !def) return;
+      setContactName((prev) => prev || def.name);
+      setContactPhone((prev) => prev || def.phone);
+    });
+    return () => { cancelled = true; };
+  }, [user]);
 
   const checkVehicle = useCallback(async () => {
     if (!user) return;
     setVehicleCheckError(false);
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('vehicle_details')
-        .eq('user_id', user.id)
-        .maybeSingle();
       // A failed check must block posting WITH a retry — not silently pass or
-      // wrongly tell an onboarded driver their vehicle is missing.
-      if (error) { setVehicleCheckError(true); return; }
-      setVehicleOk(vehicleDetailsComplete(data?.vehicle_details as Partial<VehicleDetails> | null));
+      // wrongly tell an approved driver to redo verification.
+      const res = await getDriverVerification(user.id);
+      if (!res.ok) { setVehicleCheckError(true); return; }
+      setVehicleOk(res.verification?.status === 'approved');
     } catch {
       setVehicleCheckError(true);
     }
@@ -121,10 +138,13 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
         status:             'active',
       }).select('id').single();
       if (error || !posted) {
-        // The DB trigger raises 'JOURNEY_OVERLAP: …' if a concurrent overlap slipped past.
+        // DB triggers: JOURNEY_OVERLAP (concurrent overlap) and
+        // driver_not_approved (verification gate — the authoritative wall).
         setPostError(error?.message?.includes('JOURNEY_OVERLAP')
           ? 'This journey overlaps another of your journeys. Choose a different time.'
-          : error?.message ?? 'Failed to post journey. Please try again.');
+          : error?.message?.includes('driver_not_approved')
+            ? 'Your driver verification isn\'t approved yet — you can post once it is.'
+            : error?.message ?? 'Failed to post journey. Please try again.');
         return;
       }
 
@@ -133,12 +153,32 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
       const waiverRes = await recordWaiverAcceptance({ userId: user.id, role: 'driver', rideId: posted.id });
       if (!waiverRes.ok) console.error('[OfferConfirm] driver waiver record failed:', waiverRes.message);
 
-      // Seed this journey's nominated contact from the driver's default; they
-      // can change it on the Live Trip tab before departure.
-      const defaultContact = await getDefaultContact(user.id);
-      if (defaultContact) {
-        const contactRes = await setJourneyContact(posted.id, user.id, defaultContact);
-        if (!contactRes.ok) console.error('[OfferConfirm] journey contact seed failed:', contactRes.message);
+      // The journey's nominated contact — REQUIRED (validated pre-post) and
+      // written against the new ride; changeable on Live Trip before departure.
+      // One retry covers the common transient-network case; the ride is
+      // already live at this point (can't be undone from here without a
+      // bigger atomic-transaction rewrite), so a persistent failure still
+      // proceeds — but with a loud, blocking alert rather than a silent log,
+      // since a live ride with no safety contact is exactly the gap this
+      // feature exists to prevent.
+      let contactRes = await setJourneyContact(posted.id, user.id, {
+        name: contactName, phone: contactPhone,
+      });
+      if (!contactRes.ok) {
+        console.error('[OfferConfirm] journey contact write failed, retrying once:', contactRes.message);
+        contactRes = await setJourneyContact(posted.id, user.id, {
+          name: contactName, phone: contactPhone,
+        });
+      }
+      if (!contactRes.ok) {
+        console.error('[OfferConfirm] journey contact write failed after retry:', contactRes.message);
+        await new Promise<void>((resolve) => {
+          Alert.alert(
+            'Nominated contact not saved',
+            'Your journey is live, but we couldn\'t save your nominated contact. Please set it from Live Trip before you depart.',
+            [{ text: 'OK', onPress: () => resolve() }],
+          );
+        });
       }
 
       router.replace('/ride-posted');
@@ -238,18 +278,45 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
       {vehicleOk === false && !vehicleCheckError && (
         <View style={styles.vehicleGate} testID="vehicle-incomplete">
           <Text style={styles.vehicleGateText}>
-            Before posting, add your vehicle's make, model, colour and registration —
-            passengers use them to verify your car.
+            You need an approved driver verification (licence, live selfie, car
+            photo and details) before you can post journeys.
           </Text>
           <TouchableOpacity
-            onPress={() => router.push('/vehicle-details')}
+            onPress={() => router.push('/driver-verification')}
             accessibilityRole="button"
             testID="vehicle-complete-link"
           >
-            <Text style={styles.vehicleGateLink}>Complete vehicle details</Text>
+            <Text style={styles.vehicleGateLink}>Go to driver verification</Text>
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Nominated contact for this journey — required (2A-c) */}
+      <View style={styles.contactCard} testID="offer-contact-card">
+        <Text style={styles.contactTitle}>Nominated contact for this journey</Text>
+        <Text style={styles.contactHint}>
+          They'll receive live tracking and safety alerts while you're on the road.
+        </Text>
+        <TextInput
+          style={styles.contactInput}
+          placeholder="Contact name"
+          placeholderTextColor={Colors.textTertiary}
+          value={contactName}
+          onChangeText={setContactName}
+          accessibilityLabel="Nominated contact name"
+          testID="offer-contact-name"
+        />
+        <TextInput
+          style={styles.contactInput}
+          placeholder="Phone (e.g. +353 87 123 4567)"
+          placeholderTextColor={Colors.textTertiary}
+          value={contactPhone}
+          onChangeText={setContactPhone}
+          keyboardType="phone-pad"
+          accessibilityLabel="Nominated contact phone number"
+          testID="offer-contact-phone"
+        />
+      </View>
 
       {/* Driver acknowledgment (2A-d) */}
       <WaiverAcceptance role="driver" accepted={waiverAccepted} onChange={setWaiverAccepted} />
@@ -261,7 +328,7 @@ export default function OfferRideConfirmScreen(): React.ReactElement {
       <Button
         title={isPosting ? 'Posting…' : 'Post journey'}
         onPress={handlePost}
-        disabled={isPosting || !waiverAccepted || vehicleOk !== true}
+        disabled={isPosting || !waiverAccepted || vehicleOk !== true || !contactComplete}
         style={styles.ctaButton}
         testID="post-button"
       />
@@ -311,5 +378,18 @@ const styles = StyleSheet.create({
   },
   vehicleGateText: { ...Typography.bodySmall, color: Colors.textPrimary },
   vehicleGateLink: { ...Typography.bodyMedium, color: Colors.primary },
+  contactCard: {
+    backgroundColor: Colors.surface, borderRadius: BorderRadius.large,
+    borderWidth: 1, borderColor: Colors.border, ...Shadows.card,
+    padding: Spacing.cardPadding, gap: Spacing.sm,
+  },
+  contactTitle: { ...Typography.headingSmall, color: Colors.textPrimary },
+  contactHint: { ...Typography.bodySmall, color: Colors.textSecondary },
+  contactInput: {
+    backgroundColor: Colors.background, borderRadius: BorderRadius.medium,
+    borderWidth: 1, borderColor: Colors.border,
+    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
+    ...Typography.bodyMedium, color: Colors.textPrimary,
+  },
   ctaButton: {},
 });

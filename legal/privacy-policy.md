@@ -30,8 +30,13 @@ For the purposes of data protection law:
 
 ### 2.2 Verification Data
 - Government-issued ID (passport or driving licence) — uploaded for identity verification only
-- Selfie photograph — used to match against ID document
+- Selfie photograph (live-captured in-app) — used to match against ID document
 - Verification status (verified/unverified)
+
+**Drivers additionally provide:**
+- Driving licence photo — used to verify driving entitlement only; never shown to other users
+- A photo of their vehicle with the registration plate visible — used to verify the registered vehicle details; never shown to other users
+- Vehicle details: make, model, colour and registration number — shown to booked passengers (see §4) so they can confirm the vehicle at pickup
 
 ### 2.3 Journey Data
 - Trip routes (from/to locations)
@@ -124,6 +129,7 @@ Your government ID and selfie are used solely for identity verification. Once ve
 | Journey history | 3 years (legal/financial records) |
 | Payment records | 7 years (tax and accounting requirements) |
 | ID verification documents | 12 months from verification date¹ |
+| Driver licence photo + vehicle photo | While the user remains an active driver, + 12 months |
 | Live location data | 30 days after trip completion |
 | In-app messages | Retained permanently as a safeguarding and dispute record² |
 | SOS and safety alert records | Retained permanently as a safeguarding record² |

@@ -65,16 +65,41 @@ Things only you can do. Each entry says exactly what I need, how to get it, and 
 
 ---
 
-## 5. Host the tracking web page at htwa-app.com/track
+## 5. ~~Host the tracking web page~~ — RESOLVED, no action needed
 
-**I need:** the file `web/track.html` (in the repo) uploaded to wherever htwa-app.com is hosted, reachable at `https://htwa-app.com/track`.
+I discovered htwa-app.com is already served by Netlify from this repo's `website/` folder, so I placed the tracking page at `website/track/index.html`. It goes live at `https://htwa-app.com/track` automatically when this branch merges to main. Nothing for you to do.
+
+---
+
+## 6. Reviewing driver applications (recurring beta task — not a blocker)
+
+Drivers now can't post journeys until you approve them. To review:
+
+1. Go to https://supabase.com/dashboard/project/adrwtjlphjrnrrqjkbfk → **Table Editor** → `driver_verifications` → rows with status `pending`.
+2. Open **Storage** → `driver-verifications` bucket → the driver's folder → check the licence photo and the car photo, and confirm the registration plate in the photo matches the `car_registration` column. Their selfie is in the `verification-selfies` bucket.
+3. Back in the table row: set `status` to `approved` (or `rejected` — put a short reason in `review_note`, the driver sees it in the app) and save.
+
+That's the whole flow — the app unblocks posting the moment the row says approved. (Only the dashboard/service role can approve; the app physically can't self-approve, I tested the tamper paths.)
+
+**You'll now get a push notification the moment someone submits** (see item 7 below) — you don't need to keep checking the table proactively.
+
+---
+
+## 7. Set up the ntfy app to get notified of new driver submissions (2 minutes)
+
+**Why:** MailerLite (the key you already have) turned out not to support sending single one-off emails — that's a separate product (MailerSend) we don't have a key for. As an immediate, zero-signup stand-in, I wired a push notification via ntfy.sh (a free, no-account-needed push service) straight from the database — it fires the moment a `driver_verifications` row enters (or re-enters) review.
 
 **Get it by:**
-1. Log in to wherever you bought/manage htwa-app.com (your domain registrar or hosting).
-2. If you don't have hosting yet, the free easy option is Cloudflare Pages: go to https://pages.cloudflare.com → sign up → "Upload assets" → drag in the `web` folder from `~/Documents/HTWA` → name the project `htwa` → deploy → then add your domain htwa-app.com under Custom domains.
-3. The page must be reachable at `https://htwa-app.com/track` (Cloudflare Pages: rename `track.html` to `track/index.html` when uploading, or just tell Claude which host you chose and Claude will prepare the exact upload).
+1. Install the free **ntfy** app from the App Store (search "ntfy" — publisher is "ntfy.sh").
+2. Open it → tap **+** (subscribe to topic) → paste this exact topic name:
+   ```
+   htwa-driver-review-3b0ae5a0413c639d095a
+   ```
+3. Server: leave it as the default `ntfy.sh`. Tap Subscribe.
 
-**Unblocks:** the safety-contact web link. Right now, when a nominated contact WITHOUT the htwa app taps the tracking link in an SMS, nothing is hosted at that address. Contacts WITH the app already get the in-app live view. (The page itself is finished and tested — it only needs hosting.)
+**Caveat:** ntfy's free tier has no login — that topic name is the only thing keeping these alerts private (anyone who learns the exact string could read them or post fake ones). It's a driver's name/email/car details, not financial data, so the risk is low, but it's worth knowing. If you'd rather have a proper authenticated email instead, get a free API key from **resend.com** (2-minute signup) and tell Claude — it'll swap this trigger for a real "New driver submitted" email to hello@htwa-app.com and this ntfy trigger can be removed.
+
+**Unblocks:** knowing the moment a new driver needs review, instead of having to remember to check the dashboard.
 
 ---
 

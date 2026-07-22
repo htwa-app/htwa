@@ -36,6 +36,7 @@ export default function IdVerifyScreen() {
   const [message, setMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [devFallbackUsed, setDevFallbackUsed] = useState(false);
 
   // ─── Safety guard — should not happen in normal flow ────────────────────────
   useEffect(() => {
@@ -56,18 +57,21 @@ export default function IdVerifyScreen() {
 
     setLoading(true);
     setMessage(null);
+    setDevFallbackUsed(false);
 
     try {
       // The selfie is REAL as of the safety-suite build: a live front-camera
       // capture, uploaded to the verification-selfies bucket, shown to booked
-      // passengers on the "Verify your driver" panel.
-      const selfieBytes = await captureVerificationSelfie();
-      if (!selfieBytes) {
+      // passengers on the "Verify your driver" panel. (__DEV__ only: falls
+      // back to the photo library when the simulator has no camera.)
+      const selfie = await captureVerificationSelfie();
+      if (!selfie) {
         setIsError(true);
         setMessage('A live selfie is required — it lets your passengers verify it\'s really you. Camera permission and a photo are needed to continue.');
         return;
       }
-      const selfieRes = await uploadVerificationSelfie(user.id, selfieBytes);
+      setDevFallbackUsed(selfie.source === 'library-dev-fallback');
+      const selfieRes = await uploadVerificationSelfie(user.id, selfie.bytes);
       if (!selfieRes.ok) {
         setIsError(true);
         setMessage('Could not save your selfie. Please try again.');
@@ -116,6 +120,13 @@ export default function IdVerifyScreen() {
           We need to confirm your identity before you can use htwa.
           This is a one-time step that keeps everyone on the platform safe.
         </Text>
+
+        {/* __DEV__-only: labels the simulator camera fallback clearly. */}
+        {devFallbackUsed && (
+          <Text testID="dev-fallback-note" style={styles.devFallbackNote}>
+            (dev fallback) No camera on this device — selfie picked from your photo library instead.
+          </Text>
+        )}
 
         {/* Feedback message */}
         {message !== null && (
@@ -166,5 +177,9 @@ const styles = StyleSheet.create({
   },
   messageError: {
     color: Colors.sos,
+  },
+  devFallbackNote: {
+    ...Typography.bodySmall,
+    color: Colors.amber,
   },
 });

@@ -3,6 +3,7 @@
  * Stage 32 — unit tests for app/offer-ride-confirm.tsx
  */
 import React from 'react';
+import { Alert } from 'react-native';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
 
 const mockBack = jest.fn();
@@ -20,7 +21,7 @@ jest.mock('@expo/vector-icons', () => {
 
 const mockInsert = jest.fn();          // rides insert (payload capture)
 const mockInsertResult = jest.fn();    // resolved value of insert().select('id').single()
-const mockVehicleFetch = jest.fn();    // profiles vehicle-details check (2A-a)
+const mockVehicleFetch = jest.fn();    // (legacy name) driver-verification approval check
 jest.mock('../../lib/supabase', () => ({
   supabase: {
     from: (table: string) => {
@@ -39,6 +40,10 @@ jest.mock('../../lib/supabase', () => ({
 
 // Change 2 — client-side overlap check (isolated here; its own unit test covers logic)
 const mockCheckOverlap = jest.fn();
+jest.mock('../../services/driverVerification', () => ({
+  getDriverVerification: (...a: unknown[]) => mockVehicleFetch(...a),
+}));
+
 jest.mock('../../services/journeyConflicts', () => ({
   checkDriverOverlap: (...a: unknown[]) => mockCheckOverlap(...a),
 }));
@@ -90,7 +95,7 @@ beforeEach(() => {
   mockUseAuth.mockReturnValue({ user: { id: 'u1' } });
   mockInsert.mockReturnValue(undefined);
   mockInsertResult.mockResolvedValue({ data: { id: 'ride-new' }, error: null });
-  mockVehicleFetch.mockResolvedValue({ data: { vehicle_details: COMPLETE_VEHICLE }, error: null });
+  mockVehicleFetch.mockResolvedValue({ ok: true, verification: { status: 'approved' } });
   mockCheckOverlap.mockResolvedValue({ ok: true });
   mockRecordWaiver.mockResolvedValue({ ok: true });
   mockGetDefaultContact.mockResolvedValue({ name: 'Mam', phone: '+353871' });
@@ -148,6 +153,52 @@ describe('OfferRideConfirmScreen', () => {
     expect(mockSetJourneyContact).toHaveBeenCalledWith('ride-new', 'u1', { name: 'Mam', phone: '+353871' });
   });
 
+  it('still posts and navigates when the waiver/contact writes fail — they are logged, not a post failure (the ride already committed)', async () => {
+    mockRecordWaiver.mockResolvedValue({ ok: false, message: 'db down' });
+    mockSetJourneyContact.mockResolvedValue({ ok: false, message: 'db down' });
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((...args: unknown[]) => {
+      const buttons = args[2] as Array<{ text: string; onPress?: () => void }> | undefined;
+      buttons?.find((b) => b.text === 'OK')?.onPress?.();
+    });
+    render(<OfferRideConfirmScreen />);
+    await waitForVehicleOk();
+    acceptWaiver();
+    fireEvent.press(screen.getByTestId('post-button'));
+    // The ride insert already succeeded — a secondary write failing afterward
+    // must not surface as a post error or block navigation (CLAUDE.md §12).
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/ride-posted'));
+    expect(screen.queryByTestId('post-error')).toBeNull();
+    // Retried once before giving up, and warned the driver via a blocking
+    // alert rather than only a console log (a live ride with no contact is
+    // exactly the safety gap this feature exists to prevent).
+    expect(mockSetJourneyContact).toHaveBeenCalledTimes(2);
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Nominated contact not saved',
+      expect.stringContaining('Live Trip'),
+      expect.any(Array),
+    );
+    errorSpy.mockRestore();
+    alertSpy.mockRestore();
+  });
+
+  it('does not alert when the contact write succeeds on retry', async () => {
+    mockSetJourneyContact
+      .mockResolvedValueOnce({ ok: false, message: 'transient' })
+      .mockResolvedValueOnce({ ok: true, contact: { id: 'jc-1' } });
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    render(<OfferRideConfirmScreen />);
+    await waitForVehicleOk();
+    acceptWaiver();
+    fireEvent.press(screen.getByTestId('post-button'));
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/ride-posted'));
+    expect(mockSetJourneyContact).toHaveBeenCalledTimes(2);
+    expect(alertSpy).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+    alertSpy.mockRestore();
+  });
+
   it('cannot post without accepting the driver acknowledgment', async () => {
     render(<OfferRideConfirmScreen />);
     await waitForVehicleOk();
@@ -155,8 +206,8 @@ describe('OfferRideConfirmScreen', () => {
     expect(mockInsert).not.toHaveBeenCalled();
   });
 
-  it('incomplete vehicle details block posting with a link to complete them (2A-a)', async () => {
-    mockVehicleFetch.mockResolvedValue({ data: { vehicle_details: { make: 'Toyota', model: 'Corolla' } }, error: null });
+  it('unapproved driver verification blocks posting with a link to complete it', async () => {
+    mockVehicleFetch.mockResolvedValue({ ok: true, verification: { status: 'pending' } });
     render(<OfferRideConfirmScreen />);
     await waitFor(() => expect(screen.getByTestId('vehicle-incomplete')).toBeTruthy());
     acceptWaiver();
@@ -165,7 +216,7 @@ describe('OfferRideConfirmScreen', () => {
   });
 
   it('a failed vehicle check blocks posting with retry — never silently passes', async () => {
-    mockVehicleFetch.mockResolvedValueOnce({ data: null, error: { message: 'down' } });
+    mockVehicleFetch.mockResolvedValueOnce({ ok: false });
     render(<OfferRideConfirmScreen />);
     await waitFor(() => expect(screen.getByTestId('vehicle-check-error')).toBeTruthy());
     fireEvent.press(screen.getByTestId('vehicle-check-retry'));
@@ -204,5 +255,30 @@ describe('OfferRideConfirmScreen', () => {
     await waitFor(() => expect(screen.getByTestId('post-error')).toHaveTextContent(/overlaps your Derry/));
     expect(mockInsert).not.toHaveBeenCalled();
     expect(mockReplace).not.toHaveBeenCalled();
+  });
+});
+
+describe('OfferRideConfirmScreen — required nominated contact (round-2 audit)', () => {
+  it('no saved default: Post stays disabled until a contact is entered, then writes it', async () => {
+    mockGetDefaultContact.mockResolvedValue(null);
+    render(<OfferRideConfirmScreen />);
+    await waitForVehicleOk();
+    acceptWaiver();
+    fireEvent.press(screen.getByTestId('post-button'));
+    expect(mockInsert).not.toHaveBeenCalled();
+
+    fireEvent.changeText(screen.getByTestId('offer-contact-name'), 'Mam');
+    fireEvent.changeText(screen.getByTestId('offer-contact-phone'), '+353879999999');
+    fireEvent.press(screen.getByTestId('post-button'));
+    await waitFor(() => expect(mockInsert).toHaveBeenCalled());
+    await waitFor(() => expect(mockSetJourneyContact).toHaveBeenCalledWith('ride-new', 'u1', {
+      name: 'Mam', phone: '+353879999999',
+    }));
+  });
+
+  it('saved default pre-fills the contact fields', async () => {
+    render(<OfferRideConfirmScreen />);
+    await waitFor(() => expect(screen.getByTestId('offer-contact-name').props.value).toBe('Mam'));
+    expect(screen.getByTestId('offer-contact-phone').props.value).toBe('+353871');
   });
 });

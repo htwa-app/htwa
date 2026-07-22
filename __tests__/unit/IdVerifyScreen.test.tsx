@@ -53,8 +53,8 @@ beforeEach(() => {
   // Default: upsert succeeds
   mockUpsert.mockResolvedValue({ error: null });
   mockRefreshVerification.mockResolvedValue(undefined);
-  // Default: selfie captured + uploaded successfully
-  mockCaptureSelfie.mockResolvedValue(new Uint8Array([1, 2, 3]));
+  // Default: selfie captured (live camera) + uploaded successfully
+  mockCaptureSelfie.mockResolvedValue({ bytes: new Uint8Array([1, 2, 3]), source: 'camera' });
   mockUploadSelfie.mockResolvedValue({ ok: true, path: 'user-123/selfie-1.jpg' });
 });
 
@@ -188,5 +188,25 @@ describe('IdVerifyScreen — live selfie', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Start verification' }));
     await waitFor(() => expect(mockUploadSelfie).toHaveBeenCalledWith('user-123', expect.any(Uint8Array)));
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/profile-setup'));
+  });
+});
+
+// ─── Simulator dev fallback (round-2) ─────────────────────────────────────────
+
+describe('IdVerifyScreen — dev fallback labelling', () => {
+  it('shows a clearly-labelled dev-fallback note when the capture used the library', async () => {
+    mockCaptureSelfie.mockResolvedValue({ bytes: new Uint8Array([9]), source: 'library-dev-fallback' });
+    render(<IdVerifyScreen />);
+    fireEvent.press(screen.getByRole('button', { name: 'Start verification' }));
+    await waitFor(() => expect(screen.getByTestId('dev-fallback-note')).toHaveTextContent(/dev fallback/i));
+    // Verification still proceeds normally with the fallback bytes.
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/profile-setup'));
+  });
+
+  it('shows no dev-fallback note for a normal camera capture', async () => {
+    render(<IdVerifyScreen />);
+    fireEvent.press(screen.getByRole('button', { name: 'Start verification' }));
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/profile-setup'));
+    expect(screen.queryByTestId('dev-fallback-note')).toBeNull();
   });
 });

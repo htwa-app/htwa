@@ -28,8 +28,13 @@ export interface RouteDistanceResult {
   /** Estimated driving duration in seconds (present only when ok). Drives the
    *  no-overlapping-journeys window (Change 2). */
   durationSeconds?: number;
-  /** Why it failed: 'unavailable' (key/network/no route) — UI shows a clear state. */
-  reason?: 'unavailable';
+  /**
+   * Why it failed:
+   *  - 'no_key': the platform's Maps key isn't configured — NOT the user's
+   *    fault; copy must never tell them to "check the locations".
+   *  - 'unavailable': network/API/no-route failure — retryable.
+   */
+  reason?: 'no_key' | 'unavailable';
 }
 
 /** Parse a Routes API duration string like "1234s" into seconds. */
@@ -53,6 +58,22 @@ export function isMapsKeyUsable(key: string | undefined): boolean {
   return key.length >= 20;
 }
 
+/**
+ * The first ACTUALLY usable Maps key across both accepted env var names
+ * (BLOCKERS-FOR-JORDAN.md says EXPO_PUBLIC_GOOGLE_MAPS_KEY; older code used
+ * ..._API_KEY) — or null if neither is usable. Picking via nullish
+ * coalescing alone is wrong: if the primary var is SET but a placeholder,
+ * `??` never falls through to try the other one. Shared with
+ * components/JourneyMap.tsx so both consumers reject blank, invalid, and
+ * placeholder keys identically.
+ */
+export function usableMapsKey(): string | null {
+  const primary = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY;
+  if (isMapsKeyUsable(primary)) return primary as string;
+  const fallback = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+  return isMapsKeyUsable(fallback) ? (fallback as string) : null;
+}
+
 function toUnit(meters: number, unit: DistanceUnit): number {
   const raw = unit === 'km' ? meters / METERS_PER_KM : meters / METERS_PER_MILE;
   return Math.round(raw * 100) / 100;
@@ -72,9 +93,9 @@ export async function computeRouteDistance(
   unit: DistanceUnit,
   fetchImpl: typeof fetch = fetch,
 ): Promise<RouteDistanceResult> {
-  const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
-  if (!isMapsKeyUsable(apiKey)) {
-    return { ok: false, reason: 'unavailable' };
+  const apiKey = usableMapsKey();
+  if (!apiKey) {
+    return { ok: false, reason: 'no_key' };
   }
   if (!origin.trim() || !destination.trim()) {
     return { ok: false, reason: 'unavailable' };
