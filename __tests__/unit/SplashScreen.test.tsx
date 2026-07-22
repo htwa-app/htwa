@@ -14,7 +14,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react-native';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react-native';
 import SplashScreen from '../../app/screens/SplashScreen';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -25,6 +25,7 @@ jest.mock('expo-router', () => ({
 }));
 
 const mockUseAuth = jest.fn();
+const mockRefreshVerification = jest.fn();
 jest.mock('../../context/AuthContext', () => ({
   useAuth: () => mockUseAuth(),
 }));
@@ -35,10 +36,12 @@ beforeEach(() => {
   jest.clearAllMocks();
   // Default: still loading — no navigation should happen
   mockUseAuth.mockReturnValue({
-    user:               null,
-    session:            null,
-    isLoading:          true,
-    verificationStatus: null,
+    user:                   null,
+    session:                null,
+    isLoading:              true,
+    verificationStatus:     null,
+    verificationLoadError:  false,
+    refreshVerification:    mockRefreshVerification,
   });
 });
 
@@ -138,8 +141,45 @@ describe('SplashScreen — auth routing', () => {
   it('only calls router.replace once per mount', async () => {
     mockUseAuth.mockReturnValue({
       user: null, session: null, isLoading: false, verificationStatus: null,
+      verificationLoadError: false, refreshVerification: mockRefreshVerification,
     });
     render(<SplashScreen />);
     await waitFor(() => expect(mockReplace).toHaveBeenCalledTimes(1));
+  });
+});
+
+// ─── Verification load error — must not misroute (PR #33 finding) ────────────
+
+describe('SplashScreen — verification status fetch failed', () => {
+  it('does not navigate anywhere when verificationLoadError is true (not even /id-verify)', () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u1' }, session: { user: { id: 'u1' } }, isLoading: false,
+      verificationStatus: null, verificationLoadError: true,
+      refreshVerification: mockRefreshVerification,
+    });
+    render(<SplashScreen />);
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('shows a retry state instead of the spinner', () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u1' }, session: { user: { id: 'u1' } }, isLoading: false,
+      verificationStatus: null, verificationLoadError: true,
+      refreshVerification: mockRefreshVerification,
+    });
+    render(<SplashScreen />);
+    expect(screen.getByTestId('splash-load-error')).toBeTruthy();
+    expect(screen.getByTestId('splash-retry')).toBeTruthy();
+  });
+
+  it('tapping retry calls refreshVerification', () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u1' }, session: { user: { id: 'u1' } }, isLoading: false,
+      verificationStatus: null, verificationLoadError: true,
+      refreshVerification: mockRefreshVerification,
+    });
+    render(<SplashScreen />);
+    fireEvent.press(screen.getByTestId('splash-retry'));
+    expect(mockRefreshVerification).toHaveBeenCalled();
   });
 });

@@ -161,9 +161,16 @@ export default function IdVerifyScreen(): React.ReactElement {
       // the same routing precedence verify.tsx uses after OTP, so a
       // first-time submission and a later resubmit both land in the right
       // place (profile-setup if that's still missing, otherwise tabs).
+      // A failed profile lookup must not read as "no profile" — that would
+      // send an already-set-up user through /profile-setup unnecessarily.
+      // This is a secondary lookup after the verification submission has
+      // already committed (CLAUDE.md §12 rule 6): log it and default to the
+      // less disruptive destination (tabs) rather than blocking on a retry
+      // UI for what's normally a fast, reliable query.
       const { data: profileRow, error: profileErr } = await supabase
         .from('profiles').select('user_id').eq('user_id', user.id).maybeSingle();
-      const hasProfile = !profileErr && profileRow !== null;
+      if (profileErr) console.error('[IdVerify] profile lookup failed, defaulting to /(tabs):', profileErr.message);
+      const hasProfile = profileErr ? true : profileRow !== null;
       await refreshVerification();
       router.replace(resolvePostAuthDestination({ verificationStatus: res.verification.status, hasProfile }));
     } catch {

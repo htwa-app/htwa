@@ -64,6 +64,22 @@ describe('RouteInput', () => {
     expect(onToChange).toHaveBeenCalledWith('Galway');
   });
 
+  it('calls onSwap instead of onFromChange/onToChange when provided — lets a caller swap coordinates atomically', () => {
+    const onFromChange = jest.fn();
+    const onToChange = jest.fn();
+    const onSwap = jest.fn();
+    render(
+      <RouteInput
+        from="Galway" to="Dublin"
+        onFromChange={onFromChange} onToChange={onToChange} onSwap={onSwap}
+      />,
+    );
+    fireEvent.press(screen.getByTestId('route-input-swap'));
+    expect(onSwap).toHaveBeenCalledTimes(1);
+    expect(onFromChange).not.toHaveBeenCalled();
+    expect(onToChange).not.toHaveBeenCalled();
+  });
+
   it('renders prominent field labels when provided', () => {
     render(
       <RouteInput

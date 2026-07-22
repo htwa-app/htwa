@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { Colors, FontFamily } from '../../constants/theme';
@@ -11,7 +11,7 @@ const BRAND_TAGLINE = 'heading that way anyway.';
 
 export default function SplashScreen() {
   const router = useRouter();
-  const { session, isLoading, verificationStatus } = useAuth();
+  const { session, isLoading, verificationStatus, verificationLoadError, refreshVerification } = useAuth();
 
   useEffect(() => {
     // Stay on splash while the auth check is in flight
@@ -20,6 +20,11 @@ export default function SplashScreen() {
     if (!session) {
       // No authenticated user — go to login
       router.replace('/login');
+    } else if (verificationLoadError) {
+      // A failed status fetch must NEVER read as "never submitted" — stay
+      // here with a retry rather than routing an already-verified user
+      // back through /id-verify on a transient network blip.
+      return;
     } else if (verificationStatus === null) {
       // Logged in but never submitted identity verification — go to id-verify.
       // Once submitted (pending/approved/rejected all count), browsing is
@@ -28,7 +33,7 @@ export default function SplashScreen() {
     } else {
       router.replace('/(tabs)');
     }
-  }, [isLoading, session, verificationStatus, router]);
+  }, [isLoading, session, verificationStatus, verificationLoadError, router]);
 
   return (
     <View style={styles.container}>
@@ -42,8 +47,22 @@ export default function SplashScreen() {
       {/* Tagline — all lowercase, ends with a period, no exceptions */}
       <Text style={styles.tagline}>{BRAND_TAGLINE}</Text>
 
-      {/* Loading indicator */}
-      <ActivityIndicator style={styles.spinner} color={Colors.primary} size="small" />
+      {session && verificationLoadError ? (
+        <>
+          <Text style={styles.errorText} testID="splash-load-error">
+            Couldn't check your verification status.
+          </Text>
+          <TouchableOpacity
+            onPress={() => void refreshVerification()}
+            accessibilityRole="button"
+            testID="splash-retry"
+          >
+            <Text style={styles.retryText}>Try again</Text>
+          </TouchableOpacity>
+        </>
+      ) : (
+        <ActivityIndicator style={styles.spinner} color={Colors.primary} size="small" />
+      )}
     </View>
   );
 }
@@ -86,5 +105,19 @@ const styles = StyleSheet.create({
   // Spinner
   spinner: {
     marginTop: 32,
+  },
+
+  // Load-error retry state
+  errorText: {
+    marginTop: 32,
+    fontSize: 14,
+    fontFamily: FontFamily.regular,
+    color: Colors.textSecondary,
+  },
+  retryText: {
+    marginTop: 8,
+    fontSize: 14,
+    fontFamily: FontFamily.bold,
+    color: Colors.primary,
   },
 });

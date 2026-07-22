@@ -68,6 +68,16 @@ async function uploadTo(
   return { ok: true };
 }
 
+/** Remove every already-uploaded file for this submission attempt — called on
+ *  ANY later failure (a subsequent upload, or the final upsert), so a partial
+ *  attempt never leaves orphaned photos behind in storage. */
+async function cleanupUploaded(uploadedPaths: Array<{ bucket: string; path: string }>): Promise<void> {
+  for (const { bucket, path } of uploadedPaths) {
+    const { error } = await supabase.storage.from(bucket).remove([path]);
+    if (error) console.error('[IdentityVerification] orphan cleanup failed:', error.message);
+  }
+}
+
 export async function submitIdentityVerification(
   userId: string,
   fields: IdentitySubmission,
@@ -86,7 +96,10 @@ export async function submitIdentityVerification(
     if (photos.idDocumentBytes) {
       const path = `${userId}/id-${ts}.jpg`;
       const up = await uploadTo('identity-documents', path, photos.idDocumentBytes);
-      if (!up.ok) return { ok: false, message: 'Could not upload your ID document. Please try again.' };
+      if (!up.ok) {
+        await cleanupUploaded(uploadedPaths);
+        return { ok: false, message: 'Could not upload your ID document. Please try again.' };
+      }
       uploadedPaths.push({ bucket: 'identity-documents', path });
       idDocPath = path;
     }
@@ -95,12 +108,16 @@ export async function submitIdentityVerification(
     if (photos.selfieBytes) {
       const path = `${userId}/selfie-${ts}.jpg`;
       const up = await uploadTo('verification-selfies', path, photos.selfieBytes);
-      if (!up.ok) return { ok: false, message: 'Could not upload your selfie. Please try again.' };
+      if (!up.ok) {
+        await cleanupUploaded(uploadedPaths);
+        return { ok: false, message: 'Could not upload your selfie. Please try again.' };
+      }
       uploadedPaths.push({ bucket: 'verification-selfies', path });
       selfiePath = path;
     }
 
     if (!idDocPath || !selfiePath) {
+      await cleanupUploaded(uploadedPaths);
       return { ok: false, message: 'A photo ID and a live selfie are both required.' };
     }
 
@@ -118,10 +135,7 @@ export async function submitIdentityVerification(
       .select('*')
       .single();
     if (error || !data) {
-      for (const { bucket, path } of uploadedPaths) {
-        const { error: removeError } = await supabase.storage.from(bucket).remove([path]);
-        if (removeError) console.error('[IdentityVerification] orphan cleanup failed:', removeError.message);
-      }
+      await cleanupUploaded(uploadedPaths);
       return { ok: false, message: 'Could not submit your verification. Please try again.' };
     }
 

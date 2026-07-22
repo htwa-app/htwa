@@ -362,6 +362,10 @@ export default function OfferRideScreen(): React.ReactElement {
           onToChange={(v) => { setTo(v); setToCoords(null); }}
           onFromPlaceSelect={setFromCoords}
           onToPlaceSelect={setToCoords}
+          onSwap={() => {
+            setFrom(to); setTo(from);
+            setFromCoords(toCoords); setToCoords(fromCoords);
+          }}
           testID="route-input"
         />
       </View>

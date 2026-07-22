@@ -6,29 +6,29 @@ Things only you can do. Each entry says exactly what I need, how to get it, and 
 
 ## 1. Google Maps API key
 
-**🔴 URGENT UPDATE (20 Jul, overnight run):** the key that was working earlier tonight (confirmed live against the real Routes API) is now rejected by Google as invalid — tested three ways (Routes API, Geocoding API, with and without an iOS bundle-identifier header), all return `API_KEY_INVALID` / `REQUEST_DENIED`. This is not a code issue on my end. Likely causes, most to least likely:
-1. **The key may have been auto-revoked by Google.** Earlier this session I made a mistake and printed the key's full value in plaintext in the Claude Code transcript twice (already flagged to you in-session) — Google actively scans for exposed API keys in various places and can auto-disable them. If this is what happened, I'm sorry — it was avoidable and I should have stuck to length/prefix checks throughout, not just after the first slip.
-2. The key or its restrictions were changed manually in Google Cloud Console (by you, or anyone with access) since the last successful test.
-3. Billing or the Routes/Geocoding APIs got disabled on the project.
+**✅ RESOLVED (20 Jul, overnight run, corrected after initially being reported dead):** an earlier version of this key tested as dead (`API_KEY_INVALID` on Routes/Geocoding) after its value was accidentally printed in plaintext in the Claude Code transcript twice (a mistake, already flagged in-session) — Google's exposed-key scanning likely auto-revoked it. You then gave a replacement key. Re-tested live against `.env.local`'s current value:
+- **Routes API: working.** Real Belfast→Dublin query returned `distanceMeters: 168932, duration: 7184s`.
+- **Places API (New) autocomplete: working.** Real suggestions returned for a test query.
+- **Geocoding API: `REQUEST_DENIED` — not enabled on the project.** Not used anywhere in the app's code (only Routes + Places are), so this doesn't block anything. Worth enabling anyway for future-proofing but not urgent.
 
-**What to do:** open https://console.cloud.google.com → APIs & Services → Credentials → find the key → check if it still exists and is enabled. If it's gone/disabled, generate a new one (same steps as below), update `.env.local`'s `EXPO_PUBLIC_GOOGLE_MAPS_KEY` AND the EAS environment variable (`eas env:update production --variable-name EXPO_PUBLIC_GOOGLE_MAPS_KEY --value <new key>`, then repeat for `preview`/`development` or just re-run for all three). **Do not paste the key into chat** — edit `.env.local` directly yourself, same as last time.
+**Also confirmed:** EAS's stored `development` environment variable has the exact same value as `.env.local` (verified via matching SHA-256 checksums, without ever printing either raw key).
 
-**Impact tonight:** I built the Places autocomplete, real map views, and toll-pricing wiring (see PROGRESS.md) but could NOT live-verify any of it against the real Google API — all of it is code-complete and unit-tested with mocks, but needs a working key before you or beta testers will see real autocomplete suggestions, a real distance calculation, or real map tiles. Everything degrades gracefully to the existing "unavailable" states in the meantime — nothing crashes.
-
-**Original setup instructions below, for a fresh key if needed:**
+**Original setup instructions below, for a fresh key if this ever needs rotating again — deliberately avoids putting any key value on a command line (shell history / process listings can expose it) or in chat:**
 
 **I need:** a Google Maps API key with the Routes API and Places API (New) enabled.
 
 **Get it by:**
-1. Go to https://console.cloud.google.com and sign in (create the account with hello@htwa-app.com if you don't have one — it's free to start, Google gives $200/month free maps usage).
+1. Go to https://console.cloud.google.com and sign in (create the account with hello@htwa-app.com if you don't have one). **Note:** Google's old "$200/month free credit" promotion ended February 28, 2025 — current pricing is per-SKU free monthly billable events instead. Check https://developers.google.com/maps/billing-and-pricing/overview for what's actually free before assuming a budget cushion.
 2. Top bar → "Select a project" → **New Project** → name it `htwa` → Create.
 3. In the search bar type **Routes API** → open it → click **Enable**.
 4. Search **Places API (New)** → open it → click **Enable**.
 5. Search **Maps SDK for iOS** → **Enable**. Then search **Maps SDK for Android** → **Enable**.
 6. Left menu → **APIs & Services → Credentials** → **+ Create credentials → API key**.
-7. Copy the key that appears.
-8. Open 1Password → HTWA vault → **+ New Item → API Credential** → title it exactly `htwa google maps API key` → paste the key into the **credential/password** field → Save.
-9. Also open `~/Documents/HTWA/.env.local` in any text editor and add a line at the bottom: `EXPO_PUBLIC_GOOGLE_MAPS_KEY=` followed by the key (this one is a client-side key, so .env.local is the right place).
+7. **Before using the key anywhere**, restrict it: open the new key's settings → **Application restrictions** → set iOS apps restricted to bundle ID `com.htwa.app` (and the equivalent Android package + SHA-1 for the Android key, or a separate key per platform) → **API restrictions** → limit to only Routes API, Places API (New), and the two Maps SDKs enabled above. Also set a daily quota and a budget alert (Billing → Budgets & alerts) so a leaked or abused key can't run up an unbounded bill. Google explicitly recommends all of this: https://developers.google.com/maps/api-security-best-practices — an unrestricted client-side key is the actual risk, not a hypothetical one.
+8. Copy the key that appears.
+9. Open 1Password → HTWA vault → **+ New Item → API Credential** → title it exactly `htwa google maps API key` → paste the key into the **credential/password** field → Save.
+10. Also open `~/Documents/HTWA/.env.local` in any text editor and add a line at the bottom: `EXPO_PUBLIC_GOOGLE_MAPS_KEY=` followed by the key (this one is a client-side key, so .env.local is the right place).
+11. Update the EAS-stored copy through the **EAS dashboard** (expo.dev → project → Environment variables), not a command-line `--value` flag — that would put the raw key in shell history and process listings, which is exactly what CodeRabbit's review of this file flagged.
 
 **Unblocks:** real route distance/duration calculation (currently "distance unavailable" stub), live map on the Live Trip + tracking screens (currently coordinate/progress text), address autocomplete on journey posting/search.
 

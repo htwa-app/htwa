@@ -366,6 +366,18 @@ describe('IdVerifyScreen — submit', () => {
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/profile-setup'));
   });
 
+  it('a failed profile lookup does not read as "no profile" — defaults to /(tabs), not /profile-setup', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockProfilesMaybeSingle.mockResolvedValue({ data: null, error: { message: 'db down' } });
+    await completeAndSubmit();
+    // The submission itself already succeeded — this must not surface as a
+    // submission failure, and must not misroute based on the query error.
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/(tabs)'));
+    expect(mockReplace).not.toHaveBeenCalledWith('/profile-setup');
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('[IdVerify]'), 'db down');
+    errorSpy.mockRestore();
+  });
+
   it('shows the returned message and does not navigate when submission fails', async () => {
     mockSubmitIdentityVerification.mockResolvedValue({ ok: false, message: 'Could not upload your ID document. Please try again.' });
     await completeAndSubmit();

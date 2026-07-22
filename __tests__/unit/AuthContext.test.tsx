@@ -44,13 +44,15 @@ jest.mock('../../lib/supabase', () => ({
 
 /** Renders a component that exposes AuthContext values as testable text nodes. */
 function TestConsumer() {
-  const { user, session, isLoading, verificationStatus } = useAuth();
+  const { user, session, isLoading, verificationStatus, verificationLoadError, refreshVerification } = useAuth();
   return (
     <View>
       <Text testID="isLoading">{String(isLoading)}</Text>
       <Text testID="verificationStatus">{String(verificationStatus)}</Text>
+      <Text testID="verificationLoadError">{String(verificationLoadError)}</Text>
       <Text testID="hasSession">{String(session !== null)}</Text>
       <Text testID="hasUser">{String(user !== null)}</Text>
+      <Text testID="refresh" onPress={() => void refreshVerification()}>refresh</Text>
     </View>
   );
 }
@@ -226,6 +228,52 @@ describe('AuthProvider — session, approved', () => {
     await waitFor(() =>
       expect(screen.getByTestId('verificationStatus').props.children).toBe('rejected'),
     );
+  });
+});
+
+// ─── Verification fetch failure ──────────────────────────────────────────────
+
+describe('AuthProvider — verification status fetch fails', () => {
+  const fakeSession = { user: { id: 'user-err' } };
+
+  it('sets verificationLoadError instead of treating the failure as "never submitted"', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockGetSession.mockResolvedValue({ data: { session: fakeSession } });
+    mockMaybeSingle.mockResolvedValue({ data: null, error: { message: 'db down' } });
+    renderWithProvider();
+    await waitFor(() => expect(screen.getByTestId('verificationLoadError').props.children).toBe('true'));
+    // verificationStatus stays at its initial null, but the error flag is
+    // what consumers must check — they must not read this null as "confirmed
+    // never submitted" the way they would a genuinely successful empty fetch.
+    errorSpy.mockRestore();
+  });
+
+  it('a successful refetch after a failure clears the error and sets the real status', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockGetSession.mockResolvedValue({ data: { session: fakeSession } });
+    mockMaybeSingle.mockResolvedValueOnce({ data: null, error: { message: 'db down' } });
+    renderWithProvider();
+    await waitFor(() => expect(screen.getByTestId('verificationLoadError').props.children).toBe('true'));
+
+    mockMaybeSingle.mockResolvedValue({ data: { status: 'approved' }, error: null });
+    screen.getByTestId('refresh').props.onPress();
+    await waitFor(() => expect(screen.getByTestId('verificationLoadError').props.children).toBe('false'));
+    expect(screen.getByTestId('verificationStatus').props.children).toBe('approved');
+    errorSpy.mockRestore();
+  });
+
+  it('does not update verificationStatus on a failed fetch (preserves prior value)', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockGetSession.mockResolvedValue({ data: { session: fakeSession } });
+    mockMaybeSingle.mockResolvedValueOnce({ data: { status: 'approved' }, error: null });
+    renderWithProvider();
+    await waitFor(() => expect(screen.getByTestId('verificationStatus').props.children).toBe('approved'));
+
+    mockMaybeSingle.mockResolvedValue({ data: null, error: { message: 'db down' } });
+    screen.getByTestId('refresh').props.onPress();
+    await waitFor(() => expect(screen.getByTestId('verificationLoadError').props.children).toBe('true'));
+    expect(screen.getByTestId('verificationStatus').props.children).toBe('approved');
+    errorSpy.mockRestore();
   });
 });
 
