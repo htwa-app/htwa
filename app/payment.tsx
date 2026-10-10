@@ -21,6 +21,7 @@ import { formatCurrency } from '../utils/currency';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { applePayParams, googlePayParams } from '../utils/walletPay';
 
 // ─── Spec-local constant ──────────────────────────────────────────────────────
 
@@ -83,6 +84,10 @@ export default function PaymentScreen(): React.ReactElement {
         paymentIntentClientSecret: data.clientSecret,
         merchantDisplayName:       'htwa',
         allowsDelayedPaymentMethods: false,
+        // Wallets appear in the sheet only where the device/account supports
+        // them; card entry always works regardless.
+        applePay:  applePayParams(),
+        googlePay: googlePayParams(currency),
       });
       if (sheetErr) { setError(sheetErr.message); return; }
       setIsReady(true);

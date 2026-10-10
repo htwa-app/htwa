@@ -11,14 +11,18 @@ jest.mock('@expo/vector-icons', () => {
   const { View } = require('react-native');
   return { Ionicons: (p: { name: string }) => <View testID={`icon-${p.name}`} /> };
 });
+const mockInitSheet = jest.fn();
+const mockPresentSheet = jest.fn();
 jest.mock('@stripe/stripe-react-native', () => ({
-  useStripe: () => ({ initPaymentSheet: jest.fn(), presentPaymentSheet: jest.fn() }),
+  useStripe: () => ({ initPaymentSheet: mockInitSheet, presentPaymentSheet: mockPresentSheet }),
 }));
 
 const mockGetAccount = jest.fn();
 const mockStartConnect = jest.fn();
 const mockCreateSetupIntent = jest.fn();
+const mockGetUserCurrency = jest.fn();
 jest.mock('../../services/payments', () => ({
+  getUserCurrency: (...a: unknown[]) => mockGetUserCurrency(...a),
   getPaymentAccount: (...a: unknown[]) => mockGetAccount(...a),
   startConnectOnboarding: (...a: unknown[]) => mockStartConnect(...a),
   createSetupIntent: (...a: unknown[]) => mockCreateSetupIntent(...a),
@@ -33,6 +37,10 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockUseAuth.mockReturnValue({ user: { id: 'u1' } });
   mockGetAccount.mockResolvedValue({ connect_status: 'none', has_payment_method: false, payment_method_brand: null, payment_method_last4: null });
+  mockGetUserCurrency.mockResolvedValue('EUR');
+  mockCreateSetupIntent.mockResolvedValue({ ok: true, clientSecret: 'seti_secret' });
+  mockInitSheet.mockResolvedValue({ error: null });
+  mockPresentSheet.mockResolvedValue({ error: null });
 });
 
 describe('PaymentMethodsScreen', () => {
@@ -76,5 +84,30 @@ describe('PaymentMethodsScreen', () => {
     await waitFor(() => expect(screen.getByTestId('add-card')).toBeTruthy());
     fireEvent.press(screen.getByTestId('add-card'));
     await waitFor(() => expect(screen.getByTestId('payment-note')).toHaveTextContent(/isn.t available yet/));
+  });
+});
+
+describe('PaymentMethodsScreen — Apple Pay / Google Pay on card setup', () => {
+  async function tapAddCard() {
+    render(<PaymentMethodsScreen />);
+    await waitFor(() => expect(screen.getByTestId('add-card')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('add-card'));
+    await waitFor(() => expect(mockInitSheet).toHaveBeenCalled());
+    return mockInitSheet.mock.calls[0][0];
+  }
+
+  it('passes applePay and googlePay (user currency) to initPaymentSheet', async () => {
+    const opts = await tapAddCard();
+    expect(opts.setupIntentClientSecret).toBe('seti_secret');
+    expect(opts.applePay).toEqual({ merchantCountryCode: 'IE' });
+    expect(opts.googlePay).toEqual({ merchantCountryCode: 'IE', currencyCode: 'EUR', testEnv: true });
+  });
+
+  it('omits Google Pay (not card entry or Apple Pay) when the currency lookup fails', async () => {
+    mockGetUserCurrency.mockResolvedValue(null);
+    const opts = await tapAddCard();
+    expect(opts.googlePay).toBeUndefined();
+    expect(opts.applePay).toEqual({ merchantCountryCode: 'IE' });
+    expect(opts.setupIntentClientSecret).toBe('seti_secret');
   });
 });

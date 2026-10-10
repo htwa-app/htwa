@@ -22,8 +22,10 @@ import {
   getPaymentAccount,
   startConnectOnboarding,
   createSetupIntent,
+  getUserCurrency,
   type PaymentAccount,
 } from '../services/payments';
+import { applePayParams, googlePayParams } from '../utils/walletPay';
 import type { ConnectStatus } from '../types/database';
 
 const CONNECT_LABEL: Record<ConnectStatus, { label: string; color: string }> = {
@@ -87,9 +89,14 @@ export default function PaymentMethodsScreen(): React.ReactElement {
         setNote('Card setup isn’t available yet — we’ll email you when it opens.');
         return;
       }
+      // Google Pay needs a currency for a SetupIntent; if the lookup fails we
+      // just omit Google Pay (card entry + Apple Pay are unaffected).
+      const currency = await getUserCurrency(user.id);
       const init = await initPaymentSheet({
         merchantDisplayName: 'htwa',
         setupIntentClientSecret: intent.clientSecret,
+        applePay: applePayParams(),
+        ...(currency ? { googlePay: googlePayParams(currency) } : {}),
       });
       if (init.error) { setNote('Could not start card setup. Please try again.'); return; }
       const { error } = await presentPaymentSheet();

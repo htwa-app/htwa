@@ -19,7 +19,7 @@
  */
 
 import { supabase } from '../lib/supabase';
-import type { PaymentAccountRow } from '../types/database';
+import type { Currency, PaymentAccountRow } from '../types/database';
 
 export type PaymentAccount = Pick<
   PaymentAccountRow,
@@ -46,6 +46,30 @@ export async function getPaymentAccount(userId: string): Promise<PaymentAccount>
     .maybeSingle();
   if (error) throw new Error(error.message);
   return data ?? DEFAULT_ACCOUNT;
+}
+
+/**
+ * The user's account currency (users.currency), used to configure Google Pay
+ * for a SetupIntent (which has no amount/currency of its own). Returns null on
+ * ANY failure or missing row — callers then simply omit Google Pay rather than
+ * guess a currency; card entry is unaffected.
+ */
+export async function getUserCurrency(userId: string): Promise<Currency | null> {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('currency')
+      .eq('id', userId)
+      .maybeSingle();
+    if (error) {
+      console.error('[Payments] currency lookup failed:', error.message);
+      return null;
+    }
+    return data?.currency ?? null;
+  } catch (e) {
+    console.error('[Payments] currency lookup threw:', e instanceof Error ? e.message : e);
+    return null;
+  }
 }
 
 export type SetupResult =
