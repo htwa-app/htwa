@@ -77,6 +77,11 @@ module.exports = {
         '@stripe/stripe-react-native',
         {
           merchantIdentifier: 'merchant.com.htwa',
+          // The plugin DEFAULTS this to false and then removes the
+          // com.google.android.gms.wallet.api.enabled manifest flag, which would
+          // silently disable Google Pay on Android no matter what the JS passes
+          // to initPaymentSheet (utils/walletPay.ts).
+          enableGooglePay: true,
         },
       ],
       '@react-native-community/datetimepicker',
