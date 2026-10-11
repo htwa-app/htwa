@@ -11,7 +11,7 @@ const BRAND_TAGLINE = 'heading that way anyway.';
 
 export default function SplashScreen() {
   const router = useRouter();
-  const { session, isLoading, verificationStatus, verificationLoadError, refreshVerification } = useAuth();
+  const { session, isLoading, verificationStatus, verificationLoadError, accountSetupNeeded, refreshVerification } = useAuth();
 
   useEffect(() => {
     // Stay on splash while the auth check is in flight
@@ -25,6 +25,9 @@ export default function SplashScreen() {
       // here with a retry rather than routing an already-verified user
       // back through /id-verify on a transient network blip.
       return;
+    } else if (accountSetupNeeded) {
+      // Signed in with Apple/Google but never finished creating the account row.
+      router.replace('/complete-account');
     } else if (verificationStatus === null) {
       // Logged in but never submitted identity verification — go to id-verify.
       // Once submitted (pending/approved/rejected all count), browsing is
@@ -33,7 +36,7 @@ export default function SplashScreen() {
     } else {
       router.replace('/(tabs)');
     }
-  }, [isLoading, session, verificationStatus, verificationLoadError, router]);
+  }, [isLoading, session, verificationStatus, verificationLoadError, accountSetupNeeded, router]);
 
   return (
     <View style={styles.container}>

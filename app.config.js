@@ -17,6 +17,19 @@
 const googleMapsKey =
   process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY ?? process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 
+// Google Sign-In (native, @react-native-google-signin/google-signin): the iOS
+// client ID's reversed form must be registered as a URL scheme in Info.plist.
+// The library's config plugin THROWS at config time if given no scheme, so the
+// plugin is only added when EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID is set; without it
+// Google sign-in is simply unavailable (the login button shows "not available
+// yet") and everything else builds as normal.
+const GOOGLE_CLIENT_ID_SUFFIX = '.apps.googleusercontent.com';
+const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+const googleIosUrlScheme =
+  googleIosClientId && googleIosClientId.endsWith(GOOGLE_CLIENT_ID_SUFFIX)
+    ? `com.googleusercontent.apps.${googleIosClientId.slice(0, -GOOGLE_CLIENT_ID_SUFFIX.length)}`
+    : null;
+
 module.exports = {
   expo: {
     name: 'htwa',
@@ -35,6 +48,8 @@ module.exports = {
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.htwa.app',
+      // Adds the com.apple.developer.applesignin entitlement (Sign in with Apple).
+      usesAppleSignIn: true,
       entitlements: {
         'aps-environment': 'development',
       },
@@ -85,6 +100,11 @@ module.exports = {
         },
       ],
       '@react-native-community/datetimepicker',
+      // Native Sign in with Apple (supabase.auth.signInWithIdToken — not the web flow).
+      'expo-apple-authentication',
+      ...(googleIosUrlScheme
+        ? [['@react-native-google-signin/google-signin', { iosUrlScheme: googleIosUrlScheme }]]
+        : []),
       // Required so iOS actually grants (rather than hard-crashing on) camera/
       // photo-library access — expo-image-picker was in use (selfie, photo ID,
       // driver photos, profile photo) without ever being registered here, so

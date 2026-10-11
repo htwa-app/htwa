@@ -1,21 +1,88 @@
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontFamily, Typography, Spacing, Radius } from '../constants/theme';
+import {
+  getDestinationAfterSocialSignIn,
+  getSocialAvailability,
+  signInWithApple,
+  signInWithGoogle,
+  type SocialAvailability,
+  type SocialProvider,
+} from '../services/socialAuth';
+
+// "Not available" copy per provider. A provider is never silently re-routed to
+// the email signup — the button says plainly why it can't be used.
+const UNAVAILABLE_COPY: Record<SocialProvider, string> = {
+  apple: "Sign in with Apple isn't available on this device.",
+  google: "Google sign-in isn't available yet.",
+};
+const PROVIDER_DISABLED_COPY: Record<SocialProvider, string> = {
+  apple: "Sign in with Apple isn't available yet.",
+  google: "Google sign-in isn't available yet.",
+};
+const ACCOUNT_LOOKUP_ERROR = "You're signed in, but we couldn't load your account. Please try again.";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function LoginScreen() {
   const router = useRouter();
 
+  // null while the availability check is in flight (buttons stay usable — the
+  // sign-in functions re-check themselves and report 'unavailable').
+  const [availability, setAvailability] = useState<Record<SocialProvider, SocialAvailability> | null>(null);
+  // Providers Supabase reported as not enabled yet (discovered on first tap).
+  const [providerDisabled, setProviderDisabled] = useState<Record<SocialProvider, boolean>>({ apple: false, google: false });
+  const [busy, setBusy] = useState<SocialProvider | null>(null);
+  const [socialError, setSocialError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getSocialAvailability().then((a) => { if (!cancelled) setAvailability(a); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const unavailableCopy = (p: SocialProvider): string | null => {
+    if (providerDisabled[p]) return PROVIDER_DISABLED_COPY[p];
+    if (availability && !availability[p].available) return UNAVAILABLE_COPY[p];
+    return null;
+  };
+
   // ── Handlers ─────────────────────────────────────────────────────────────
-  // This screen's primary purpose is sign-up for new users — all three
-  // buttons route to /signup until Phase 15 provider flows are built.
-  // Intermediate signin-* screens are no longer needed — removing the extra hop.
-  // TODO Phase 15: implement Apple Sign-In via supabase.auth.signInWithOAuth({ provider: 'apple' })
-  const handleApple  = () => router.push('/signup');
-  // TODO Phase 15: implement Google Sign-In via supabase.auth.signInWithOAuth({ provider: 'google' })
-  const handleGoogle = () => router.push('/signup');
+  // Native Apple/Google sign-in → supabase.auth.signInWithIdToken (services/socialAuth).
+  const handleSocial = async (provider: SocialProvider) => {
+    if (busy || unavailableCopy(provider)) return;
+    setSocialError(null);
+    setBusy(provider);
+    try {
+      const result = provider === 'apple' ? await signInWithApple() : await signInWithGoogle();
+      switch (result.status) {
+        case 'cancelled':
+          return; // user backed out — nothing to show
+        case 'unavailable':
+          if (result.reason === 'provider_disabled') setProviderDisabled((prev) => ({ ...prev, [provider]: true }));
+          else setAvailability((prev) => prev && { ...prev, [provider]: { available: false, reason: result.reason } });
+          return;
+        case 'error':
+          setSocialError(result.message);
+          return;
+        case 'ok': {
+          const next = await getDestinationAfterSocialSignIn(result.userId);
+          if (!next.ok) { setSocialError(ACCOUNT_LOOKUP_ERROR); return; }
+          if (next.destination === '/complete-account') {
+            router.replace({ pathname: '/complete-account', params: { name: result.displayName ?? '' } });
+          } else {
+            router.replace(next.destination);
+          }
+        }
+      }
+    } finally {
+      setBusy(null);
+    }
+  };
+  const handleApple  = () => void handleSocial('apple');
+  const handleGoogle = () => void handleSocial('google');
   const handleEmail  = () => router.push('/signup');
   // Returning users get a dedicated escape hatch below, not a button up here —
   // login-email.tsx is email-only sign-in for an existing account (shouldCreateUser: false).
@@ -66,27 +133,43 @@ export default function LoginScreen() {
 
         {/* Sign up with Apple */}
         <TouchableOpacity
-          style={[styles.button, styles.buttonApple]}
+          style={[styles.button, styles.buttonApple, !!unavailableCopy('apple') && styles.buttonUnavailable]}
           onPress={handleApple}
+          disabled={!!busy || !!unavailableCopy('apple')}
           activeOpacity={0.85}
           accessibilityRole="button"
           accessibilityLabel="Sign up with Apple"
+          accessibilityState={{ disabled: !!busy || !!unavailableCopy('apple') }}
+          testID="apple-button"
         >
-          <Ionicons name="logo-apple" size={20} color={Colors.surface} style={styles.buttonIcon} />
+          {busy === 'apple'
+            ? <ActivityIndicator color={Colors.surface} style={styles.buttonIcon} />
+            : <Ionicons name="logo-apple" size={20} color={Colors.surface} style={styles.buttonIcon} />}
           <Text style={[styles.buttonText, styles.buttonTextLight]}>Sign up with Apple</Text>
         </TouchableOpacity>
+        {unavailableCopy('apple') && (
+          <Text style={styles.unavailableText} testID="apple-unavailable">{unavailableCopy('apple')}</Text>
+        )}
 
         {/* Sign up with Google */}
         <TouchableOpacity
-          style={[styles.button, styles.buttonGoogle]}
+          style={[styles.button, styles.buttonGoogle, !!unavailableCopy('google') && styles.buttonUnavailable]}
           onPress={handleGoogle}
+          disabled={!!busy || !!unavailableCopy('google')}
           activeOpacity={0.85}
           accessibilityRole="button"
           accessibilityLabel="Sign up with Google"
+          accessibilityState={{ disabled: !!busy || !!unavailableCopy('google') }}
+          testID="google-button"
         >
-          <Ionicons name="logo-google" size={18} color={Colors.textPrimary} style={styles.buttonIcon} />
+          {busy === 'google'
+            ? <ActivityIndicator color={Colors.textPrimary} style={styles.buttonIcon} />
+            : <Ionicons name="logo-google" size={18} color={Colors.textPrimary} style={styles.buttonIcon} />}
           <Text style={[styles.buttonText, styles.buttonTextDark]}>Sign up with Google</Text>
         </TouchableOpacity>
+        {unavailableCopy('google') && (
+          <Text style={styles.unavailableText} testID="google-unavailable">{unavailableCopy('google')}</Text>
+        )}
 
         {/* Sign up with email */}
         <TouchableOpacity
@@ -99,6 +182,8 @@ export default function LoginScreen() {
           <Ionicons name="mail-outline" size={18} color={Colors.primary} style={styles.buttonIcon} />
           <Text style={[styles.buttonText, styles.buttonTextTeal]}>Sign up with email</Text>
         </TouchableOpacity>
+
+        {socialError && <Text style={styles.socialError} testID="social-error">{socialError}</Text>}
 
       </View>
 
@@ -244,6 +329,22 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   // Email — teal tint background, teal text
+  // Provider can't be used right now (no credentials yet / unsupported device):
+  // visibly greyed out, with the reason printed directly underneath.
+  buttonUnavailable: {
+    opacity: 0.45,
+  },
+  unavailableText: {
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginTop: -Spacing.xs,
+  },
+  socialError: {
+    ...Typography.bodySmall,
+    color: Colors.sos,
+    textAlign: 'center',
+  },
   buttonEmail: {
     backgroundColor: Colors.primaryLight,
   },

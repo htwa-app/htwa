@@ -148,6 +148,31 @@ describe('SplashScreen — auth routing', () => {
   });
 });
 
+// ─── Signed in without an account row (social sign-in not finished) ──────────
+
+describe('SplashScreen — accountSetupNeeded', () => {
+  it('routes to /complete-account BEFORE ID verification', async () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u1' }, session: { user: { id: 'u1' } }, isLoading: false,
+      verificationStatus: null, verificationLoadError: false, accountSetupNeeded: true,
+      refreshVerification: mockRefreshVerification,
+    });
+    render(<SplashScreen />);
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/complete-account'));
+    expect(mockReplace).not.toHaveBeenCalledWith('/id-verify');
+  });
+
+  it('a normal never-verified user (account row exists) still goes to /id-verify', async () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u1' }, session: { user: { id: 'u1' } }, isLoading: false,
+      verificationStatus: null, verificationLoadError: false, accountSetupNeeded: false,
+      refreshVerification: mockRefreshVerification,
+    });
+    render(<SplashScreen />);
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/id-verify'));
+  });
+});
+
 // ─── Verification load error — must not misroute (PR #33 finding) ────────────
 
 describe('SplashScreen — verification status fetch failed', () => {
