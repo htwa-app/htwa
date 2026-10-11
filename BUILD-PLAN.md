@@ -144,9 +144,9 @@
 
 ✅ **Stage 44** — Payment confirmation (`app/payment-confirmation.tsx`) — receipt: ride cost, platform fee, total.
 
-✅ **Stage 45** — Refunds — **built, deployed and verified** (corrected 23 Oct 2026: this stage previously said the Stripe call was deferred; that stopped being true when the booking→PaymentIntent link and the `create-refund` Edge Function landed). `services/bookings.ts` — `cancelRideAsDriver` (full refund all), `cancelBookingAsPassenger` (full refund >24h via `isFullRefundEligible`, none ≤24h), `declineBooking`, seat restoration; each refund runs through the deployed `create-refund` Edge Function (full refund + transfer reversal + application-fee refund; `driver_mismatch` flags the driver; an already-refunded charge is an idempotent success). Verified live in Stripe test mode through the Edge Function (23 Oct): full refund, repeat call = idempotent (still exactly one refund), bad token rejected.
+✅ **Stage 45** — Refunds — **built, deployed and verified** (corrected 11 Oct 2026: this stage previously said the Stripe call was deferred; that stopped being true when the booking→PaymentIntent link and the `create-refund` Edge Function landed). `services/bookings.ts` — `cancelRideAsDriver` (full refund all), `cancelBookingAsPassenger` (full refund >24h via `isFullRefundEligible`, none ≤24h), `declineBooking`, seat restoration; each refund runs through the deployed `create-refund` Edge Function (full refund + transfer reversal + application-fee refund; `driver_mismatch` flags the driver; an already-refunded charge is an idempotent success). Verified live in Stripe test mode through the Edge Function (11 Oct): full refund, repeat call = idempotent (still exactly one refund), bad token rejected.
 
-✅ **Stage 46** — Transaction history (`app/transaction-history.tsx`) — payments/payouts/refunds list, named status colours. Updated 23 Oct: a failed `get-transactions` call is now an error state with retry (it used to render "No transactions yet"); a `partial` response warns the list may be incomplete; the function now returns **driver payouts** (found via `bookings.payment_intent_id`) as well as passenger payments/refunds. Verified live in test mode for both views.
+✅ **Stage 46** — Transaction history (`app/transaction-history.tsx`) — payments/payouts/refunds list, named status colours. Updated 11 Oct: a failed `get-transactions` call is now an error state with retry (it used to render "No transactions yet"); a `partial` response warns the list may be incomplete; the function now returns **driver payouts** (found via `bookings.payment_intent_id`) as well as passenger payments/refunds. Verified live in test mode for both views.
 
 ---
 
@@ -281,7 +281,7 @@
 
 ---
 
-## PHASE 17 — PAYMENT WALLETS, SOCIAL SIGN-IN & CONTACT NOTICE (added 23 Oct 2026)
+## PHASE 17 — PAYMENT WALLETS, SOCIAL SIGN-IN & CONTACT NOTICE (added 11 Oct 2026)
 *Code is complete on branch `feat/payments-auth`; the account/credential steps are Jordan's (see BLOCKERS-FOR-JORDAN.md items 10–12).*
 
 ✅ **Stage 89** — Apple Pay + Google Pay in the Stripe PaymentSheet — `applePay` / `googlePay` options (verified present on `InitPaymentSheetParams` in `@stripe/stripe-react-native` 0.68.0) passed to **both** `initPaymentSheet` calls (`app/payment.tsx`, `app/payment-methods.tsx`) via `utils/walletPay.ts` (merchant country `IE`; Google Pay `testEnv` in dev or with a `pk_test_` key; currency from the booking, or `users.currency` for a SetupIntent). `app.config.js` now sets the Stripe plugin's `enableGooglePay: true` — the plugin defaults it to `false` and strips the Android wallet manifest flag, which would silently disable Google Pay whatever the JS passes. Card entry is unchanged. ⏳ *Apple Pay needs the merchant ID registered + the capability on the App ID + the Stripe↔Apple certificate (Jordan); both wallets need a real device — neither shows on a simulator/emulator.*

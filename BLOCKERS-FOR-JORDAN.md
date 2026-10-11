@@ -235,7 +235,7 @@ Both are public client IDs, not secrets (the Web client **secret** lives only in
 
 ---
 
-## 13. 🔴 Decision needed — a driver is currently paid MORE than their cost share (found in live test mode, 23 Oct)
+## 13. 🔴 Decision needed — a driver is currently paid MORE than their cost share (found in live test mode, 11 Oct)
 
 I ran a real test-mode payment end to end and the numbers don't match the fixed pricing model in CLAUDE.md §12:
 - Driver cost share **€10.00** → passenger pays **€13.00** (10.00 + 10% service charge 1.00 + booking fee 2.00) ✅ correct.
