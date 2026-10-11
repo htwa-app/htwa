@@ -4,6 +4,72 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 11 October 2026 (later) — Apple Developer / App Store Connect wiring (`feat/payments-auth`)
+
+Config-only session. **Nothing merged to `main`; no build, no `eas credentials`, no submit run** (all three are Jordan's, in a real Terminal). The `.p8` key was used only to sign a short-lived JWT for one read-only API call; its contents were never printed, and it is gitignored (`*.p8`) with zero tracked `.p8` files.
+
+**What changed**
+- `eas.json` — `submit.production.ios` now ACTIVE: `ascApiKeyPath ./AuthKey_6T67T29GN6.p8`, `ascApiKeyId 6T67T29GN6`, `ascApiKeyIssuerId`, `appleTeamId JVLD5VV38N`, `ascAppId 6821643355` (found via read-only `GET /v1/apps?filter[bundleId]=com.htwa.app` → app "htwa", sku `htwa-ios-001`). Android submit block untouched.
+- `app.config.js` — (1) added the `expo-location` plugin with a specific purpose string (the built Info.plist previously had Expo's generic "Allow htwa to access your location", a likely App Review rejection); foreground-only, no background modes. (2) `aps-environment` is now `production` when `EAS_BUILD_PROFILE === 'production'`, else `development` (verified with `expo config --type prebuild`: production → `production`; dev → `development`).
+- `BLOCKERS-FOR-JORDAN.md` — 4b marked DONE; ordered TestFlight steps added (Supabase Apple provider → Apple Pay on App ID → `npx eas-cli credentials --platform ios` [production, EAS-managed cert + profile, push key] → production env vars → `eas build` → `eas submit --latest` → TestFlight); item 10 given a status line.
+- `PROGRESS.md` — this entry.
+
+**Verified:** bundleIdentifier `com.htwa.app`, `usesAppleSignIn`, merchant `merchant.com.htwa` (also in generated entitlements), `ITSAppUsesNonExemptEncryption: false`, camera + photo-library strings all already correct. No `ios.buildNumber` in config, consistent with `appVersionSource: remote` + `autoIncrement` (first build gets 1). `tsc` 0 errors; `eas.json` parses.
+
+**Found, not changed:** Supabase Apple auth provider is still **disabled** (and Google too) — Sign in with Apple will fail until enabled (BLOCKERS 4b step 1 / 10-D). `services/location.ts` is unreferenced by any screen (only `services/tracking.ts` is live).
+
+**Files modified:** `eas.json`, `app.config.js`, `BLOCKERS-FOR-JORDAN.md`, `PROGRESS.md`. Scratch (outside repo): `scratchpad/asc_lookup.js`.
+
+---
+
+## 11 October 2026 — Payment wallets, transaction history, payment handoff, native Apple/Google sign-in, Article 14 contact notice (`feat/payments-auth`)
+
+Branch `feat/payments-auth` (off `feat/full-sweep`), draft PR against `feat/full-sweep`. **Nothing merged to `main`. CodeRabbit NOT triggered** (config only auto-reviews PRs into `main`, and the PR is a draft). tsc `--noEmit`: **0 errors**. Jest: **92 suites / 1343 tests passing** (also on the throwaway integration branch).
+
+**Before anything else:** the Supabase project was **paused (`INACTIVE`)** from inactivity — every DB call timed out. I restored it (Management API `restore`); it will pause again if left idle (BLOCKERS item 14: go Pro before beta).
+
+### What was done
+1. **Apple Pay / Google Pay** — `applePay` + `googlePay` options added to both `initPaymentSheet` calls via `utils/walletPay.ts`. `@stripe/stripe-react-native` **0.68.0**; both options confirmed on `InitPaymentSheetParams` in that version's `PaymentSheet.ts` before use. Merchant ID `merchant.com.htwa` already in `app.config.js`; merchant country `IE`; Google Pay `testEnv` on in dev / with a `pk_test_` key; currency from the booking (or `users.currency` for a SetupIntent — Google Pay is simply omitted if that lookup fails). **Found + fixed:** the Stripe config plugin **defaults `enableGooglePay` to `false`** and strips the Android wallet manifest flag, so Google Pay could never have appeared — now `true`. Introspected the resolved config: Apple Pay entitlement and the Android flag are both present. Card entry unchanged (tests). *Not testable until Apple setup is done / on a real device — BLOCKERS item 10.*
+2. **Transaction history** — a failed call (function error, non-2xx, malformed body, throw) is now an **error state with retry**, never "No transactions yet"; `partial` responses warn the list may be incomplete. **Server:** `get-transactions` only ever returned passenger payments (the UI's "payout" type was never produced) — it now also returns **driver payouts** (via `bookings.payment_intent_id`, amount = charge − application fee, fully-refunded charges skipped) and a `partial` flag; a failed main lookup is a 502, not a 200 with `[]`. **Verified live in Stripe test mode, 15/15:** real payment, passenger view, driver view, payout amount, full refund (payout disappears, refund appears), bad token 401, other-user `userId` 403.
+3. **Booking → payment handoff** — see the trace below. Fixed two real gaps: tapping a booking notification now opens the right screen (`hooks/useNotificationNavigation.ts`), and `create-payment-intent` can no longer create a second charge for an already-paid booking (**verified live**: reuse before paying, `alreadyPaid` after; `payment.tsx` shows a receipt link).
+4. **Sign in with Apple + Google (native, `signInWithIdToken`)** — `expo-apple-authentication` **8.0.8** (SHA-256 nonce: hashed to Apple, raw to Supabase), `expo-crypto` **15.0.9**, `@react-native-google-signin/google-signin` **16.1.5**; APIs verified in each package's type declarations. `services/socialAuth.ts` + real handlers in `login.tsx`. Missing Google client IDs / non-iOS Apple / Supabase provider not enabled ⇒ the button is greyed with "not available yet" text — **never** routed to /signup. Cancel is quiet. New `app/complete-account.tsx` (a first social sign-in has no `public.users` row, so it collects name/phone/home location/gender and writes it) + `AuthContext.accountSetupNeeded` + `SplashScreen` so an abandoned sign-up resumes there; everyone still goes through ID verification. Config plugins added (`expo-apple-authentication` + `usesAppleSignIn`; the Google plugin only when `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` is set — it throws without a URL scheme). Deleted `signin-mobile.tsx`, `signin-apple.tsx`, `signin-google.tsx` (referenced nowhere).
+5. **Docs** — BUILD-PLAN Stage 45 corrected (refunds built + verified; re-verified live through the Edge Function: full refund, idempotent repeat, bad token rejected), Stage 46 updated, Stages 89–92 added. BLOCKERS items 10–16 (Apple/Apple Pay steps, Google OAuth steps, env var names, plus the findings below). ADVISER-BRIEFING: new item 14 (destination charges), item 10 updated.
+6. **Article 14 first-contact notice** — first SMS ever sent to a number carries a short layered notice (after the alert; separate follow-up if it won't fit, so the alert is never truncated) with the privacy link + opt-out (hello@htwa-app.com — no "reply STOP" promise, nothing handles inbound SMS). Tracked in new service-role-only `contact_notices` (SHA-256 of the number; RLS on, no policies). Migration applied, function deployed, **table access/RLS verified live**. **Not verified end to end:** actual SMS sending (no `TWILIO_FROM_NUMBER`). `htwa-app.com/privacy` was a **404** (no page existed) — generated `website/privacy/index.html` from the policy (sync test; noindex; ADVISER NOTE comments stripped) — publishes the draft policy on merge (BLOCKERS item 15).
+7. **Builds** — local-only throwaway branch `test/payments-auth-integration` = `feat/payments-auth` + all six stack branches (#29–#34; 01–03 and 06 were already ancestors; 04 and 05 carry their own copies of the PR fixes under different SHAs, so they were merged — one test-file conflict on 04 and five on 05, all resolved by taking the `feat/payments-auth` side, and the merges added **no net change**: `git diff feat/payments-auth HEAD` is empty). Never pushed. tsc 0 errors, Jest 92/92 suites, 1343/1343 tests on it. Fresh EAS `development` builds (new native modules ⇒ new dev client): **iOS Simulator** https://expo.dev/accounts/htwa-app/projects/htwa/builds/02f16130-1937-422a-a0f1-f2fd4b8b9a4a — download https://expo.dev/artifacts/eas/b-Z6V0e1KUj0G39BEKs70M2O-xZ-qCM-nbMTHdfidKw.tar.gz ; **Android APK** https://expo.dev/accounts/htwa-app/projects/htwa/builds/6df8b4d7-142c-43e6-b063-f4633b09f170 — download https://expo.dev/artifacts/eas/2x3nKXUy7MCREpv3Xc-_Xhd_FgZT1VDsjNvFKZyX42o.apk . Both FINISHED.
+
+### Payment handoff trace (item 3)
+- The **only** route into `/payment` is the **Pay button** on the ride detail (`app/ride/[id].tsx`), shown when the passenger's booking is `confirmed`. The passenger reaches it via History tab → trip card → ride detail (the History query includes pending/confirmed bookings). `booking-success.tsx` / `my-rides.tsx` / chat never route into payment.
+- So after a driver accepts it **is** reachable — but nothing told the passenger. The accept notification carried `rideId`/`bookingId` and **no tap handler existed anywhere**. Fixed (notification tap → `/ride/[id]`; booking_request → driver's `/booking-requests/[rideId]`).
+- A confirmed booking showed **Pay forever** (no paid state; `bookings` has no payment status and there's no Stripe webhook). Stripe idempotency keys expire after 24h, so a later revisit could have created a second PaymentIntent. Fixed server-side (above).
+
+### Findings I did NOT change (need Jordan — BLOCKERS item 13)
+- 🔴 **Driver payout exceeds cost share.** Live test: €10 seat → passenger pays €13 → `application_fee_amount` is 10% of the *total* (€1.30) → driver receives **€11.70 (€1.70 over cost)**; htwa keeps €1.30 not €3.00. Contradicts the fixed pricing model / "drivers never profit". Receipts (`payment.tsx`, `payment-confirmation.tsx`) also show "Platform fee (10%)" and a derived "Journey cost" that isn't the cost share. Left alone because the brief said not to change the charge model; fix proposed in BLOCKERS 13.
+- The seeded demo rides are all in July → search shows nothing bookable (BLOCKERS 16).
+
+### Correction to my earlier report
+In the **PR #33 triage comment** I said `app/login.tsx`'s Apple/Google buttons were re-routed through the `/signin-*` placeholder screens. **That edit was never made** (the file wasn't in that commit). It's moot now — this branch replaces those handlers with the real flows and deletes the stubs — but the PR #33 comment overstated what was fixed.
+
+### Live-test side effects (all test mode / cleaned up)
+Real Stripe **test-mode** objects were created (a PaymentIntent + refund per run; `pm_card_visa` test card, no real money; they can't be deleted from Stripe, harmless). Throwaway `rides`/`bookings` rows for the *Test Driver*/*Test Passenger* accounts were inserted in one transaction with triggers bypassed for that transaction only (the Test Driver isn't identity-approved, so `enforce_driver_verified` would reject the ride; ride status `cancelled` so it never appears in search) and **deleted afterwards** (verified: 0 bookings). Sessions for those two test accounts were minted via the admin API. Migrations applied to the live DB: `20260723000001_contact_notices.sql`. Edge Functions redeployed: `get-transactions`, `create-payment-intent`, `send-tracking-alert`. (The migration's file date says 23 Jul — I mis-dated it; it sorts correctly after the previous migrations.)
+
+### What could go wrong / what Jordan should verify
+- **Nothing here was run on a device.** Apple Pay/Google Pay, Sign in with Apple/Google, push-tap routing and the `complete-account` screen are covered by mocked-module tests only. Please walk: login → each social button (expect "not available yet" for Google until step 11; Apple fails/"not available" until step 10D) → email signup still works → payment sheet still shows card entry.
+- `AuthContext` now makes one extra query (`users` row) **only** for people with no verification row. If that ever errors, the splash screen shows the retry state rather than routing — worth a sanity check on a flaky connection.
+- The notice SMS has never actually been sent (no Twilio number). The logic is unit-tested and the DB side verified live; the first real send is the real test. Check the message reads sensibly in the SMS and the link resolves (needs the privacy page deployed).
+- `create-payment-intent` now reuses an existing unpaid PaymentIntent. If a price changes mid-flow it creates a replacement under a new idempotency key — exercised only in unit-level reasoning, not live (live covered: reuse, alreadyPaid).
+- Google sign-in needs "Skip nonce checks" ON in Supabase (library limitation) — documented in BLOCKERS 11.
+- The Google Pay `merchantCountryCode` is `IE`; confirm that matches the country of the Stripe account.
+- `package.json`/lockfile gained three dependencies (native modules ⇒ the fresh dev client).
+
+### Files created
+`app/complete-account.tsx`, `hooks/useNotificationNavigation.ts`, `services/socialAuth.ts`, `utils/notificationRouting.ts`, `utils/walletPay.ts`, `scripts/build-privacy-page.js`, `supabase/functions/_shared/contactNotice.ts`, `supabase/migrations/20260723000001_contact_notices.sql`, `website/privacy/index.html`, tests: `__tests__/unit/{CompleteAccountScreen,contactNotice,notificationRouting,privacyPage,socialAuth,walletPay}.test.ts(x)`, `__tests__/unit/useNotificationNavigation.test.tsx`.
+### Files modified
+`app.config.js`, `app/(tabs)/_layout.tsx`, `app/login.tsx`, `app/payment-methods.tsx`, `app/payment.tsx`, `app/screens/SplashScreen.tsx`, `app/transaction-history.tsx`, `context/AuthContext.tsx`, `services/payments.ts`, `utils/validators.ts`, `supabase/functions/{create-payment-intent,get-transactions,send-tracking-alert}/index.ts`, `__mocks__/expo-notifications.js`, `package.json`, `package-lock.json`, `BLOCKERS-FOR-JORDAN.md`, `BUILD-PLAN.md`, `legal/ADVISER-BRIEFING.md`, `PROGRESS.md`; tests: `AuthContext`, `LoginScreen`, `PaymentMethodsScreen`, `PaymentScreen`, `SplashScreen`, `TabLayout`, `TransactionHistoryScreen`, `payments`, `validators`.
+### Files deleted
+`app/signin-apple.tsx`, `app/signin-google.tsx`, `app/signin-mobile.tsx`.
+
+---
+
 ## 22 July 2026 — Overnight run: legal fixes, PR #32 triaged, Edge Functions deployed, push notifications wired, fresh test builds
 
 **Top-of-file summary for Jordan:**

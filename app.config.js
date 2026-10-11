@@ -17,6 +17,25 @@
 const googleMapsKey =
   process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY ?? process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 
+// Google Sign-In (native, @react-native-google-signin/google-signin): the iOS
+// client ID's reversed form must be registered as a URL scheme in Info.plist.
+// The library's config plugin THROWS at config time if given no scheme, so the
+// plugin is only added when EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID is set; without it
+// Google sign-in is simply unavailable (the login button shows "not available
+// yet") and everything else builds as normal.
+const GOOGLE_CLIENT_ID_SUFFIX = '.apps.googleusercontent.com';
+const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+const googleIosUrlScheme =
+  googleIosClientId && googleIosClientId.endsWith(GOOGLE_CLIENT_ID_SUFFIX)
+    ? `com.googleusercontent.apps.${googleIosClientId.slice(0, -GOOGLE_CLIENT_ID_SUFFIX.length)}`
+    : null;
+
+// Push entitlement: 'development' for simulator/dev/internal builds, 'production'
+// for the App Store (TestFlight + release) build. EAS sets EAS_BUILD_PROFILE.
+// Keyed off the profile name rather than left to Xcode's export step so the
+// binary's entitlement is explicit and matches the production APNs key.
+const apsEnvironment = process.env.EAS_BUILD_PROFILE === 'production' ? 'production' : 'development';
+
 module.exports = {
   expo: {
     name: 'htwa',
@@ -35,8 +54,10 @@ module.exports = {
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.htwa.app',
+      // Adds the com.apple.developer.applesignin entitlement (Sign in with Apple).
+      usesAppleSignIn: true,
       entitlements: {
-        'aps-environment': 'development',
+        'aps-environment': apsEnvironment,
       },
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
@@ -77,9 +98,39 @@ module.exports = {
         '@stripe/stripe-react-native',
         {
           merchantIdentifier: 'merchant.com.htwa',
+          // The plugin DEFAULTS this to false and then removes the
+          // com.google.android.gms.wallet.api.enabled manifest flag, which would
+          // silently disable Google Pay on Android no matter what the JS passes
+          // to initPaymentSheet (utils/walletPay.ts).
+          enableGooglePay: true,
         },
       ],
       '@react-native-community/datetimepicker',
+      // Location is used FOREGROUND-ONLY (services/location.ts + services/tracking.ts:
+      // requestForegroundPermissionsAsync / watchPositionAsync while a journey is live).
+      // Without this plugin entry the built Info.plist gets expo-location's generic
+      // "Allow htwa to access your location" — App Review (Guideline 5.1.1) rejects
+      // vague purpose strings. No background location, so no UIBackgroundModes.
+      // The plugin always writes the three NSLocation* keys; all carry the same
+      // honest, specific text.
+      [
+        'expo-location',
+        {
+          locationWhenInUsePermission:
+            'htwa uses your location during a journey to show your live position on the map and share it with your nominated contact.',
+          locationAlwaysAndWhenInUsePermission:
+            'htwa uses your location during a journey to show your live position on the map and share it with your nominated contact.',
+          locationAlwaysPermission:
+            'htwa uses your location during a journey to show your live position on the map and share it with your nominated contact.',
+          isIosBackgroundLocationEnabled: false,
+          isAndroidBackgroundLocationEnabled: false,
+        },
+      ],
+      // Native Sign in with Apple (supabase.auth.signInWithIdToken — not the web flow).
+      'expo-apple-authentication',
+      ...(googleIosUrlScheme
+        ? [['@react-native-google-signin/google-signin', { iosUrlScheme: googleIosUrlScheme }]]
+        : []),
       // Required so iOS actually grants (rather than hard-crashing on) camera/
       // photo-library access — expo-image-picker was in use (selfie, photo ID,
       // driver photos, profile photo) without ever being registered here, so

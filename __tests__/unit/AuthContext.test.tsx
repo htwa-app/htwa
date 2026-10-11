@@ -44,12 +44,13 @@ jest.mock('../../lib/supabase', () => ({
 
 /** Renders a component that exposes AuthContext values as testable text nodes. */
 function TestConsumer() {
-  const { user, session, isLoading, verificationStatus, verificationLoadError, refreshVerification } = useAuth();
+  const { user, session, isLoading, verificationStatus, verificationLoadError, accountSetupNeeded, refreshVerification } = useAuth();
   return (
     <View>
       <Text testID="isLoading">{String(isLoading)}</Text>
       <Text testID="verificationStatus">{String(verificationStatus)}</Text>
       <Text testID="verificationLoadError">{String(verificationLoadError)}</Text>
+      <Text testID="accountSetupNeeded">{String(accountSetupNeeded)}</Text>
       <Text testID="hasSession">{String(session !== null)}</Text>
       <Text testID="hasUser">{String(user !== null)}</Text>
       <Text testID="refresh" onPress={() => void refreshVerification()}>refresh</Text>
@@ -173,10 +174,10 @@ describe('AuthProvider — session but no verification row yet', () => {
     expect(screen.getByTestId('verificationStatus').props.children).toBe('null');
   });
 
-  it('queries the verification table for the correct user', async () => {
+  it('queries verification, then (only because there is no row) checks the account row exists', async () => {
     renderWithProvider();
     await waitFor(() =>
-      expect(mockMaybeSingle).toHaveBeenCalledTimes(1),
+      expect(mockMaybeSingle).toHaveBeenCalledTimes(2),
     );
   });
 });
@@ -228,6 +229,51 @@ describe('AuthProvider — session, approved', () => {
     await waitFor(() =>
       expect(screen.getByTestId('verificationStatus').props.children).toBe('rejected'),
     );
+  });
+});
+
+// ─── Account row missing (social sign-in abandoned before /complete-account) ──
+
+describe('AuthProvider — accountSetupNeeded', () => {
+  const fakeSession = { user: { id: 'user-social' } };
+
+  it('is true when there is no verification row AND no public.users row', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: fakeSession } });
+    mockMaybeSingle.mockResolvedValue({ data: null, error: null });
+    renderWithProvider();
+    await waitFor(() => expect(screen.getByTestId('accountSetupNeeded').props.children).toBe('true'));
+    expect(screen.getByTestId('verificationLoadError').props.children).toBe('false');
+  });
+
+  it('is false when the account row exists but ID verification was never submitted', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: fakeSession } });
+    mockMaybeSingle
+      .mockResolvedValueOnce({ data: null, error: null })            // verification: none
+      .mockResolvedValueOnce({ data: { id: 'user-social' }, error: null }); // users: exists
+    renderWithProvider();
+    await waitFor(() => expect(screen.getByTestId('isLoading').props.children).toBe('false'));
+    expect(screen.getByTestId('accountSetupNeeded').props.children).toBe('false');
+  });
+
+  it('is false (and the users table is never queried) once a verification row exists', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: fakeSession } });
+    mockMaybeSingle.mockResolvedValue({ data: { status: 'approved' }, error: null });
+    renderWithProvider();
+    await waitFor(() => expect(screen.getByTestId('verificationStatus').props.children).toBe('approved'));
+    expect(screen.getByTestId('accountSetupNeeded').props.children).toBe('false');
+    expect(mockMaybeSingle).toHaveBeenCalledTimes(1);
+  });
+
+  it('a FAILED account-row lookup is a load error — never read as "account exists" or "needs setup"', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockGetSession.mockResolvedValue({ data: { session: fakeSession } });
+    mockMaybeSingle
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValueOnce({ data: null, error: { message: 'db down' } });
+    renderWithProvider();
+    await waitFor(() => expect(screen.getByTestId('verificationLoadError').props.children).toBe('true'));
+    expect(screen.getByTestId('accountSetupNeeded').props.children).toBe('false');
+    errorSpy.mockRestore();
   });
 });
 

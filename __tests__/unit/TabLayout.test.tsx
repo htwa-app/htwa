@@ -53,6 +53,9 @@ jest.mock('../../hooks/useRealtimeNotifications', () => ({
 jest.mock('../../hooks/usePushTokenRegistration', () => ({
   usePushTokenRegistration: () => undefined,
 }));
+jest.mock('../../hooks/useNotificationNavigation', () => ({
+  useNotificationNavigation: () => undefined,
+}));
 
 jest.mock('@expo/vector-icons', () => ({
   Ionicons: () => null,

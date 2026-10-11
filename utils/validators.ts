@@ -50,3 +50,27 @@ export function validateSignupForm({
 export function validateEmail(email: string): boolean {
   return validator.isEmail(email.trim());
 }
+
+// ─── validateAccountSetup ─────────────────────────────────────────────────────
+
+export interface AccountSetupValues {
+  fullName:     string;
+  phone:        string;
+  homeLocation: HomeLocation | null;
+  gender:       'female' | 'male' | null;
+}
+
+/**
+ * Social sign-in users (Apple/Google) arrive with an auth identity but none of
+ * the profile fields the email signup form collects — this validates the
+ * "complete your account" form: non-empty name, a phone with ≥ 9 digits (same
+ * rule as signup), a home location, and a gender (drives women-only journeys).
+ */
+export function validateAccountSetup({ fullName, phone, homeLocation, gender }: AccountSetupValues): boolean {
+  return (
+    fullName.trim().length > 0 &&
+    phone.replace(/\D/g, '').length >= 9 &&
+    homeLocation !== null &&
+    gender !== null
+  );
+}

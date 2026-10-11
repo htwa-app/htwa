@@ -1,12 +1,24 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react-native';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
 import LoginScreen from '../../app/login';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
 const mockPush = jest.fn();
+const mockReplace = jest.fn();
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, replace: mockReplace }),
+}));
+
+const mockAvailability = jest.fn();
+const mockSignInApple = jest.fn();
+const mockSignInGoogle = jest.fn();
+const mockDestination = jest.fn();
+jest.mock('../../services/socialAuth', () => ({
+  getSocialAvailability: (...a: unknown[]) => mockAvailability(...a),
+  signInWithApple: (...a: unknown[]) => mockSignInApple(...a),
+  signInWithGoogle: (...a: unknown[]) => mockSignInGoogle(...a),
+  getDestinationAfterSocialSignIn: (...a: unknown[]) => mockDestination(...a),
 }));
 
 jest.mock('@expo/vector-icons', () => {
@@ -18,6 +30,7 @@ jest.mock('@expo/vector-icons', () => {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockAvailability.mockResolvedValue({ apple: { available: true }, google: { available: true } });
 });
 
 // ─── Smoke ────────────────────────────────────────────────────────────────────
@@ -100,20 +113,12 @@ describe('LoginScreen — layout', () => {
 describe('LoginScreen — navigation', () => {
   beforeEach(() => render(<LoginScreen />));
 
-  it('Sign up with Apple button does not throw on press', () => {
-    expect(() =>
-      fireEvent.press(screen.getByRole('button', { name: 'Sign up with Apple' }))
-    ).not.toThrow();
-  });
-
-  it('Sign up with Apple calls router.push with /signup', () => {
+  it('Apple and Google no longer route to /signup — they run the native sign-in flows', () => {
+    mockSignInApple.mockResolvedValue({ status: 'cancelled' });
+    mockSignInGoogle.mockResolvedValue({ status: 'cancelled' });
     fireEvent.press(screen.getByRole('button', { name: 'Sign up with Apple' }));
-    expect(mockPush).toHaveBeenCalledWith('/signup');
-  });
-
-  it('Sign up with Google calls router.push with /signup', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Sign up with Google' }));
-    expect(mockPush).toHaveBeenCalledWith('/signup');
+    expect(mockPush).not.toHaveBeenCalledWith('/signup');
   });
 
   it('Sign up with email calls router.push with /signup', () => {
@@ -128,8 +133,6 @@ describe('LoginScreen — navigation', () => {
 
   it('each button press calls router.push exactly once', () => {
     const buttons = [
-      'Sign up with Apple',
-      'Sign up with Google',
       'Sign up with email',
       'Already have an account? Log in',
     ];
@@ -137,5 +140,89 @@ describe('LoginScreen — navigation', () => {
       fireEvent.press(screen.getByRole('button', { name: label }));
       expect(mockPush).toHaveBeenCalledTimes(i + 1);
     });
+  });
+});
+
+
+// ─── Social sign-in (Apple / Google) ──────────────────────────────────────────
+
+describe('LoginScreen — Apple / Google sign-in', () => {
+  const okResult = { status: 'ok', userId: 'u1', displayName: 'Aoife Kelly', email: 'a@x.ie' };
+
+  it('a successful Apple sign-in for a NEW account goes to /complete-account with the provider name', async () => {
+    mockSignInApple.mockResolvedValue(okResult);
+    mockDestination.mockResolvedValue({ ok: true, destination: '/complete-account' });
+    render(<LoginScreen />);
+    fireEvent.press(screen.getByTestId('apple-button'));
+    await waitFor(() =>
+      expect(mockReplace).toHaveBeenCalledWith({ pathname: '/complete-account', params: { name: 'Aoife Kelly' } }),
+    );
+    expect(mockDestination).toHaveBeenCalledWith('u1');
+  });
+
+  it('a returning social user is routed by the shared rules (never-verified → /id-verify)', async () => {
+    mockSignInGoogle.mockResolvedValue(okResult);
+    mockDestination.mockResolvedValue({ ok: true, destination: '/id-verify' });
+    render(<LoginScreen />);
+    fireEvent.press(screen.getByTestId('google-button'));
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/id-verify'));
+  });
+
+  it('a cancelled sign-in is handled quietly — no error, no navigation', async () => {
+    mockSignInApple.mockResolvedValue({ status: 'cancelled' });
+    render(<LoginScreen />);
+    fireEvent.press(screen.getByTestId('apple-button'));
+    await waitFor(() => expect(mockSignInApple).toHaveBeenCalled());
+    expect(screen.queryByTestId('social-error')).toBeNull();
+    expect(mockReplace).not.toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it('a failed sign-in shows the friendly message and stays on this screen', async () => {
+    mockSignInGoogle.mockResolvedValue({ status: 'error', message: "We couldn't sign you in with Google. Please try again." });
+    render(<LoginScreen />);
+    fireEvent.press(screen.getByTestId('google-button'));
+    await waitFor(() => expect(screen.getByTestId('social-error')).toHaveTextContent(/couldn't sign you in with Google/));
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('signed in but the account lookup fails → an error, not a guessed destination', async () => {
+    mockSignInApple.mockResolvedValue(okResult);
+    mockDestination.mockResolvedValue({ ok: false });
+    render(<LoginScreen />);
+    fireEvent.press(screen.getByTestId('apple-button'));
+    await waitFor(() => expect(screen.getByTestId('social-error')).toBeTruthy());
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('Google without client IDs shows a clear "not available yet" state and is NOT pressable', async () => {
+    mockAvailability.mockResolvedValue({ apple: { available: true }, google: { available: false, reason: 'not_configured' } });
+    render(<LoginScreen />);
+    await waitFor(() => expect(screen.getByTestId('google-unavailable')).toHaveTextContent(/Google sign-in isn't available yet/));
+    expect(screen.getByTestId('google-button').props.accessibilityState?.disabled).toBe(true);
+    fireEvent.press(screen.getByTestId('google-button'));
+    expect(mockSignInGoogle).not.toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalledWith('/signup');
+  });
+
+  it('Apple on an unsupported device explains why', async () => {
+    mockAvailability.mockResolvedValue({ apple: { available: false, reason: 'unsupported_platform' }, google: { available: true } });
+    render(<LoginScreen />);
+    await waitFor(() => expect(screen.getByTestId('apple-unavailable')).toHaveTextContent(/isn't available on this device/));
+    expect(screen.queryByTestId('google-unavailable')).toBeNull();
+  });
+
+  it('if Supabase reports the provider as not enabled yet, the button flips to "not available yet"', async () => {
+    mockSignInGoogle.mockResolvedValue({ status: 'unavailable', reason: 'provider_disabled' });
+    render(<LoginScreen />);
+    fireEvent.press(screen.getByTestId('google-button'));
+    await waitFor(() => expect(screen.getByTestId('google-unavailable')).toBeTruthy());
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('the email button still goes to /signup', () => {
+    render(<LoginScreen />);
+    fireEvent.press(screen.getByRole('button', { name: 'Sign up with email' }));
+    expect(mockPush).toHaveBeenCalledWith('/signup');
   });
 });

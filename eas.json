@@ -50,6 +50,53 @@
     }
   },
   "submit": {
+    // iOS submit is ACTIVE (Apple Developer + App Store Connect set up 11 Oct 2026).
+    // Android submit config below is unchanged.
+    "production": {
+      "ios": {
+        // App Store Connect API key (Users and Access -> Integrations -> App Store
+        // Connect API). The .p8 is gitignored (*.p8) and must NEVER be committed;
+        // the Key ID / Issuer ID / Team ID / app ID below are identifiers, not secrets.
+        // ascAppId = numeric "Apple ID" of the "htwa" app record (looked up read-only
+        // via the ASC API for bundle id com.htwa.app).
+        "ascApiKeyPath": "./AuthKey_6T67T29GN6.p8",
+        "ascApiKeyId": "6T67T29GN6",
+        "ascApiKeyIssuerId": "1ac2f0bf-2f97-4d2c-abe7-eb30814f4c3a",
+        "ascAppId": "6821643355",
+        "appleTeamId": "JVLD5VV38N"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    // ── preview ──────────────────────────────────────────────────────────────
+    // Internal distribution for later TestFlight / Play internal testing.
+    // NOTE: the iOS DEVICE build here requires Apple Developer Program enrolment
+    // (EAS will need to create/manage a provisioning profile). Android = APK.
+    "preview": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": false
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    // ── production ───────────────────────────────────────────────────────────
+    // Store builds. DORMANT until Apple Developer + Google Play accounts exist:
+    // the iOS app-store build needs Apple credentials, the Android aab needs a
+    // Play upload key. Safe to keep here; just don't run until accounts exist.
+    "production": {
+      "autoIncrement": true,
+      "ios": {
+        "buildConfiguration": "Release"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
+    }
+  },
+  "submit": {
     // Submission is intentionally INACTIVE. Uncomment + fill the relevant block
     // only after the matching account + credentials exist. Until then, leaving
     // these empty means `eas submit` simply has nothing configured to run.

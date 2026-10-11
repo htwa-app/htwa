@@ -35,6 +35,10 @@ export interface AuthContextValue {
    *  genuine null (never submitted). Consumers must not route based on
    *  verificationStatus while this is true (see SplashScreen). */
   verificationLoadError: boolean;
+  /** True when there is a session but no public.users row yet — a social
+   *  (Apple/Google) sign-in that never finished /complete-account. SplashScreen
+   *  routes these users to /complete-account before ID verification. */
+  accountSetupNeeded: boolean;
   /** Re-fetch verification status from public.verification. Call after submitting/resubmitting. */
   refreshVerification: () => Promise<void>;
 }
@@ -51,6 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading,          setIsLoading]          = useState(true);
   const [verificationStatus, setVerificationStatus] = useState<VerificationStatus | null>(null);
   const [verificationLoadError, setVerificationLoadError] = useState(false);
+  const [accountSetupNeeded, setAccountSetupNeeded] = useState(false);
 
   /**
    * Fetch the verification row's status for the given user (null = no row
@@ -72,8 +77,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setVerificationLoadError(true);
       return;
     }
+    const status = data?.status ?? null;
+
+    // "Never submitted" can also mean the account row itself was never created
+    // (social sign-in abandoned before /complete-account) — ID verification
+    // can't be submitted without a public.users row (FK), so tell the two apart.
+    // Only checked when there is no verification row, so it costs nothing for
+    // everyone who has already submitted.
+    let setupNeeded = false;
+    if (status === null) {
+      const { data: userRow, error: userErr } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', userId)
+        .maybeSingle();
+      if (userErr) {
+        console.error('[AuthContext] account row check failed:', userErr.message);
+        setVerificationLoadError(true);
+        return;
+      }
+      setupNeeded = userRow === null;
+    }
+
     setVerificationLoadError(false);
-    setVerificationStatus(data?.status ?? null);
+    setAccountSetupNeeded(setupNeeded);
+    setVerificationStatus(status);
   }
 
   useEffect(() => {
@@ -107,6 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           void fetchVerificationStatus(s.user.id);
         } else {
           setVerificationStatus(null);
+          setAccountSetupNeeded(false);
         }
       },
     );
@@ -133,8 +162,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // memoizing, a fresh object every render would make ALL consumers
   // re-render on every AuthProvider render, not just on an actual state change.
   const value = useMemo(
-    () => ({ user, session, isLoading, verificationStatus, verificationLoadError, refreshVerification }),
-    [user, session, isLoading, verificationStatus, verificationLoadError, refreshVerification],
+    () => ({ user, session, isLoading, verificationStatus, verificationLoadError, accountSetupNeeded, refreshVerification }),
+    [user, session, isLoading, verificationStatus, verificationLoadError, accountSetupNeeded, refreshVerification],
   );
 
   return (

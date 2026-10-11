@@ -12,6 +12,15 @@
  * Request body:  { bookingId, rideId, passengerId, amountMinorUnits, currency, driverStripeAccountId }
  *   (rideId / passengerId / currency / driverStripeAccountId are cross-checked)
  * Response:      { clientSecret: string, paymentIntentId: string }
+ *                | { alreadyPaid: true, paymentIntentId: string }   (booking already has a succeeded PaymentIntent)
+ *
+ * One charge per booking: if the booking already has a recorded PaymentIntent
+ * it is looked up in Stripe first — succeeded → alreadyPaid (no second charge),
+ * still-payable with the same amount/currency → reused (same client secret),
+ * processing → 409, otherwise (cancelled / price changed) a replacement is
+ * created under a distinct idempotency key. Stripe idempotency keys only last
+ * 24h, so the per-booking key alone is NOT enough to prevent a double charge
+ * when a passenger comes back to a paid booking days later.
  *
  * Platform fee: 10% of total (application_fee_amount on the PaymentIntent).
  */
@@ -49,7 +58,7 @@ Deno.serve(async (req: Request) => {
   // 1. Booking + ride, server-side.
   const bookingRes = await fetch(
     supabaseRestUrl(
-      `/bookings?id=eq.${encodeURIComponent(bookingId)}&select=id,passenger_id,ride_id,seats_booked,status,` +
+      `/bookings?id=eq.${encodeURIComponent(bookingId)}&select=id,passenger_id,ride_id,seats_booked,status,payment_intent_id,` +
       `rides(id,driver_id,cost_per_seat,currency)`,
     ),
     { headers: svc },
@@ -60,6 +69,7 @@ Deno.serve(async (req: Request) => {
   }
   const rows = await bookingRes.json() as Array<{
     id: string; passenger_id: string; ride_id: string; seats_booked: number; status: string;
+    payment_intent_id: string | null;
     rides: { id: string; driver_id: string; cost_per_seat: number | string; currency: string } | null;
   }>;
   const booking = rows[0];
@@ -114,6 +124,31 @@ Deno.serve(async (req: Request) => {
 
   const applicationFee = Math.round(expectedMinorUnits * PLATFORM_FEE_RATE);
 
+  // 4b. A PaymentIntent already exists for this booking → never create a second charge.
+  let idempotencyKey = `payment-intent-${booking.id}`;
+  if (booking.payment_intent_id) {
+    const exRes = await fetch(`${STRIPE_API}/payment_intents/${encodeURIComponent(booking.payment_intent_id)}`, {
+      headers: { 'Authorization': `Bearer ${stripeKey}` },
+    });
+    if (!exRes.ok) {
+      // Could not tell whether it's already paid — fail rather than risk a second charge.
+      console.error('[create-payment-intent] existing PaymentIntent lookup failed:', await exRes.text());
+      return json({ error: 'Could not check existing payment' }, 502);
+    }
+    const ex = await exRes.json() as {
+      id: string; status: string; amount: number; currency: string; client_secret: string | null;
+    };
+    if (ex.status === 'succeeded') return json({ alreadyPaid: true, paymentIntentId: ex.id });
+    if (ex.status === 'processing') return json({ error: 'Your payment is still processing', processing: true }, 409);
+    const reusable = ['requires_payment_method', 'requires_confirmation', 'requires_action'].includes(ex.status);
+    if (reusable && ex.client_secret && ex.amount === expectedMinorUnits && ex.currency === currency.toLowerCase()) {
+      return json({ clientSecret: ex.client_secret, paymentIntentId: ex.id });
+    }
+    // Cancelled, or the price changed since: a fresh PaymentIntent, under a key
+    // that can't replay the old one.
+    idempotencyKey = `payment-intent-${booking.id}-replaces-${ex.id}`;
+  }
+
   // 5. Create the PaymentIntent. A stable per-booking Idempotency-Key means a
   //    dropped response, duplicate client call, or re-opened payment sheet
   //    replays the SAME PaymentIntent instead of creating a second one that
@@ -123,7 +158,7 @@ Deno.serve(async (req: Request) => {
     headers: {
       'Authorization': `Bearer ${stripeKey}`,
       'Content-Type': 'application/x-www-form-urlencoded',
-      'Idempotency-Key': `payment-intent-${booking.id}`,
+      'Idempotency-Key': idempotencyKey,
     },
     body: new URLSearchParams({
       amount: String(expectedMinorUnits),

@@ -4,7 +4,7 @@
  * Unit tests for utils/validators.ts.
  */
 
-import { validateSignupForm, validateEmail } from '../../utils/validators';
+import { validateSignupForm, validateEmail, validateAccountSetup } from '../../utils/validators';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -101,4 +101,17 @@ describe('validateEmail', () => {
   it('returns false when missing a domain', () => {
     expect(validateEmail('jane@')).toBe(false);
   });
+});
+
+
+describe('validateAccountSetup (social sign-in "complete your account")', () => {
+  const ok = { fullName: 'Aoife Kelly', phone: '+353 87 123 4567', homeLocation: 'ROI' as const, gender: 'female' as const };
+  it('accepts a complete form', () => expect(validateAccountSetup(ok)).toBe(true));
+  it('rejects a blank/whitespace name', () => expect(validateAccountSetup({ ...ok, fullName: '   ' })).toBe(false));
+  it('needs at least 9 phone digits (same rule as email signup)', () => {
+    expect(validateAccountSetup({ ...ok, phone: '12345678' })).toBe(false);
+    expect(validateAccountSetup({ ...ok, phone: '+353 (87) 123-456' })).toBe(true);
+  });
+  it('needs a home location', () => expect(validateAccountSetup({ ...ok, homeLocation: null })).toBe(false));
+  it('needs a gender (drives women-only journeys)', () => expect(validateAccountSetup({ ...ok, gender: null })).toBe(false));
 });

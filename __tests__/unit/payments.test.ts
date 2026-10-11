@@ -11,7 +11,7 @@ jest.mock('../../lib/supabase', () => ({
   },
 }));
 
-import { getPaymentAccount, startConnectOnboarding, createSetupIntent } from '../../services/payments';
+import { getPaymentAccount, getUserCurrency, startConnectOnboarding, createSetupIntent } from '../../services/payments';
 
 beforeEach(() => jest.clearAllMocks());
 
@@ -27,6 +27,30 @@ describe('getPaymentAccount', () => {
   it('throws on a query error rather than treating it as "no account set up"', async () => {
     mockMaybeSingle.mockResolvedValue({ data: null, error: { message: 'db down' } });
     await expect(getPaymentAccount('u1')).rejects.toThrow('db down');
+  });
+});
+
+describe('getUserCurrency', () => {
+  it('returns the account currency', async () => {
+    mockMaybeSingle.mockResolvedValue({ data: { currency: 'GBP' }, error: null });
+    expect(await getUserCurrency('u1')).toBe('GBP');
+  });
+  it('returns null (never a guessed default) when there is no row', async () => {
+    mockMaybeSingle.mockResolvedValue({ data: null, error: null });
+    expect(await getUserCurrency('u1')).toBeNull();
+  });
+  it('returns null and logs on a query error', async () => {
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockMaybeSingle.mockResolvedValue({ data: null, error: { message: 'db down' } });
+    expect(await getUserCurrency('u1')).toBeNull();
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('[Payments]'), 'db down');
+    spy.mockRestore();
+  });
+  it('returns null when the lookup throws', async () => {
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockMaybeSingle.mockRejectedValue(new Error('boom'));
+    expect(await getUserCurrency('u1')).toBeNull();
+    spy.mockRestore();
   });
 });
 

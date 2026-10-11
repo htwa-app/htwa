@@ -64,6 +64,27 @@ describe('PaymentScreen', () => {
     await waitFor(() => expect(mockInitSheet).toHaveBeenCalled());
   });
 
+  it('enables Apple Pay and Google Pay (booking currency) alongside card entry', async () => {
+    mockParams = { ...BASE, currency: 'GBP' };
+    render(<PaymentScreen />);
+    await waitFor(() => expect(mockInitSheet).toHaveBeenCalled());
+    const opts = mockInitSheet.mock.calls[0][0];
+    expect(opts.paymentIntentClientSecret).toBe('cs_123');
+    expect(opts.applePay).toEqual({ merchantCountryCode: 'IE' });
+    // Jest runs with __DEV__ true → Google Pay test environment.
+    expect(opts.googlePay).toEqual({ merchantCountryCode: 'IE', currencyCode: 'GBP', testEnv: true });
+  });
+
+  it('an already-paid booking shows a receipt link instead of opening the payment sheet', async () => {
+    mockInvoke.mockResolvedValue({ data: { alreadyPaid: true, paymentIntentId: 'pi_1' }, error: null });
+    render(<PaymentScreen />);
+    await waitFor(() => expect(screen.getByTestId('already-paid')).toBeTruthy());
+    expect(mockInitSheet).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('pay-button')).toBeNull();
+    fireEvent.press(screen.getByTestId('view-receipt-button'));
+    expect(mockReplace).toHaveBeenCalledWith(expect.stringContaining('/payment-confirmation?bookingId=b1'));
+  });
+
   it('presents the sheet and navigates to confirmation on pay', async () => {
     render(<PaymentScreen />);
     await waitFor(() => expect(screen.getByTestId('pay-button')).toBeTruthy());
