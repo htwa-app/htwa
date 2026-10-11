@@ -169,6 +169,108 @@ Only the dashboard/service role can set either status to approved — the app ph
 
 ---
 
+## 10. Sign in with Apple + Apple Pay — Apple Developer steps (needs item 4b first)
+
+**Code is done** (branch `feat/payments-auth`, Stages 89–90). What's left is Apple-side set-up. You need an active Apple Developer Program membership first (item 4b).
+
+**A. Register the capabilities on the app's ID**
+1. https://developer.apple.com/account → **Certificates, Identifiers & Profiles** → **Identifiers**.
+2. Open **`com.htwa.app`** (create it as *App IDs → App → Explicit* with that exact bundle ID if it isn't there).
+3. Tick **Sign In with Apple** (Enable as a primary App ID) and **Apple Pay Payment Processing**. Save. (You'll attach the merchant ID to Apple Pay in step B.3.)
+
+**B. Register the merchant ID (Apple Pay)**
+1. **Identifiers** → blue **+** → choose **Merchant IDs** → Continue.
+2. Description `htwa`, Identifier **`merchant.com.htwa`** — must match exactly; it's already in `app.config.js`. Register.
+3. Back on the `com.htwa.app` App ID → **Apple Pay Payment Processing → Edit** → tick `merchant.com.htwa` → Save.
+
+**C. Connect Stripe to Apple Pay (the payment-processing certificate)**
+1. Stripe Dashboard (**test mode first**) → Settings → Payments → **Apple Pay** → under iOS certificates choose **Add new application** → download the CSR (`.certSigningRequest`). Stripe's guide: "Set up Apple Pay" → "iOS".
+2. Apple Developer → Identifiers → Merchant IDs → `merchant.com.htwa` → **Apple Pay Payment Processing Certificate → Create Certificate** → upload Stripe's CSR → download the `.cer`.
+3. Upload that `.cer` back in Stripe. Repeat once in live mode before launch.
+
+**D. Turn the Apple provider on in Supabase**
+1. https://supabase.com/dashboard/project/adrwtjlphjrnrrqjkbfk/auth/providers → **Apple** → Enable.
+2. **Client IDs:** `com.htwa.app` (the bundle ID — that's the audience of the token the native flow produces). Leave **Secret Key** empty: only the browser/OAuth flow needs it and this app doesn't use that flow. Save.
+
+**E. Next iOS build:** for a **real iPhone** build, EAS will sync the Sign In with Apple + Apple Pay capabilities from `app.config.js` onto the App ID (needs the Apple login EAS asks for). Simulator builds need none of this.
+
+**What you can / can't test before this is done**
+- Sign in with Apple: the button works in the iOS **Simulator** as long as the simulator is signed into an Apple ID (Settings → top of the list) — *but* signing in will fail until step D is done ("not available yet" appears if Supabase reports the provider disabled).
+- Apple Pay: needs steps A–C and, reliably, a **real iPhone with a card in Wallet**. Until the merchant ID exists the sheet simply won't offer Apple Pay; card entry always works.
+- Google Pay: real Android device only; no setup needed for the test environment (it switches on automatically with a `pk_test_` key). Going live needs Google's production access (Google Pay & Wallet Console) — later.
+
+---
+
+## 11. Sign in with Google — Google Cloud OAuth clients
+
+**Code is done** (Stage 91). Until the two client IDs exist the Google button honestly says "Google sign-in isn't available yet".
+
+1. https://console.cloud.google.com → pick the htwa project → **APIs & Services → OAuth consent screen**: *External*, app name `htwa`, support + developer email `hello@htwa-app.com`, scopes `openid`, `email`, `profile`. Save. (While in "Testing", add your own Google accounts as test users.)
+2. **APIs & Services → Credentials → + Create credentials → OAuth client ID**, three times:
+   - **Web application** — name `htwa web (Supabase)`. Authorised redirect URI: `https://adrwtjlphjrnrrqjkbfk.supabase.co/auth/v1/callback`. Create → note the **Client ID** and **Client secret**.
+     **The secret goes straight into 1Password** (HTWA vault, new item e.g. `htwa google oauth web`) **— never paste it into chat or any file.** The Client ID is not secret.
+   - **iOS** — name `htwa iOS`, bundle ID `com.htwa.app`. Create → note the **Client ID** (there is no secret).
+   - **Android** — name `htwa Android`, package name `com.htwa.app`, **SHA-1** of the signing key: run `npx eas-cli credentials --platform android` → the Keystore summary shows the SHA1 fingerprint (it's public, not a secret). Add the SHA-1 of any other keystore you sign with later (e.g. Play App Signing).
+3. **Turn the Google provider on in Supabase:** https://supabase.com/dashboard/project/adrwtjlphjrnrrqjkbfk/auth/providers → **Google** → Enable.
+   - **Client IDs:** the web ID, the iOS ID and the Android ID, comma-separated (web first).
+   - **Client Secret:** the web client's secret (copy it out of 1Password).
+   - **Skip nonce checks: ON.** Required — the Google sign-in library can't pass a nonce, so Supabase would otherwise reject every token.
+   Save.
+4. Set the two env vars from item 12, then make a **new native build** (the iOS client ID becomes an Info.plist URL scheme at build time).
+
+---
+
+## 12. Environment variable names the code expects
+
+| Variable | Used by | Value |
+|---|---|---|
+| `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | `services/socialAuth.ts` (Google `webClientId`; also the idToken audience) | the **web** OAuth client ID (`…apps.googleusercontent.com`) |
+| `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` | `services/socialAuth.ts` **and** `app.config.js` (derives the iOS URL scheme `com.googleusercontent.apps.…`) | the **iOS** OAuth client ID |
+
+Both are public client IDs, not secrets (the Web client **secret** lives only in Supabase + 1Password — never in the app or an env var).
+- Put them in `~/Documents/HTWA/.env.local` (edit the file yourself) **and** in the EAS environment via the **EAS dashboard** (expo.dev → project → Environment variables, for `development`, `preview`, `production`) — not a command-line `--value` flag.
+- No Android-specific variable: Android uses the web ID plus the Android OAuth client + SHA-1 registered in step 11.2.
+- If the iOS ID is missing at build time, `app.config.js` simply leaves the Google plugin out (it throws without a scheme) and the button shows "not available yet".
+- Already in place from before: `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, `EXPO_PUBLIC_GOOGLE_MAPS_KEY`.
+
+---
+
+## 13. 🔴 Decision needed — a driver is currently paid MORE than their cost share (found in live test mode, 23 Oct)
+
+I ran a real test-mode payment end to end and the numbers don't match the fixed pricing model in CLAUDE.md §12:
+- Driver cost share **€10.00** → passenger pays **€13.00** (10.00 + 10% service charge 1.00 + booking fee 2.00) ✅ correct.
+- But `create-payment-intent` sets the platform's `application_fee_amount` to **10% of the total = €1.30**, so the driver's Connect account receives **€11.70 — €1.70 more than their €10.00 cost share.** htwa keeps €1.30 instead of the €3.00 (service charge + booking fee) the model says it should.
+- That breaks "drivers can never profit / total recovered is capped at cost" — the legal wedge of the whole product — even though it's test mode today. Evidence: Stripe test PaymentIntent `pi_3UPNTqPzPTSO57bW0kUrsgWz` (amount 1300, driver payout 11.70).
+- The receipt screens are also inconsistent with the model: `app/payment.tsx` and `app/payment-confirmation.tsx` show "Platform fee (10%)" and derive "Journey cost" as total − 10% (€11.70 here, not €10.00).
+
+**Proposed fix (NOT applied — you said not to change the charge model, and this changes what money moves and what receipts say):** set `application_fee_amount` = total − (driver cost share × seats), i.e. exactly service charge + booking fee, so the driver gets precisely their cost share; and show the real breakdown (cost share / service charge / booking fee) on the payment + receipt screens. Destination charges stay as they are. Tell me "apply the fee fix" and I'll do it with tests and a live re-check.
+
+---
+
+## 14. Supabase paused itself — keep it awake before beta
+
+When I started this run the project was **`INACTIVE`** (Supabase's free tier pauses a project after about a week without activity), so the app, every build and every test would have failed to connect. I **restored it on 11 Oct** (Management API `POST /v1/projects/{ref}/restore`; it came back healthy in a few minutes). It will pause again if left idle. **Before beta: upgrade the project to Pro** (Dashboard → Settings → Billing / Compute & Disk — Pro projects don't auto-pause), or accept re-restoring it from the dashboard each time.
+
+---
+
+## 15. `htwa-app.com/privacy` didn't exist — page now generated, publishes on merge
+
+The first-contact SMS to a nominated contact (Article 14 — Stage 92) links to **htwa-app.com/privacy** as the full notice, and the policy itself says that's where it lives — but the URL returned **404** (and `/track` does too until this branch is merged, because Netlify serves `website/` from `main`).
+- I added `website/privacy/index.html`, **generated from `legal/privacy-policy.md`** (`node scripts/build-privacy-page.js`; a test fails if it goes stale; internal ADVISER NOTE comments are stripped; marked `noindex`).
+- **Your call:** merging to `main` publishes the **draft** policy (still marked "PLACEHOLDER — PENDING ADVISER REVIEW") at that URL. Either merge as-is (contacts get a working link; the draft marker is visible) or hold the website bit back until the adviser signs off. Until it's live, contacts who tap the link get a 404.
+- Separately flagged for the adviser (ADVISER-BRIEFING item 10): a nominated contact who is **never** alerted never receives the notice, though we hold their name and number — Article 14's one-month outer limit may need a notice at nomination time.
+
+---
+
+## 16. Demo journeys are all in the past
+
+The seeded demo rides depart 23–28 July 2026, so search now shows nothing bookable (they've departed). Refresh them (idempotent — only touches the `demo.` accounts):
+```bash
+cd ~/Documents/HTWA && op run --env-file=.secrets.env -- node scripts/seed-demo-data.mjs
+```
+
+---
+
 *Entries are appended as new blockers are hit; nothing above stops the build — every feature behind these has a graceful fallback.*
 
 **Note on Stripe (updated 19 Jul):** test-mode payments are fully working end-to-end — I verified a real test-card charge with the 10% platform fee, a driver-mismatch full refund, and idempotent refund retries against the live backend tonight. Item 2 above only matters when real money starts.

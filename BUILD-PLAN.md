@@ -60,7 +60,7 @@
 - `verification` table (user_id, id_verified, selfie_verified, verified_at)
 - `profiles` table (user_id, bio, university, travel_preferences, nominated_contact)
 
-✅ **Stage 15** — Login screen built — "htwa" logo, tagline, Continue with Apple / Google / mobile / email buttons, social proof (verified students count), legal footer
+✅ **Stage 15** — Login screen built — "htwa" logo, tagline, Sign up with Apple / Google / email buttons (Apple + Google are real native flows as of Stages 90–91; the old mobile-number option and its stub were removed), social proof (verified students count), legal footer
 
 ✅ **Stage 16** — Sign up screen — name, email, phone number, university, home location (ROI or NI — sets currency to € or £)
 
@@ -144,9 +144,9 @@
 
 ✅ **Stage 44** — Payment confirmation (`app/payment-confirmation.tsx`) — receipt: ride cost, platform fee, total.
 
-✅ **Stage 45** — Refunds (`services/bookings.ts`) — `cancelRideAsDriver` (full refund all), `cancelBookingAsPassenger` (full refund >24h via `isFullRefundEligible`, none ≤24h), seat restoration. ⏳ *Stripe Refund API call deferred (needs stored PaymentIntent IDs).*
+✅ **Stage 45** — Refunds — **built, deployed and verified** (corrected 23 Oct 2026: this stage previously said the Stripe call was deferred; that stopped being true when the booking→PaymentIntent link and the `create-refund` Edge Function landed). `services/bookings.ts` — `cancelRideAsDriver` (full refund all), `cancelBookingAsPassenger` (full refund >24h via `isFullRefundEligible`, none ≤24h), `declineBooking`, seat restoration; each refund runs through the deployed `create-refund` Edge Function (full refund + transfer reversal + application-fee refund; `driver_mismatch` flags the driver; an already-refunded charge is an idempotent success). Verified live in Stripe test mode through the Edge Function (23 Oct): full refund, repeat call = idempotent (still exactly one refund), bad token rejected.
 
-✅ **Stage 46** — Transaction history (`app/transaction-history.tsx`) — payments/payouts/refunds list, named status colours, empty state until the get-transactions function is deployed.
+✅ **Stage 46** — Transaction history (`app/transaction-history.tsx`) — payments/payouts/refunds list, named status colours. Updated 23 Oct: a failed `get-transactions` call is now an error state with retry (it used to render "No transactions yet"); a `partial` response warns the list may be incomplete; the function now returns **driver payouts** (found via `bookings.payment_intent_id`) as well as passenger payments/refunds. Verified live in test mode for both views.
 
 ---
 
@@ -278,6 +278,21 @@
 📄 **Stage 87** — Android submission — `eas.json` + `scripts/build-android.sh`. ⏳ *`eas build` + `eas submit` after Play account.*
 
 ⏳ **Stage 88** — App approved & live 🎉 — **MANUAL**: the finish line, after the above.
+
+---
+
+## PHASE 17 — PAYMENT WALLETS, SOCIAL SIGN-IN & CONTACT NOTICE (added 23 Oct 2026)
+*Code is complete on branch `feat/payments-auth`; the account/credential steps are Jordan's (see BLOCKERS-FOR-JORDAN.md items 10–12).*
+
+✅ **Stage 89** — Apple Pay + Google Pay in the Stripe PaymentSheet — `applePay` / `googlePay` options (verified present on `InitPaymentSheetParams` in `@stripe/stripe-react-native` 0.68.0) passed to **both** `initPaymentSheet` calls (`app/payment.tsx`, `app/payment-methods.tsx`) via `utils/walletPay.ts` (merchant country `IE`; Google Pay `testEnv` in dev or with a `pk_test_` key; currency from the booking, or `users.currency` for a SetupIntent). `app.config.js` now sets the Stripe plugin's `enableGooglePay: true` — the plugin defaults it to `false` and strips the Android wallet manifest flag, which would silently disable Google Pay whatever the JS passes. Card entry is unchanged. ⏳ *Apple Pay needs the merchant ID registered + the capability on the App ID + the Stripe↔Apple certificate (Jordan); both wallets need a real device — neither shows on a simulator/emulator.*
+
+✅ **Stage 90** — Sign in with Apple — native (`expo-apple-authentication` 8.0.8) → `supabase.auth.signInWithIdToken` (not the web redirect flow); SHA-256 nonce (hashed to Apple, raw to Supabase); cancel handled quietly. `services/socialAuth.ts`, wired to `app/login.tsx`. ⏳ *Needs the Sign In with Apple capability + enabling the Apple provider in Supabase Auth (Jordan). iOS only — shows "not available on this device" on Android.*
+
+✅ **Stage 91** — Sign in with Google — native (`@react-native-google-signin/google-signin` 16.1.5) → `signInWithIdToken`. Client IDs read from `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` / `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`; until they exist the button shows "Google sign-in isn't available yet" (never routes to /signup). ⏳ *Needs Google Cloud OAuth clients + enabling the Google provider in Supabase Auth (Jordan).*
+
+✅ **Stage 91A** — Social-sign-in account setup — a first-time Apple/Google user has no `public.users` row, so `app/complete-account.tsx` collects the same name/phone/home-location/gender as email signup and writes it; `AuthContext.accountSetupNeeded` + `SplashScreen` send an abandoned sign-up back there. Everyone still goes through mandatory ID verification.
+
+✅ **Stage 92** — Article 14 first-contact notice — the first SMS ever sent to a nominated contact's number carries a short notice (what we hold, link to `htwa-app.com/privacy`, opt-out via hello@htwa-app.com), tracked in the service-role-only `contact_notices` table; `website/privacy/index.html` is generated from the policy so the link resolves (once merged to `main`). ⏳ *SMS delivery itself still needs `TWILIO_FROM_NUMBER` (BLOCKERS item 3).*
 
 ---
 
