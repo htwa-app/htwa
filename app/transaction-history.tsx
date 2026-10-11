@@ -2,10 +2,14 @@
  * app/transaction-history.tsx
  *
  * Stage 46 — Transaction History screen.
- * Lists payments made (passenger) and received (driver).
- * Reads from Stripe via a Supabase Edge Function.
- * Stubs the edge function call — shows a placeholder state until the real
- * Stripe Connect account is set up (Stage 39 manual step).
+ * Lists payments made (passenger), refunds, and payouts received (driver).
+ * Reads from Stripe via the get-transactions Edge Function.
+ *
+ * CLAUDE.md §12: a failed call (function error, non-2xx, malformed body) is an
+ * ERROR state with a retry action — never the "No transactions yet" empty state,
+ * which is reserved for a call that genuinely succeeded with zero rows. A
+ * response flagged `partial` (some Stripe lookups failed server-side) shows the
+ * rows we do have plus a warning, rather than silently under-reporting.
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
@@ -46,24 +50,33 @@ export default function TransactionHistoryScreen(): React.ReactElement {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading,    setIsLoading]    = useState(true);
   const [error,        setError]        = useState<string | null>(null);
+  const [isPartial,    setIsPartial]    = useState(false);
 
   const fetchTransactions = useCallback(async () => {
     if (!user) { setIsLoading(false); return; }
     setIsLoading(true);
     setError(null);
+    setIsPartial(false);
     try {
-      // Call edge function to get Stripe charges/payouts
+      // Call edge function to get Stripe charges/refunds/payouts
       const { data, error: fnErr } = await supabase.functions.invoke('get-transactions', {
         body: { userId: user.id },
       });
-      if (fnErr) {
-        // Edge function not deployed yet — show empty state
+      const list = (data as { transactions?: unknown } | null)?.transactions;
+      if (fnErr || !Array.isArray(list)) {
+        // Function error, non-2xx, or a malformed body: NEVER read this as
+        // "no transactions" — leave any prior list out of view and offer a retry.
+        if (fnErr) console.error('[Transactions] get-transactions failed:', fnErr.message);
         setTransactions([]);
+        setError('Could not load your transactions.');
         return;
       }
-      setTransactions((data?.transactions as Transaction[]) ?? []);
-    } catch {
-      setError('Could not load transactions.');
+      setTransactions(list as Transaction[]);
+      setIsPartial((data as { partial?: boolean }).partial === true);
+    } catch (e) {
+      console.error('[Transactions] load threw:', e instanceof Error ? e.message : e);
+      setTransactions([]);
+      setError('Could not load your transactions.');
     } finally {
       setIsLoading(false);
     }
@@ -83,7 +96,35 @@ export default function TransactionHistoryScreen(): React.ReactElement {
         <View style={{ width: 24 }} />
       </View>
 
-      {error && <Text style={styles.errorText} testID="transactions-error">{error}</Text>}
+      {error && (
+        <View style={styles.errorState} testID="transactions-error">
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity
+            style={styles.retryBtn}
+            onPress={() => void fetchTransactions()}
+            accessibilityRole="button"
+            testID="transactions-retry"
+          >
+            <Text style={styles.retryBtnText}>Try again</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {isPartial && !error && (
+        <View style={styles.errorState} testID="transactions-partial">
+          <Text style={styles.errorText}>
+            Some transactions couldn't be loaded, so this list may be incomplete.
+          </Text>
+          <TouchableOpacity
+            style={styles.retryBtn}
+            onPress={() => void fetchTransactions()}
+            accessibilityRole="button"
+            testID="transactions-partial-retry"
+          >
+            <Text style={styles.retryBtnText}>Refresh</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {transactions.length === 0 && !error && (
         <View style={styles.emptyState} testID="transactions-empty">
@@ -124,7 +165,10 @@ const styles = StyleSheet.create({
   center: { flex: 1, backgroundColor: Colors.background, alignItems: 'center', justifyContent: 'center' },
   headerRow: { flexDirection: 'row', alignItems: 'center' },
   screenTitle: { ...Typography.headingLarge, color: Colors.textPrimary, flex: 1, textAlign: 'center' },
-  errorText: { ...Typography.bodySmall, color: Colors.sos },
+  errorText: { ...Typography.bodySmall, color: Colors.sos, textAlign: 'center' },
+  errorState: { alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.lg },
+  retryBtn: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full, borderWidth: 1, borderColor: Colors.primary },
+  retryBtnText: { ...Typography.bodyMedium, color: Colors.primary },
   emptyState: { alignItems: 'center', paddingVertical: Spacing.xxxxxl, gap: Spacing.md },
   emptyTitle: { ...Typography.headingMedium, color: Colors.textPrimary },
   emptyText: { ...Typography.bodyMedium, color: Colors.textSecondary, textAlign: 'center' },
