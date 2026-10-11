@@ -71,12 +71,43 @@ Re-ran it this way and confirmed via `supabase secrets list` that all three dige
 ### 4a. Google Play — ✅ DONE (confirmed 21 Jul 2026)
 The Play publisher service account key showed up at `~/Documents/HTWA/google-service-account.json` (`htwa-play-publisher@htwa-502918.iam.gserviceaccount.com`) — already gitignored, never committed, confirmed valid JSON. I've wired it into `eas.json`'s `submit.production.android` block (`serviceAccountKeyPath` + `track: "internal"`), so `eas submit --platform android --profile production` is now configured to actually run. **Not yet actually submitted anything** — wiring the config is different from a real submission, which is a store-facing action I'd ask before doing. This unblocks FCM push credentials too (`eas credentials` can now use the same Play Console access) — not yet wired, just unblocked.
 
-### 4b. Apple Developer — still open
-**I need:** an Apple Developer Program membership ($99/yr), under hello@htwa-app.com.
+### 4b. Apple Developer — ✅ DONE (11 Oct 2026) · TestFlight is now a short list of Terminal commands
 
-**Get it by:** https://developer.apple.com/programs/enroll → enroll as an organisation (needs a D-U-N-S number — start this early, it can take days) or as an individual to move faster. Tell Claude when done — Claude will wire the App Store Connect API key + APNs push credentials through EAS.
+**Done (by you, Apple side):** Apple Developer Program membership active · Team ID `JVLD5VV38N` · App ID `com.htwa.app` registered with **Sign in with Apple** + **Push Notifications** · Apple Pay merchant ID `merchant.com.htwa` registered · App Store Connect API key created (Key ID `6T67T29GN6`, file `~/Documents/HTWA/AuthKey_6T67T29GN6.p8` — gitignored, never committed) · app record **htwa** exists in App Store Connect.
 
-**Unblocks:** real push notifications on iOS (currently local-notification delivery only — works while the app is open/backgrounded, can't reach a closed app), TestFlight distribution, and the eventual App Store launch. This is the actual reason a real-iPhone build (for TestFlight or a QA tester) still can't happen — nothing on the code/build side substitutes for this. Longest lead-time item outstanding — worth starting now if enrolling as an organisation (D-U-N-S lookup can take days).
+**Done (by Claude, in the repo — all on `feat/payments-auth`):**
+- `eas.json` → `submit.production.ios` filled: `ascApiKeyPath`, `ascApiKeyId`, `ascApiKeyIssuerId`, `appleTeamId`, and `ascAppId` **`6821643355`** (looked up read-only from the ASC API: app "htwa", bundle `com.htwa.app`). These are identifiers, not secrets — the `.p8` file is the only secret and stays local.
+- `app.config.js` → added a specific, honest `expo-location` permission string (was Expo's generic "Allow htwa to access your location", which App Review rejects); `aps-environment` is now `production` automatically when EAS builds the `production` profile (stays `development` for dev/preview/simulator). Camera + photo-library strings, `usesAppleSignIn`, Apple Pay merchant ID and `ITSAppUsesNonExemptEncryption: false` were verified already correct.
+- Version/build number: `version` is `1.0.0` in `app.config.js`; the **build number is owned by EAS** (`appVersionSource: "remote"` + production `autoIncrement: true`) — there is deliberately **no** `ios.buildNumber` in the config. Don't add one.
+
+**What's still open before TestFlight — do these IN ORDER:**
+
+1. **Turn on the Apple provider in Supabase** (Dashboard → Authentication → Providers → Apple → Enable; **Client IDs** = `com.htwa.app`; leave Secret Key empty). It is currently **disabled** (checked 11 Oct) — until then Sign in with Apple fails. Details: item 10-D.
+2. **Add the Apple Pay capability to the App ID if you haven't:** developer.apple.com → Identifiers → `com.htwa.app` → tick **Apple Pay Payment Processing** → Edit → select `merchant.com.htwa` → Save. (Tell me if you already did — I couldn't check this from the API.) Stripe's Apple Pay certificate (item 10-C) is only needed to *take an Apple Pay payment*, not to get a TestFlight build installed.
+3. **Set up iOS credentials with EAS — this MUST be run by you in a real Terminal.app window** (it is an arrow-key menu and needs Apple login + 2FA; I can't and mustn't run it):
+   ```
+   cd ~/Documents/HTWA
+   npx eas-cli credentials --platform ios
+   ```
+   - Sign in to your Apple ID when asked (hello@htwa-app.com — the account holding the Developer membership) and approve the 2FA code. If it asks about your Apple team, pick **JVLD5VV38N**.
+   - When asked which build profile: **`production`**.
+   - Choose **"Build Credentials"** / "Set up a new distribution certificate / provisioning profile" and let **EAS manage everything ("Let Expo handle the process")**: a new **iOS Distribution certificate** and an **App Store provisioning profile** for `com.htwa.app`. Accept the defaults; don't import your own.
+   - Back at the menu, choose **"Push Notifications: Manage your Apple Push Notifications Key"** → **set up a new push key** (let EAS generate and store it). This is what lets `send-push` reach iPhones.
+   - Exit the menu once all three show as set up. (If it says a certificate already exists, keep it; don't regenerate. Apple allows only a few distribution certificates per team.)
+4. **Make sure the production EAS environment has the `EXPO_PUBLIC_*` values** (expo.dev → project → Environment variables → `production`): Supabase URL/anon key, Stripe **publishable** key, Google Maps key, and (once item 11 is done) the two Google client IDs. A production build with a missing value ships with that feature "not available".
+5. **Build** (takes ~15–30 min, runs on Expo's servers, no cost beyond your EAS plan's queue):
+   ```
+   npx eas-cli build --platform ios --profile production
+   ```
+6. **Submit to TestFlight** (uploads the finished build to App Store Connect using the API key already in `eas.json`):
+   ```
+   npx eas-cli submit --platform ios --profile production --latest
+   ```
+7. **In App Store Connect → htwa → TestFlight:** wait for "Processing" to finish (10–30 min), answer the **export compliance** question if asked (the app declares no non-exempt encryption), add yourself under *Internal Testing*, install via the TestFlight app. External testers additionally need Beta App Review and a filled-in Test Information page (item 15 — the privacy policy URL must be live).
+
+**Still needed for the *App Store* (not TestFlight):** privacy policy URL live (item 15), App Privacy "nutrition label", screenshots, age rating, and the review notes for the ID-verification flow (give App Review a demo account).
+
+**Things that can go wrong:** `eas credentials` may ask to "log in" to Apple again if the session expires — just repeat; if a distribution certificate "limit reached" error appears, send me a screenshot rather than revoking anything; the first `submit` can fail if the ASC key's role is below *App Manager* (check Users and Access → Integrations → the key's access).
 
 ### 4c. FCM V1 push credential (Android) — 🔴 still needs 2 minutes at a real terminal; **the code side is now fully built (22 Jul)**
 
@@ -169,9 +200,11 @@ Only the dashboard/service role can set either status to approved — the app ph
 
 ---
 
-## 10. Sign in with Apple + Apple Pay — Apple Developer steps (needs item 4b first)
+## 10. Sign in with Apple + Apple Pay — Apple Developer steps
 
-**Code is done** (branch `feat/payments-auth`, Stages 89–90). What's left is Apple-side set-up. You need an active Apple Developer Program membership first (item 4b).
+**Code is done** (branch `feat/payments-auth`, Stages 89–90). Apple Developer membership is active (item 4b, done 11 Oct).
+
+**Status 11 Oct:** A.1–A.3 partly done — `com.htwa.app` exists with Sign in with Apple + Push Notifications; **Apple Pay Payment Processing not confirmed**. B.1–B.2 **done** (`merchant.com.htwa` registered); B.3 (attach it to the App ID) unconfirmed. **C (Stripe certificate) and D (Supabase Apple provider — verified still disabled) are NOT done.** E happens automatically on the first production build.
 
 **A. Register the capabilities on the app's ID**
 1. https://developer.apple.com/account → **Certificates, Identifiers & Profiles** → **Identifiers**.

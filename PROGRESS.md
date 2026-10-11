@@ -4,6 +4,24 @@ Entries are added at the top. Most recent session is always first.
 
 ---
 
+## 11 October 2026 (later) — Apple Developer / App Store Connect wiring (`feat/payments-auth`)
+
+Config-only session. **Nothing merged to `main`; no build, no `eas credentials`, no submit run** (all three are Jordan's, in a real Terminal). The `.p8` key was used only to sign a short-lived JWT for one read-only API call; its contents were never printed, and it is gitignored (`*.p8`) with zero tracked `.p8` files.
+
+**What changed**
+- `eas.json` — `submit.production.ios` now ACTIVE: `ascApiKeyPath ./AuthKey_6T67T29GN6.p8`, `ascApiKeyId 6T67T29GN6`, `ascApiKeyIssuerId`, `appleTeamId JVLD5VV38N`, `ascAppId 6821643355` (found via read-only `GET /v1/apps?filter[bundleId]=com.htwa.app` → app "htwa", sku `htwa-ios-001`). Android submit block untouched.
+- `app.config.js` — (1) added the `expo-location` plugin with a specific purpose string (the built Info.plist previously had Expo's generic "Allow htwa to access your location", a likely App Review rejection); foreground-only, no background modes. (2) `aps-environment` is now `production` when `EAS_BUILD_PROFILE === 'production'`, else `development` (verified with `expo config --type prebuild`: production → `production`; dev → `development`).
+- `BLOCKERS-FOR-JORDAN.md` — 4b marked DONE; ordered TestFlight steps added (Supabase Apple provider → Apple Pay on App ID → `npx eas-cli credentials --platform ios` [production, EAS-managed cert + profile, push key] → production env vars → `eas build` → `eas submit --latest` → TestFlight); item 10 given a status line.
+- `PROGRESS.md` — this entry.
+
+**Verified:** bundleIdentifier `com.htwa.app`, `usesAppleSignIn`, merchant `merchant.com.htwa` (also in generated entitlements), `ITSAppUsesNonExemptEncryption: false`, camera + photo-library strings all already correct. No `ios.buildNumber` in config, consistent with `appVersionSource: remote` + `autoIncrement` (first build gets 1). `tsc` 0 errors; `eas.json` parses.
+
+**Found, not changed:** Supabase Apple auth provider is still **disabled** (and Google too) — Sign in with Apple will fail until enabled (BLOCKERS 4b step 1 / 10-D). `services/location.ts` is unreferenced by any screen (only `services/tracking.ts` is live).
+
+**Files modified:** `eas.json`, `app.config.js`, `BLOCKERS-FOR-JORDAN.md`, `PROGRESS.md`. Scratch (outside repo): `scratchpad/asc_lookup.js`.
+
+---
+
 ## 11 October 2026 — Payment wallets, transaction history, payment handoff, native Apple/Google sign-in, Article 14 contact notice (`feat/payments-auth`)
 
 Branch `feat/payments-auth` (off `feat/full-sweep`), draft PR against `feat/full-sweep`. **Nothing merged to `main`. CodeRabbit NOT triggered** (config only auto-reviews PRs into `main`, and the PR is a draft). tsc `--noEmit`: **0 errors**. Jest: **92 suites / 1343 tests passing** (also on the throwaway integration branch).
