@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing } from '../../constants/theme';
 import { useRealtimeNotifications } from '../../hooks/useRealtimeNotifications';
 import { usePushTokenRegistration } from '../../hooks/usePushTokenRegistration';
+import { useNotificationNavigation } from '../../hooks/useNotificationNavigation';
 
 // ─── Spec-local constants ─────────────────────────────────────────────────────
 
@@ -77,6 +78,8 @@ export default function TabLayout(): React.ReactElement {
   // covers backgrounded/killed-app delivery via a real server-sent push.
   useRealtimeNotifications();
   usePushTokenRegistration();
+  // Tapping a notification (booking confirmed → ride detail → Pay) opens the right screen.
+  useNotificationNavigation();
   return (
     <Tabs screenOptions={TAB_SCREEN_OPTIONS}>
       {TAB_SCREENS.map(({ name, title, icon, outlineIcon }) => (
