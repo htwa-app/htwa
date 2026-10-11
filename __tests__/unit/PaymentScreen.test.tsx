@@ -75,6 +75,16 @@ describe('PaymentScreen', () => {
     expect(opts.googlePay).toEqual({ merchantCountryCode: 'IE', currencyCode: 'GBP', testEnv: true });
   });
 
+  it('an already-paid booking shows a receipt link instead of opening the payment sheet', async () => {
+    mockInvoke.mockResolvedValue({ data: { alreadyPaid: true, paymentIntentId: 'pi_1' }, error: null });
+    render(<PaymentScreen />);
+    await waitFor(() => expect(screen.getByTestId('already-paid')).toBeTruthy());
+    expect(mockInitSheet).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('pay-button')).toBeNull();
+    fireEvent.press(screen.getByTestId('view-receipt-button'));
+    expect(mockReplace).toHaveBeenCalledWith(expect.stringContaining('/payment-confirmation?bookingId=b1'));
+  });
+
   it('presents the sheet and navigates to confirmation on pay', async () => {
     render(<PaymentScreen />);
     await waitFor(() => expect(screen.getByTestId('pay-button')).toBeTruthy());

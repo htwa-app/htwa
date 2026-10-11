@@ -43,6 +43,9 @@ export default function PaymentScreen(): React.ReactElement {
   const [isReady,        setIsReady]        = useState(false);
   const [isProcessing,   setIsProcessing]   = useState(false);
   const [error,          setError]          = useState<string | null>(null);
+  // The booking already has a succeeded PaymentIntent (create-payment-intent
+  // returns alreadyPaid) — show that instead of opening a sheet to pay again.
+  const [alreadyPaid,    setAlreadyPaid]    = useState(false);
 
   const amount      = parseFloat(params.amount ?? '0');
   const currency    = (params.currency ?? 'EUR') as 'EUR' | 'GBP';
@@ -75,6 +78,7 @@ export default function PaymentScreen(): React.ReactElement {
           driverStripeAccountId: params.driverStripeAccountId,
         },
       });
+      if (data?.alreadyPaid === true) { setAlreadyPaid(true); return; }
       if (fnErr || !data?.clientSecret) {
         setError('Could not initialise payment. Please try again.');
         return;
@@ -150,6 +154,19 @@ export default function PaymentScreen(): React.ReactElement {
         <Text style={styles.errorText} testID="payment-error">{error}</Text>
       )}
 
+      {alreadyPaid && (
+        <View style={styles.paidCard} testID="already-paid">
+          <Text style={styles.paidText}>You've already paid for this booking.</Text>
+          <Button
+            title="View receipt"
+            onPress={() => router.replace(
+              `/payment-confirmation?bookingId=${params.bookingId}&amount=${amount}&currency=${currency}`,
+            )}
+            testID="view-receipt-button"
+          />
+        </View>
+      )}
+
       {isReady && !isInitialising && (
         <Button
           title={isProcessing ? 'Processing…' : `Pay ${formatCurrency(amount, currency)}`}
@@ -187,5 +204,7 @@ const styles = StyleSheet.create({
   totalLabel: { ...Typography.headingSmall, color: Colors.textPrimary },
   totalValue: { ...Typography.headingSmall, color: Colors.primary },
   errorText: { ...Typography.bodySmall, color: Colors.sos, textAlign: 'center' },
+  paidCard: { gap: Spacing.md },
+  paidText: { ...Typography.bodyMedium, color: Colors.textPrimary, textAlign: 'center' },
   payButton: {},
 });
